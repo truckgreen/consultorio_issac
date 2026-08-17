@@ -1,24 +1,22 @@
-// server.js - Servidor Backend Full-Stack de EQUILIBRA
-// Soporta gestión de citas, autenticación de administradores, gestión dinámica de precios,
-// notificaciones y persistencia en base de datos.
-
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const bcrypt = require('bcryptjs');
-const dotenv = require('dotenv');
+// server.ts - Entry point compatible con tsx y Vite en el entorno de desarrollo
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
-const app = express();
-const port = Number(process.env.PORT || 3000);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// ==========================================
-// CAPA DE BASE DE DATOS (SQLite con fallback JSON)
-// ==========================================
+const app = express();
+const PORT = 3000;
+
+// Base de datos JSON
 const DB_FILE = path.join(__dirname, 'database.json');
 
-// Estructura inicial de datos por defecto
 const defaultData = {
   users: [
     {
@@ -74,7 +72,6 @@ const defaultData = {
   device_tokens: []
 };
 
-// Cargar o inicializar base de datos
 function loadDatabase() {
   if (!fs.existsSync(DB_FILE)) {
     saveDatabase(defaultData);
@@ -90,25 +87,21 @@ function loadDatabase() {
       device_tokens: parsed.device_tokens || defaultData.device_tokens
     };
   } catch (err) {
-    console.error('Error leyendo base de datos, restaurando valores por defecto:', err);
     saveDatabase(defaultData);
     return JSON.parse(JSON.stringify(defaultData));
   }
 }
 
-function saveDatabase(data) {
+function saveDatabase(data: any) {
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
   } catch (err) {
-    console.error('Error guardando base de datos:', err);
+    console.error('Error guardando DB:', err);
   }
 }
 
 let db = loadDatabase();
 
-// ==========================================
-// MIDDLEWARES
-// ==========================================
 app.use(express.json({ limit: '1mb' }));
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -120,89 +113,40 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware de autenticación de admin
-function requireAdmin(req, res, next) {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-
-  if (!token) {
-    return res.status(401).json({ message: 'Token de administrador requerido' });
-  }
-
-  try {
-    const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
-    if (!decoded.username) {
-      return res.status(401).json({ message: 'Token inválido' });
-    }
-    req.admin = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ message: 'Token inválido o expirado' });
-  }
-}
-
-// ==========================================
-// RUTAS DE LA API
-// ==========================================
-
-// Estado del servidor
+// API Routes
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, message: 'EQUILIBRA API operativa', timestamp: new Date().toISOString() });
+  res.json({ ok: true, message: 'EQUILIBRA API funcionando' });
 });
 
-// Login Administrador
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
-
-  if (!username || !password) {
-    return res.status(400).json({ message: 'Usuario y contraseña requeridos' });
-  }
-
   db = loadDatabase();
-  const user = db.users.find(u => u.username === username);
+  const user = db.users.find((u: any) => u.username === username);
 
-  if (!user) {
-    return res.status(401).json({ message: 'Credenciales inválidas' });
-  }
-
-  const isValid = bcrypt.compareSync(password, user.password_hash);
-  if (!isValid) {
+  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ message: 'Credenciales inválidas' });
   }
 
   const token = Buffer.from(JSON.stringify({ username: user.username, role: user.role, time: Date.now() })).toString('base64');
-  return res.json({
-    ok: true,
-    token,
-    user: { username: user.username, role: user.role }
-  });
+  return res.json({ ok: true, token, user: { username: user.username, role: user.role } });
 });
 
-// ==========================================
-// ENDPOINTS DE CITAS
-// ==========================================
-
-// Obtener todas las citas
 app.get('/api/appointments', (req, res) => {
   db = loadDatabase();
-  const sorted = [...db.appointments].sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+  const sorted = [...db.appointments].sort((a: any, b: any) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
   res.json(sorted);
 });
 
-// Crear nueva cita
 app.post('/api/appointments', (req, res) => {
   const { name, phone, email, service, date, time } = req.body || {};
-
   if (!name || !phone || !email || !service || !date || !time) {
     return res.status(400).json({ message: 'Todos los campos son obligatorios' });
   }
 
   db = loadDatabase();
-
-  // Validar si el horario ya está reservado y activo
-  const conflict = db.appointments.find(a => a.date === date && a.time === time && a.status !== 'cancelada');
+  const conflict = db.appointments.find((a: any) => a.date === date && a.time === time && a.status !== 'cancelada');
   if (conflict) {
-    return res.status(409).json({ message: 'El horario seleccionado ya está reservado.' });
+    return res.status(409).json({ message: 'Ese horario ya está ocupado' });
   }
 
   const newAppointment = {
@@ -219,90 +163,55 @@ app.post('/api/appointments', (req, res) => {
 
   db.appointments.push(newAppointment);
   saveDatabase(db);
-
-  return res.status(201).json({ message: 'Cita creada exitosamente', appointment: newAppointment });
+  return res.status(201).json({ message: 'Cita creada correctamente', appointment: newAppointment });
 });
 
-// Actualizar cita completa (por ID)
 app.put('/api/appointments/:id', (req, res) => {
   const { id } = req.params;
-  const updateData = req.body || {};
-
   db = loadDatabase();
-  const index = db.appointments.findIndex(a => a.id === id);
+  const index = db.appointments.findIndex((a: any) => a.id === id);
+  if (index === -1) return res.status(404).json({ message: 'Cita no encontrada' });
 
-  if (index === -1) {
-    return res.status(404).json({ message: 'Cita no encontrada' });
-  }
-
-  db.appointments[index] = {
-    ...db.appointments[index],
-    ...updateData,
-    id // Proteger id original
-  };
-
+  db.appointments[index] = { ...db.appointments[index], ...req.body, id };
   saveDatabase(db);
-  return res.json({ ok: true, message: 'Cita actualizada con éxito', appointment: db.appointments[index] });
+  return res.json({ ok: true, message: 'Cita actualizada', appointment: db.appointments[index] });
 });
 
-// Actualizar estado de cita (por ejemplo confirmar o cancelar)
 app.patch('/api/appointments/:id', (req, res) => {
   const { id } = req.params;
   const { status } = req.body || {};
-
-  if (!status) {
-    return res.status(400).json({ message: 'El estado es requerido' });
-  }
-
   db = loadDatabase();
-  const appointment = db.appointments.find(a => a.id === id);
-
-  if (!appointment) {
-    return res.status(404).json({ message: 'Cita no encontrada' });
-  }
+  const appointment = db.appointments.find((a: any) => a.id === id);
+  if (!appointment) return res.status(404).json({ message: 'Cita no encontrada' });
 
   appointment.status = status;
   saveDatabase(db);
-
-  return res.json({ ok: true, message: `Estado actualizado a ${status}`, appointment });
+  return res.json({ ok: true, message: `Estado cambiado a ${status}`, appointment });
 });
 
-// Eliminar cita
 app.delete('/api/appointments/:id', (req, res) => {
   const { id } = req.params;
-
   db = loadDatabase();
-  const initialLength = db.appointments.length;
-  db.appointments = db.appointments.filter(a => a.id !== id);
-
-  if (db.appointments.length === initialLength) {
-    return res.status(404).json({ message: 'Cita no encontrada' });
-  }
+  const before = db.appointments.length;
+  db.appointments = db.appointments.filter((a: any) => a.id !== id);
+  if (db.appointments.length === before) return res.status(404).json({ message: 'Cita no encontrada' });
 
   saveDatabase(db);
-  return res.json({ ok: true, message: 'Cita eliminada con éxito' });
+  return res.json({ ok: true, message: 'Cita eliminada' });
 });
 
-// ==========================================
-// 2. ENDPOINTS DE GESTIÓN DINÁMICA DE PRECIOS
-// ==========================================
-
-// Obtener precios de servicios (leído por el bot y la app)
+// Precios dinámicos
 app.get('/api/prices', (req, res) => {
   db = loadDatabase();
   res.json(db.prices || []);
 });
 
-// Guardar/Actualizar catálogo completo de precios
 app.put('/api/prices', (req, res) => {
   const { prices } = req.body || {};
-
-  if (!Array.isArray(prices)) {
-    return res.status(400).json({ message: 'El formato de precios debe ser un arreglo' });
-  }
+  if (!Array.isArray(prices)) return res.status(400).json({ message: 'Arreglo inválido' });
 
   db = loadDatabase();
-  db.prices = prices.map(p => ({
+  db.prices = prices.map((p: any) => ({
     id: p.id || `price-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     service: String(p.service).trim(),
     price: Number(p.price) || 0,
@@ -313,20 +222,15 @@ app.put('/api/prices', (req, res) => {
   }));
 
   saveDatabase(db);
-  return res.json({ ok: true, message: 'Precios actualizados con éxito', prices: db.prices });
+  return res.json({ ok: true, message: 'Precios actualizados', prices: db.prices });
 });
 
-// Actualizar el precio de un servicio individual
 app.patch('/api/prices/:id', (req, res) => {
   const { id } = req.params;
   const { price, currency, note, duration } = req.body || {};
-
   db = loadDatabase();
-  const servicePrice = db.prices.find(p => p.id === id);
-
-  if (!servicePrice) {
-    return res.status(404).json({ message: 'Servicio no encontrado en el catálogo de precios' });
-  }
+  const servicePrice = db.prices.find((p: any) => p.id === id);
+  if (!servicePrice) return res.status(404).json({ message: 'Servicio no encontrado' });
 
   if (price !== undefined) servicePrice.price = Number(price);
   if (currency !== undefined) servicePrice.currency = currency;
@@ -335,13 +239,12 @@ app.patch('/api/prices/:id', (req, res) => {
   servicePrice.updated_at = Date.now();
 
   saveDatabase(db);
-  return res.json({ ok: true, message: 'Precio actualizado con éxito', service: servicePrice });
+  return res.json({ ok: true, message: 'Precio actualizado', service: servicePrice });
 });
 
-// Servir archivos estáticos del proyecto
+// Servir archivos estáticos directamente
 app.use(express.static(__dirname));
 
-// Rutas directas para los archivos HTML principales
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
@@ -356,19 +259,11 @@ app.get('/user', (req, res) => {
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
-    return res.status(404).json({ message: 'Ruta API no encontrada' });
+    return res.status(404).json({ message: 'API no encontrada' });
   }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Iniciar servidor
-if (require.main === module) {
-  app.listen(port, '0.0.0.0', () => {
-    console.log(`=========================================`);
-    console.log(`🏥 EQUILIBRA Consultorio y Asistente Virtual`);
-    console.log(`🚀 Servidor ejecutándose en http://localhost:${port}`);
-    console.log(`=========================================`);
-  });
-}
-
-module.exports = app;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`EQUILIBRA running on http://localhost:${PORT}`);
+});

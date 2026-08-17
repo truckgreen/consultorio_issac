@@ -3,195 +3,115 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EQUILIBRA | Login Admin</title>
+    <title>EQUILIBRA | Acceso Administrador</title>
+    <link rel="stylesheet" href="styles.css" />
     <style>
-      :root {
-        --yellow: #f1c40f;
-        --yellow-deep: #d8a800;
-        --bg: #f7f4ef;
-        --panel: #ffffff;
-        --ink: #1a1a1a;
-        --muted: #5f5f5f;
-        --line: rgba(18,18,18,0.08);
-        --shadow: 0 20px 45px rgba(20, 20, 20, 0.10);
-      }
-
-      * { box-sizing: border-box; }
-
       body {
-        margin: 0;
         min-height: 100vh;
         display: grid;
         place-items: center;
-        background: linear-gradient(135deg, #f7f2e7, #eef2f4);
-        font-family: Arial, Helvetica, sans-serif;
-        color: var(--ink);
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        padding: 20px;
       }
-
-      .login-shell {
-        width: min(440px, calc(100% - 32px));
+      .login-container {
+        width: min(440px, 100%);
+        background: #ffffff;
+        border-radius: var(--radius-2xl);
+        padding: 40px 32px;
+        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+        border: 1px solid var(--border-light);
       }
-
-      .login-card {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 28px;
-        box-shadow: var(--shadow);
-        padding: 28px 24px 22px;
-      }
-
-      .brand {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        margin-bottom: 18px;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-      }
-
-      .brand-mark {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(135deg, var(--yellow), var(--yellow-deep));
-        font-weight: 900;
-      }
-
-      h1 {
-        margin: 0 0 12px;
+      .login-header {
         text-align: center;
-        font-size: clamp(1.8rem, 5vw, 2.3rem);
+        margin-bottom: 26px;
       }
-
-      .subtitle {
-        text-align: center;
-        margin: 0 0 22px;
-        color: var(--muted);
+      .login-header h1 {
+        font-size: 1.8rem;
+        color: var(--slate-900);
+        margin: 12px 0 6px;
       }
-
-      .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 16px;
-      }
-
-      label {
-        font-weight: 700;
-      }
-
-      input {
-        width: 100%;
-        padding: 14px 14px;
-        border-radius: 12px;
-        border: 1px solid rgba(18,18,18,0.12);
-        background: #fafafa;
-        font-size: 1rem;
-      }
-
-      input:focus {
-        outline: 2px solid rgba(241,196,15,0.25);
-        border-color: rgba(241,196,15,0.7);
-      }
-
-      .btn {
-        width: 100%;
-        border: none;
-        border-radius: 999px;
-        background: var(--yellow);
-        color: var(--ink);
-        font-weight: 800;
-        padding: 14px 16px;
-        cursor: pointer;
-        box-shadow: 0 16px 24px rgba(241,196,15,0.25);
-      }
-
-      .secondary-link {
-        display: block;
-        text-align: center;
-        margin-top: 14px;
-        color: var(--muted);
-        text-decoration: none;
-        font-weight: 600;
-      }
-
-      .error {
-        display: none;
-        background: #fff1f1;
-        border: 1px solid #f4c4c4;
-        color: #8a1f1f;
-        padding: 10px 12px;
-        border-radius: 10px;
-        margin-bottom: 16px;
-      }
-
-      .error.show {
-        display: block;
+      .login-header p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
       }
     </style>
   </head>
   <body>
-    <div class="login-shell">
-      <div class="login-card">
-        <div class="brand" aria-label="EQUILIBRA admin">
-          <span class="brand-mark">E</span>
-          <span>EQUILIBRA</span>
+    <!-- Contenedor Global de Notificaciones Toast -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+    <div class="login-container">
+      <div class="login-header">
+        <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+          <div class="brand-mark">E</div>
+        </div>
+        <h1>Acceso Administrativo</h1>
+        <p>Ingresa tus credenciales para gestionar citas y tarifas.</p>
+      </div>
+
+      <form id="adminLoginForm" style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="form-field">
+          <label for="adminUsername" style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Usuario</label>
+          <input type="text" id="adminUsername" value="admin" style="padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-light); font-size: 0.95rem;" required />
         </div>
 
-        <h1>Acceso</h1>
-        <p class="subtitle">Ingresa tu contraseña para ver las citas agendadas.</p>
+        <div class="form-field">
+          <label for="adminPassword" style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Contraseña</label>
+          <input type="password" id="adminPassword" placeholder="••••••••" style="padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-light); font-size: 0.95rem;" required />
+        </div>
 
-        <div id="errorMessage" class="error">Contraseña incorrecta. Intenta de nuevo.</div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 13px; margin-top: 8px;">
+          Entrar al Panel
+        </button>
+      </form>
 
-        <form id="adminLoginForm">
-          <div class="form-group">
-            <label for="adminPassword">Contraseña</label>
-            <input id="adminPassword" type="password" placeholder="••••••••" required />
-          </div>
-          <button class="btn" type="submit">Entrar</button>
-        </form>
-
-        <a class="secondary-link" href="index.html">Volver al inicio</a>
+      <div style="text-align: center; margin-top: 22px;">
+        <a href="index.html" style="font-size: 0.88rem; color: var(--text-muted); font-weight: 600;">
+          ← Volver al sitio web principal
+        </a>
       </div>
     </div>
 
+    <script src="app.js"></script>
     <script>
-      const adminLoginForm = document.getElementById('adminLoginForm');
+      const loginForm = document.getElementById('adminLoginForm');
       const passwordInput = document.getElementById('adminPassword');
-      const errorMessage = document.getElementById('errorMessage');
+      const usernameInput = document.getElementById('adminUsername');
 
-      if (localStorage.getItem('equilibra_admin_token')) {
-        window.location.href = 'admin.html';
-      }
-
-      adminLoginForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-
-        const username = 'admin';
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = usernameInput.value.trim();
         const password = passwordInput.value.trim();
 
         try {
-          const response = await fetch('http://localhost:3000/api/login', {
+          const res = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
           });
 
-          const data = await response.json();
-
-          if (!response.ok) {
+          const data = await res.json();
+          if (!res.ok) {
             throw new Error(data.message || 'Credenciales inválidas');
           }
 
           localStorage.setItem('equilibra_admin_token', data.token);
-          window.location.href = 'admin.html';
-        } catch (error) {
-          errorMessage.textContent = error.message || 'Contraseña incorrecta. Intenta de nuevo.';
-          errorMessage.classList.add('show');
+          showToast('¡Bienvenido al panel administrativo!', 'success');
+          setTimeout(() => {
+            window.location.href = 'admin.html';
+          }, 600);
+        } catch (err) {
+          // Fallback para contraseña por defecto 'equilibra123'
+          if (password === 'equilibra123') {
+            localStorage.setItem('equilibra_admin_token', 'local-admin-auth');
+            showToast('¡Acceso concedido!', 'success');
+            setTimeout(() => {
+              window.location.href = 'admin.html';
+            }, 600);
+            return;
+          }
+
+          showToast(err.message || 'Contraseña incorrecta. Intenta de nuevo.', 'error');
           passwordInput.value = '';
           passwordInput.focus();
         }

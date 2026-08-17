@@ -3,122 +3,155 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EQUILIBRA | Usuario</title>
+    <title>EQUILIBRA | Agendar Cita Médica Online</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="app-shell" data-page="user">
+    <!-- Contenedor Global de Notificaciones Toast -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
     <header class="topbar">
       <div class="container navbar">
-        <div class="brand" aria-label="EQUILIBRA">
+        <a href="index.html" class="brand" aria-label="EQUILIBRA Inicio">
           <span class="brand-mark">E</span>
-          <span>EQUILIBRA</span>
-        </div>
+          <span class="brand-text">EQUILIBRA</span>
+        </a>
 
         <nav class="nav-links" aria-label="Navegación principal">
           <a href="index.html">Inicio</a>
-          <a href="user.html" class="active">Agendar cita</a>
-          <a href="admin.html">Administración</a>
+          <a href="user.html" class="active">Agendar Cita</a>
+          <a href="admin.html" class="btn btn-secondary btn-sm">Admin</a>
+          <button type="button" class="btn btn-primary btn-sm" data-open-bot="agenda">
+            🤖 Asistente
+          </button>
         </nav>
       </div>
     </header>
 
-    <div class="app-layout">
-      <aside class="sidebar">
-        <div class="brand" aria-label="EQUILIBRA sidebar">
-          <span class="brand-mark">E</span>
-          <span>EQUILIBRA</span>
-        </div>
+    <main class="container" style="padding: 40px 0 70px;">
+      <div style="text-align: center; max-width: 600px; margin: 0 auto 36px;">
+        <span class="section-tag">Reserva Online</span>
+        <h1 style="font-size: clamp(2rem, 3.5vw, 2.6rem); margin-bottom: 8px;">Agenda tu Consulta Médica</h1>
+        <p style="color: var(--text-muted);">Selecciona tu especialista, escoge la fecha y hora disponible en el calendario interactivo.</p>
+      </div>
 
-        <nav class="side-links">
-          <a href="user.html" class="active">📅 Agendar cita</a>
-          <a href="admin.html">🛠️ Vista admin</a>
-          <a href="index.html">🏠 Volver al inicio</a>
-        </nav>
-      </aside>
+      <div class="dashboard-grid">
+        <!-- Formulario y Calendario -->
+        <section class="card app-form">
+          <form id="bookingForm">
+            <input type="hidden" id="date" />
 
-      <main class="app-main">
-        <div class="top-panel">
-          <h1>Agendar cita</h1>
-          <span class="badge">✅ Calendario disponible</span>
-        </div>
-
-        <div class="dashboard-grid">
-          <section class="card app-form">
-            <form id="bookingForm">
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="name">Nombre completo</label>
-                  <input id="name" type="text" placeholder="Ej. Sofía Ramírez" required />
-                </div>
-                <div class="form-group">
-                  <label for="phone">Teléfono</label>
-                  <input id="phone" type="tel" placeholder="0412-1234567" required />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="email">Correo electrónico</label>
-                  <input id="email" type="email" placeholder="correo@ejemplo.com" required />
-                </div>
-                <div class="form-group">
-                  <label for="service">Servicio</label>
-                  <select id="service" required>
-                    <option value="">Selecciona un servicio</option>
-                    <option>Fisioterapia Deportiva</option>
-                    <option>Traumatología</option>
-                    <option>Psicología</option>
-                    <option>Nutrición</option>
-                    <option>Entrenamiento Funcional</option>
-                    <option>Boxeo</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="calendar-box card">
-                <div class="calendar-header">
-                  <h3 id="calendarMonth">Mes actual</h3>
-                  <div class="calendar-nav">
-                    <button type="button" id="prevMonth" aria-label="Mes anterior">‹</button>
-                    <button type="button" id="nextMonth" aria-label="Mes siguiente">›</button>
-                  </div>
-                </div>
-
-                <div class="weekdays">
-                  <div>Dom</div>
-                  <div>Lun</div>
-                  <div>Mar</div>
-                  <div>Mié</div>
-                  <div>Jue</div>
-                  <div>Vie</div>
-                  <div>Sáb</div>
-                </div>
-
-                <div id="calendarGrid" class="calendar-grid"></div>
-              </div>
-
+            <div class="form-row">
               <div class="form-group">
-                <label>Fecha seleccionada</label>
-                <input id="date" type="date" readonly />
+                <label for="name">Nombre y Apellido *</label>
+                <input id="name" type="text" placeholder="Ej: María López" required />
               </div>
-
               <div class="form-group">
-                <label>Horarios disponibles</label>
-                <div id="timeSlots" class="time-grid"></div>
+                <label for="phone">Teléfono de contacto *</label>
+                <input id="phone" type="tel" placeholder="Ej: 0412-1234567" required />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="email">Correo electrónico *</label>
+                <input id="email" type="email" placeholder="correo@ejemplo.com" required />
+              </div>
+              <div class="form-group">
+                <label for="service">Servicio requerido *</label>
+                <select id="service" required>
+                  <option value="">Selecciona un servicio</option>
+                  <option>Fisioterapia Deportiva</option>
+                  <option>Traumatología</option>
+                  <option>Psicología</option>
+                  <option>Nutrición</option>
+                  <option>Entrenamiento Funcional</option>
+                  <option>Boxeo</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Calendario Interactivo -->
+            <div class="calendar-box card" style="margin: 20px 0; background: #ffffff;">
+              <div class="calendar-header">
+                <h3 id="calendarMonth" style="text-transform: capitalize; font-size: 1.05rem;">Mes Año</h3>
+                <div class="calendar-nav">
+                  <button type="button" id="prevMonth" aria-label="Mes anterior">‹</button>
+                  <button type="button" id="nextMonth" aria-label="Mes siguiente">›</button>
+                </div>
               </div>
 
-              <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Reservar cita</button>
-            </form>
-          </section>
+              <div class="weekdays">
+                <div class="weekday">Dom</div>
+                <div class="weekday">Lun</div>
+                <div class="weekday">Mar</div>
+                <div class="weekday">Mié</div>
+                <div class="weekday">Jue</div>
+                <div class="weekday">Vie</div>
+                <div class="weekday">Sáb</div>
+              </div>
 
-          <aside class="card summary-panel">
-            <h3>Resumen de cita</h3>
-            <div id="summaryList" class="summary-list"></div>
-          </aside>
+              <div id="calendarGrid" class="calendar-grid"></div>
+            </div>
+
+            <!-- Horarios Disponibles -->
+            <div class="form-group">
+              <label>Horarios Disponibles para la fecha seleccionada:</label>
+              <div id="timeSlots" class="time-grid">
+                <div class="empty-state">Selecciona un día en el calendario arriba.</div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px; margin-top: 14px; font-size: 1rem;">
+              Confirmar y Agendar Cita
+            </button>
+          </form>
+        </section>
+
+        <!-- Resumen Lateral -->
+        <aside class="card summary-panel" style="align-self: start;">
+          <h3 style="font-size: 1.2rem; margin-bottom: 14px;">Resumen de tu Cita</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+            Verifica que los datos coincidan antes de confirmar tu reserva.
+          </p>
+
+          <div id="summaryList" class="summary-list">
+            <!-- Renderizado dinámico -->
+          </div>
+
+          <div style="margin-top: 24px; padding: 14px; background: var(--bg-card-alt); border-radius: var(--radius-md); font-size: 0.82rem; color: var(--text-muted);">
+            💡 <strong>Nota:</strong> Recibirás confirmación directa y podrás cancelar o reprogramar cuando lo desees a través de nuestro asistente virtual.
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <!-- Widget del Asistente Virtual -->
+    <div class="assistant-widget" id="assistantWidget">
+      <div class="assistant-panel" id="assistantPanel" aria-live="polite">
+        <div class="assistant-header">
+          <div class="bot-profile">
+            <div class="bot-avatar">🤖</div>
+            <div class="bot-info">
+              <h3>Asistente EQUILIBRA</h3>
+              <span class="bot-status">En línea</span>
+            </div>
+          </div>
+          <button type="button" class="assistant-close-btn" id="assistantClose" aria-label="Cerrar Asistente">&times;</button>
         </div>
-      </main>
+
+        <div class="assistant-messages" id="assistantMessages"></div>
+        <div class="assistant-actions" id="assistantActions"></div>
+        <div class="assistant-form-wrap" id="assistantFormWrap"></div>
+      </div>
+
+      <button type="button" class="assistant-toggle-btn" id="assistantToggle" aria-expanded="false">
+        <span class="bot-badge-pulse"></span>
+        <span>Asistente Virtual</span>
+      </button>
     </div>
 
+    <script src="bot.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

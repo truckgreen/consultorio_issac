@@ -3,133 +3,184 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EQUILIBRA | Administrador</title>
+    <title>EQUILIBRA | Panel Administrativo & Gestión de Precios</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body class="app-shell" data-page="admin">
-    <header class="topbar">
-      <div class="container navbar">
-        <div class="brand" aria-label="EQUILIBRA">
-          <span class="brand-mark">E</span>
-          <span>EQUILIBRA</span>
-        </div>
+  <body class="admin-shell" data-page="admin">
+    <!-- Contenedor Global de Notificaciones Toast -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-        <nav class="nav-links" aria-label="Navegación principal">
-          <a href="index.html">Inicio</a>
-          <a href="user.html">Agendar cita</a>
-          <a href="admin.html" class="primary">Admin</a>
-        </nav>
+    <!-- Barra Lateral (Sidebar) -->
+    <aside class="admin-sidebar">
+      <div class="brand">
+        <span class="brand-mark">E</span>
+        <span class="brand-text">EQUILIBRA</span>
       </div>
-    </header>
 
-    <div class="app-layout">
-      <aside class="sidebar">
-        <div class="brand" aria-label="EQUILIBRA sidebar">
-          <span class="brand-mark">E</span>
-          <span>EQUILIBRA</span>
+      <nav class="admin-nav" aria-label="Navegación Admin">
+        <div class="admin-nav-item active" id="sideNavDashboard">
+          📊 Panel Principal
+        </div>
+        <a href="index.html" class="admin-nav-item">
+          🏠 Vista Web Inicio
+        </a>
+        <a href="user.html" class="admin-nav-item">
+          📅 Agendar Cita Paciente
+        </a>
+      </nav>
+
+      <div style="padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08);">
+        <button type="button" id="adminLogoutBtn" class="btn btn-secondary btn-sm" style="width:100%;">
+          Cerrar Sesión
+        </button>
+      </div>
+    </aside>
+
+    <!-- Área Principal de Contenido -->
+    <main class="admin-main">
+      <div class="admin-topbar">
+        <div>
+          <h1>Panel de Control</h1>
+          <p style="color: var(--text-muted); font-size: 0.92rem;">Administración integral de citas médicas, estado de pacientes y tarifas de servicios.</p>
         </div>
 
-        <nav class="side-links">
-          <a href="admin.html" class="active">📊 Dashboard</a>
-          <a href="user.html">📅 Ver usuario</a>
-          <a href="index.html">🏠 Inicio</a>
-        </nav>
-      </aside>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <button type="button" id="addAppointmentBtn" class="btn btn-primary">
+            + Nueva Cita Manual
+          </button>
+        </div>
+      </div>
 
-      <main class="admin-main">
-        <div class="top-panel">
-          <h1>Panel administrativo</h1>
-          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-            <button type="button" id="addAppointmentBtn" class="btn btn-primary" style="padding: 12px 18px;">+ Nueva cita</button>
-            <span class="badge">🟡 Citas del día</span>
+      <!-- Tarjetas de Métricas -->
+      <section class="admin-stats-grid">
+        <div class="admin-stat-card">
+          <div class="stat-label">Total Citas</div>
+          <div class="stat-value" id="totalCount">0</div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="stat-label" style="color: var(--success);">Confirmadas</div>
+          <div class="stat-value" id="confirmedCount" style="color: var(--success);">0</div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="stat-label" style="color: var(--warning);">Pendientes</div>
+          <div class="stat-value" id="pendingCount" style="color: var(--warning);">0</div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="stat-label">Próxima Cita</div>
+          <div class="stat-value" id="nextDate" style="font-size: 1.1rem; font-weight: 700; line-height: 1.4; color: #1e293b;">
+            Sin citas
+          </div>
+        </div>
+      </section>
+
+      <!-- Selector de Pestañas (Tabs) -->
+      <div class="admin-tabs">
+        <button type="button" class="admin-tab-btn active" id="tabAppointmentsBtn">
+          📋 Gestión de Citas Médicas
+        </button>
+        <button type="button" class="admin-tab-btn" id="tabPricesBtn">
+          💰 Gestión Dinámica de Precios
+        </button>
+      </div>
+
+      <!-- SECCIÓN 1: GESTIÓN DE CITAS -->
+      <section id="appointmentsSection" class="admin-card">
+        <div class="table-controls">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchAppointments" placeholder="Buscar por nombre, teléfono o correo..." />
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <label for="filterService" style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">Servicio:</label>
+            <select id="filterService" style="padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+              <option value="all">Todos los servicios</option>
+              <option>Fisioterapia Deportiva</option>
+              <option>Traumatología</option>
+              <option>Psicología</option>
+              <option>Nutrición</option>
+              <option>Entrenamiento Funcional</option>
+              <option>Boxeo</option>
+            </select>
           </div>
         </div>
 
-        <div class="admin-grid">
-          <section class="stats-row">
-            <div class="stat-card">
-              <div class="label">Total</div>
-              <strong id="totalCount">0</strong>
-            </div>
-            <div class="stat-card">
-              <div class="label">Confirmadas</div>
-              <strong id="confirmedCount">0</strong>
-            </div>
-            <div class="stat-card">
-              <div class="label">Pendientes</div>
-              <strong id="pendingCount">0</strong>
-            </div>
-            <div class="stat-card">
-              <div class="label">Próxima</div>
-              <strong id="nextDate">Sin citas</strong>
-            </div>
-          </section>
-
-          <section class="card table-card">
-            <div class="app-form" style="padding-bottom: 10px;">
-              <div class="form-group" style="margin-bottom: 0;">
-                <label for="filterService">Filtrar por servicio</label>
-                <select id="filterService">
-                  <option value="all">Todos los servicios</option>
-                  <option>Fisioterapia Deportiva</option>
-                  <option>Traumatología</option>
-                  <option>Psicología</option>
-                  <option>Nutrición</option>
-                  <option>Entrenamiento Funcional</option>
-                  <option>Boxeo</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Paciente</th>
-                    <th>Servicio</th>
-                    <th>Teléfono</th>
-                    <th>Fecha</th>
-                    <th>Hora</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="appointmentsBody"></tbody>
-              </table>
-            </div>
-          </section>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Paciente</th>
+                <th>Servicio</th>
+                <th>Teléfono</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="appointmentsBody">
+              <!-- Renderizado dinámico desde app.js -->
+            </tbody>
+          </table>
         </div>
-      </main>
-    </div>
+      </section>
 
-    <div class="admin-form-modal" id="appointmentModal" aria-hidden="true" style="position: fixed; inset: 0; background: rgba(17,17,17,0.62); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; pointer-events: none; transition: 0.2s ease; z-index: 100; padding: 20px;">
-      <div class="card" style="width: min(560px, 100%); padding: 24px; position: relative;">
-        <button type="button" id="closeModalBtn" aria-label="Cerrar" style="position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; border: none; border-radius: 50%; background: #f3f3f3; cursor: pointer; font-size: 1.4rem;">×</button>
-        <h2 id="appointmentModalTitle" style="margin: 0 0 18px; font-size: clamp(1.8rem, 2.2vw, 2.5rem);">Nueva cita</h2>
+      <!-- SECCIÓN 2: GESTIÓN DINÁMICA DE PRECIOS -->
+      <section id="pricesSection" class="admin-card" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 14px;">
+          <div>
+            <h2 style="font-size: 1.35rem; margin-bottom: 4px;">Catálogo de Precios y Tarifas</h2>
+            <p style="color: var(--text-muted); font-size: 0.88rem;">
+              Los cambios guardados aquí se sincronizan inmediatamente con el Asistente Virtual (Bot) y la plataforma.
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" id="refreshPricesBtn" class="btn btn-secondary btn-sm">
+              🔄 Recargar
+            </button>
+            <button type="button" id="saveAllPricesBtn" class="btn btn-primary btn-sm">
+              💾 Guardar Todos los Precios
+            </button>
+          </div>
+        </div>
+
+        <div class="price-editor-grid" id="priceEditorGrid">
+          <!-- Renderizado dinámico de tarjetas de precio -->
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal para Agregar / Editar Cita -->
+    <div class="modal-backdrop" id="appointmentModal" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-card-header">
+          <h2 id="appointmentModalTitle" style="font-size: 1.35rem;">Nueva Cita</h2>
+          <button type="button" class="modal-close-btn" id="closeModalBtn" aria-label="Cerrar">&times;</button>
+        </div>
 
         <form id="appointmentForm">
           <input type="hidden" id="appointmentId" />
 
-          <div class="form-row" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label for="manualName">Nombre</label>
-              <input id="manualName" type="text" required />
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div class="form-field">
+              <label for="manualName">Nombre y Apellido *</label>
+              <input type="text" id="manualName" required />
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label for="manualPhone">Teléfono</label>
-              <input id="manualPhone" type="tel" required />
+            <div class="form-field">
+              <label for="manualPhone">Teléfono de contacto *</label>
+              <input type="tel" id="manualPhone" required />
             </div>
           </div>
 
-          <div class="form-row" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label for="manualEmail">Correo</label>
-              <input id="manualEmail" type="email" required />
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div class="form-field">
+              <label for="manualEmail">Correo electrónico *</label>
+              <input type="email" id="manualEmail" required />
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label for="manualService">Servicio</label>
+            <div class="form-field">
+              <label for="manualService">Servicio *</label>
               <select id="manualService" required>
-                <option value="">Selecciona</option>
+                <option value="">Seleccione</option>
                 <option>Fisioterapia Deportiva</option>
                 <option>Traumatología</option>
                 <option>Psicología</option>
@@ -140,15 +191,15 @@
             </div>
           </div>
 
-          <div class="form-row" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label for="manualDate">Fecha</label>
-              <input id="manualDate" type="date" required />
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div class="form-field">
+              <label for="manualDate">Fecha *</label>
+              <input type="date" id="manualDate" required />
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label for="manualTime">Hora</label>
+            <div class="form-field">
+              <label for="manualTime">Hora *</label>
               <select id="manualTime" required>
-                <option value="">Selecciona</option>
+                <option value="">Seleccione horario</option>
                 <option>08:30</option>
                 <option>09:00</option>
                 <option>09:30</option>
@@ -167,8 +218,8 @@
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 14px; margin-bottom: 0;">
-            <label for="manualStatus">Estado</label>
+          <div class="form-field" style="margin-bottom: 20px;">
+            <label for="manualStatus">Estado inicial</label>
             <select id="manualStatus">
               <option value="pendiente">Pendiente</option>
               <option value="confirmada">Confirmada</option>
@@ -176,18 +227,26 @@
             </select>
           </div>
 
-          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px;">
-            <button type="button" id="cancelManualBtn" class="small-btn" style="background: #f0f0f0; color: #1b1b1b;">Cancelar</button>
-            <button type="submit" class="btn btn-primary" style="padding: 12px 18px;">Guardar cita</button>
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" id="cancelManualBtn" class="btn btn-secondary btn-sm">
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary btn-sm">
+              Guardar Cita
+            </button>
           </div>
         </form>
       </div>
     </div>
 
+    <!-- Verificación simple de sesión para el admin -->
     <script>
-      const token = localStorage.getItem('equilibra_admin_token');
-      if (!token) {
-        window.location.href = 'admin-login.html';
+      const logoutBtn = document.getElementById('adminLogoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+          localStorage.removeItem('equilibra_admin_token');
+          window.location.href = 'admin-login.html';
+        });
       }
     </script>
     <script src="app.js"></script>

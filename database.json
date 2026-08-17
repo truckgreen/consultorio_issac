@@ -1,0 +1,102 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password_hash": "$2b$10$ErLpQBc3wOD.ASwYe9RtQu.l.3icfebh2TZF7DZ/1alLgz.Xxw59q",
+      "role": "admin"
+    }
+  ],
+  "prices": [
+    {
+      "id": "1",
+      "service": "Fisioterapia Deportiva",
+      "price": 45,
+      "currency": "$",
+      "duration": "50 min",
+      "note": "Evaluación física y rehabilitación funcional",
+      "updated_at": 1786982269867
+    },
+    {
+      "id": "2",
+      "service": "Traumatología",
+      "price": 50,
+      "currency": "$",
+      "duration": "45 min",
+      "note": "Diagnóstico articular y musculoesquelético",
+      "updated_at": 1786982269867
+    },
+    {
+      "id": "3",
+      "service": "Psicología",
+      "price": 40,
+      "currency": "$",
+      "duration": "50 min",
+      "note": "Acompañamiento emocional y hábitos",
+      "updated_at": 1786982269867
+    },
+    {
+      "id": "4",
+      "service": "Nutrición",
+      "price": 35,
+      "currency": "$",
+      "duration": "45 min",
+      "note": "Plan personalizado y composición corporal",
+      "updated_at": 1786982269867
+    },
+    {
+      "id": "5",
+      "service": "Entrenamiento Funcional",
+      "price": 30,
+      "currency": "$",
+      "duration": "60 min",
+      "note": "Fuerza, estabilidad y movilidad",
+      "updated_at": 1786982269867
+    },
+    {
+      "id": "6",
+      "service": "Boxeo",
+      "price": 25,
+      "currency": "$",
+      "duration": "60 min",
+      "note": "Acondicionamiento físico y técnica",
+      "updated_at": 1786982269867
+    }
+  ],
+  "appointments": [
+    {
+      "id": "demo-1",
+      "name": "María López",
+      "phone": "0412-1234567",
+      "email": "maria@example.com",
+      "service": "Fisioterapia Deportiva",
+      "date": "2026-08-19",
+      "time": "09:00",
+      "status": "confirmada",
+      "created_at": 1786960669868
+    },
+    {
+      "id": "demo-2",
+      "name": "Carlos Pérez",
+      "phone": "0412-7654321",
+      "email": "carlos@example.com",
+      "service": "Psicología",
+      "date": "2026-08-21",
+      "time": "14:30",
+      "status": "pendiente",
+      "created_at": 1786939069869
+    },
+    {
+      "id": "demo-3",
+      "name": "Ana García",
+      "phone": "0414-9876543",
+      "email": "ana@example.com",
+      "service": "Nutrición",
+      "date": "2026-08-24",
+      "time": "16:00",
+      "status": "confirmada",
+      "created_at": 1786895869869
+    }
+  ],
+  "device_tokens": []
+}
