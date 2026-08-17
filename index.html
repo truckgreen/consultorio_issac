@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EQUILIBRA | Consultorio de Bienestar</title>
+    <meta
+      name="description"
+      content="EQUILIBRA ofrece fisioterapia, traumatología, psicología, nutrición, entrenamiento funcional y boxeo para mejorar tu bienestar integral."
+    />
+    <style>
+      :root {
+        --yellow-strong: #f1c40f;
+        --yellow-deep: #e6b800;
+        --yellow-soft: #f9e68a;
+        --bg-light: #f5f5f5;
+        --text-dark: #171717;
+        --text-soft: #454545;
+        --white: #ffffff;
+        --border: rgba(23, 23, 23, 0.08);
+        --shadow: 0 20px 45px rgba(20, 20, 20, 0.12);
+        --radius-lg: 28px;
+        --radius-md: 18px;
+        --radius-sm: 12px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--white);
+        color: var(--text-dark);
+        line-height: 1.6;
+      }
+
+      img {
+        max-width: 100%;
+        display: block;
+      }
+
+      a {
+        text-decoration: none;
+        color: inherit;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .container {
+        width: min(1200px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .section {
+        padding: 90px 0;
+      }
+
+      .section-header {
+        text-align: center;
+        margin-bottom: 42px;
+      }
+
+      .section-header h2 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 3vw, 3rem);
+        line-height: 1.15;
+      }
+
+      .section-header p {
+        max-width: 700px;
+        margin: 0 auto;
+        color: var(--text-soft);
+        font-size: 1.06rem;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 78px;
+        gap: 20px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .brand-mark {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--yellow-strong), var(--yellow-deep));
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        box-shadow: 0 10px 20px rgba(241, 196, 15, 0.3);
+      }
+
+      .brand-mark span {
+        font-size: 1.15rem;
+        font-weight: 900;
+        color: var(--text-dark);
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .nav-links a {
+        color: var(--text-soft);
+        font-size: 0.97rem;
+        font-weight: 600;
+        transition: color 0.2s ease;
+      }
+
+      .nav-links a:hover {
+        color: var(--text-dark);
+      }
+
+      .cta-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+        border-radius: 999px;
+        background: var(--yellow-strong);
+        color: var(--text-dark);
+        font-weight: 700;
+        box-shadow: 0 12px 28px rgba(241, 196, 15, 0.28);
+      }
+
+      .hero {
+        position: relative;
+        min-height: 760px;
+        display: flex;
+        align-items: center;
+        background:
+          linear-gradient(90deg, rgba(17, 17, 17, 0.72), rgba(17, 17, 17, 0.38)),
+          url('assets/images/foto fondo.jpg') center/cover no-repeat;
+        color: var(--white);
+      }
+
+      .hero-inner {
+        display: grid;
+        grid-template-columns: 1.35fr 0.65fr;
+        align-items: center;
+        gap: 30px;
+        padding: 80px 0;
+      }
+
+      .hero-copy {
+        max-width: 680px;
+      }
+
+      .eyebrow {
+        display: inline-block;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: #f9f9f9;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        font-size: clamp(2.5rem, 5vw, 5rem);
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+        margin: 0 0 18px;
+      }
+
+      .hero-copy p {
+        font-size: 1.12rem;
+        max-width: 600px;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 28px;
+      }
+
+      .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        border: none;
+        border-radius: 999px;
+        padding: 15px 26px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .btn-primary {
+        background: var(--yellow-strong);
+        color: var(--text-dark);
+        box-shadow: 0 14px 30px rgba(241, 196, 15, 0.25);
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--white);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+
+      .hero-card {
+        justify-self: end;
+        width: min(100%, 380px);
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+
+      .hero-card .mini-title {
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.82);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(110px, 1fr));
+        gap: 18px;
+        margin-top: 24px;
+      }
+
+      .stat {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 18px 16px;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 1.7rem;
+        margin-bottom: 4px;
+      }
+
+      .stat span {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.88rem;
+      }
+
+      .intro {
+        background: var(--white);
+      }
+
+      .intro-grid {
+        display: grid;
+        grid-template-columns: 1.05fr 1fr;
+        gap: 38px;
+        align-items: center;
+      }
+
+      .intro-image {
+        position: relative;
+        background: #f3f3f3;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+
+      .intro-image img {
+        width: 100%;
+        height: 540px;
+        object-fit: contain;
+        object-position: center;
+        background: #f3f3f3;
+        padding: 28px;
+        border-radius: var(--radius-lg);
+      }
+
+      .intro-copy {
+        padding-right: 10px;
+      }
+
+      .intro-copy h2 {
+        font-size: clamp(2rem, 3vw, 3rem);
+        margin: 0 0 16px;
+        line-height: 1.1;
+      }
+
+      .intro-copy p {
+        color: var(--text-soft);
+        font-size: 1.05rem;
+        margin: 0 0 24px;
+      }
+
+      .intro-copy .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .services {
+        background: var(--bg-light);
+      }
+
+      .service-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 28px;
+      }
+
+      .service-card {
+        position: relative;
+        border-radius: 24px;
+        overflow: hidden;
+        background: var(--white);
+        box-shadow: 0 18px 40px rgba(15, 15, 15, 0.08);
+        min-height: 290px;
+        cursor: pointer;
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+      }
+
+      .service-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 24px 44px rgba(15, 15, 15, 0.12);
+      }
+
+      .service-card img {
+        width: 100%;
+        height: 210px;
+        object-fit: cover;
+      }
+
+      .service-card .card-body {
+        padding: 20px 18px 18px;
+      }
+
+      .service-card h3 {
+        margin: 0;
+        font-size: 1.4rem;
+        line-height: 1.2;
+      }
+
+      .service-card .card-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(10, 10, 10, 0.1), rgba(10, 10, 10, 0.5));
+        opacity: 0;
+        transition: opacity 0.22s ease;
+      }
+
+      .service-card:hover .card-overlay {
+        opacity: 1;
+      }
+
+      .specialties {
+        background: var(--white);
+      }
+
+      .specialties-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 24px;
+      }
+
+      .spec-card {
+        background: var(--bg-light);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        padding: 28px 22px;
+        display: flex;
+        flex-direction: column;
+        min-height: 250px;
+      }
+
+      .spec-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, var(--yellow-soft), var(--yellow-strong));
+        display: grid;
+        place-items: center;
+        font-size: 1.5rem;
+        margin-bottom: 16px;
+      }
+
+      .spec-card h3 {
+        margin: 0 0 10px;
+        font-size: 1.3rem;
+      }
+
+      .spec-card p {
+        color: var(--text-soft);
+        margin: 0 0 18px;
+        flex: 1;
+      }
+
+      .spec-card button {
+        width: fit-content;
+        background: transparent;
+        border: 1px solid rgba(23, 23, 23, 0.12);
+        color: var(--text-dark);
+        border-radius: 999px;
+        padding: 10px 14px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .best-banner {
+        position: relative;
+        background: linear-gradient(90deg, rgba(15, 15, 15, 0.8), rgba(15, 15, 15, 0.35)),
+          url('assets/images/intro.svg') center/cover no-repeat;
+        border-radius: 30px;
+        overflow: hidden;
+        min-height: 420px;
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        padding: 40px;
+      }
+
+      .best-banner .content {
+        max-width: 540px;
+      }
+
+      .best-banner h2 {
+        margin: 0 0 16px;
+        font-size: clamp(2rem, 3vw, 3rem);
+        line-height: 1.1;
+      }
+
+      .best-banner p {
+        margin: 0 0 20px;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 1.08rem;
+      }
+
+      .best-banner .btn {
+        background: var(--yellow-strong);
+        color: var(--text-dark);
+      }
+
+      .testimonials {
+        background: var(--bg-light);
+      }
+
+      .testimonials-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 26px;
+      }
+
+      .testimonial {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        padding: 28px 22px;
+        box-shadow: 0 18px 30px rgba(15, 15, 15, 0.05);
+      }
+
+      .stars {
+        color: var(--yellow-deep);
+        font-size: 1.15rem;
+        letter-spacing: 0.12em;
+        margin-bottom: 14px;
+      }
+
+      .testimonial p {
+        color: var(--text-soft);
+        margin: 0 0 18px;
+      }
+
+      .person {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ffd94d, #f1c40f);
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        color: var(--text-dark);
+      }
+
+      .person strong {
+        display: block;
+        font-size: 0.98rem;
+      }
+
+      .person span {
+        color: var(--text-soft);
+        font-size: 0.88rem;
+      }
+
+      .booking-banner {
+        background: linear-gradient(135deg, var(--yellow-strong), var(--yellow-deep));
+        border-radius: 28px;
+        padding: 36px 30px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .booking-banner h2 {
+        margin: 0;
+        font-size: clamp(1.8rem, 3vw, 3rem);
+      }
+
+      .booking-banner .btn {
+        background: var(--text-dark);
+        color: var(--white);
+        box-shadow: none;
+      }
+
+      footer {
+        background: #111111;
+        color: rgba(255, 255, 255, 0.8);
+        padding: 44px 0 26px;
+      }
+
+      .footer-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr;
+        gap: 30px;
+        align-items: start;
+      }
+
+      .footer-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--white);
+        margin-bottom: 14px;
+      }
+
+      .footer-brand .brand-mark {
+        width: 42px;
+        height: 42px;
+      }
+
+      .footer-copy {
+        max-width: 420px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .footer h3 {
+        color: var(--white);
+        margin: 0 0 16px;
+        font-size: 1.15rem;
+      }
+
+      .footer p,
+      .footer a {
+        color: rgba(255, 255, 255, 0.75);
+        margin: 0 0 10px;
+        display: inline-block;
+      }
+
+      .footer-bottom {
+        margin-top: 28px;
+        padding-top: 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.62);
+        text-align: center;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(17, 17, 17, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.24s ease, visibility 0.24s ease;
+        z-index: 100;
+        padding: 20px;
+      }
+
+      .modal.is-open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      .modal-panel {
+        position: relative;
+        width: min(900px, 100%);
+        background: var(--white);
+        border-radius: 28px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
+        overflow: hidden;
+        max-height: 90vh;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+      }
+
+      .modal-video {
+        min-height: 100%;
+        background: #0b0b0b;
+        position: relative;
+      }
+
+      .modal-video iframe {
+        width: 100%;
+        height: 100%;
+        min-height: 420px;
+        border: 0;
+      }
+
+      .modal-copy {
+        padding: 28px 26px 24px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .close-modal {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--text-dark);
+        cursor: pointer;
+        font-size: 1.35rem;
+        z-index: 2;
+      }
+
+      .modal-copy h3 {
+        margin: 10px 0 12px;
+        font-size: clamp(1.7rem, 3vw, 2.5rem);
+        line-height: 1.15;
+      }
+
+      .modal-copy p {
+        color: var(--text-soft);
+        margin: 0 0 18px;
+      }
+
+      .modal-copy .benefits {
+        margin: 0 0 18px;
+        padding-left: 18px;
+        color: var(--text-dark);
+      }
+
+      .modal-copy .benefits li {
+        margin-bottom: 8px;
+      }
+
+      .assistant-widget {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 140;
+      }
+
+      .assistant-toggle {
+        border: none;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--yellow-strong), var(--yellow-deep));
+        color: var(--text-dark);
+        font-weight: 800;
+        padding: 14px 22px;
+        box-shadow: 0 18px 30px rgba(241, 196, 15, 0.28);
+        cursor: pointer;
+      }
+
+      .assistant-panel {
+        width: min(380px, calc(100vw - 24px));
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        margin-bottom: 12px;
+        display: none;
+      }
+
+      .assistant-panel.is-open {
+        display: block;
+      }
+
+      .assistant-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: linear-gradient(135deg, #111111, #222222);
+        color: var(--white);
+        padding: 16px 18px;
+      }
+
+      .assistant-header h3 {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .assistant-close {
+        border: none;
+        background: transparent;
+        color: var(--white);
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .assistant-content {
+        padding: 16px;
+      }
+
+      .assistant-messages {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .assistant-message {
+        padding: 12px 14px;
+        border-radius: 16px;
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
+
+      .assistant-message.bot {
+        background: #f3f3f3;
+        color: var(--text-dark);
+      }
+
+      .assistant-message.user {
+        background: #fff3bf;
+        color: var(--text-dark);
+        margin-left: 22px;
+      }
+
+      .assistant-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .assistant-action {
+        border: 1px solid rgba(23, 23, 23, 0.1);
+        background: var(--white);
+        color: var(--text-dark);
+        border-radius: 999px;
+        padding: 9px 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .assistant-form-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .assistant-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .assistant-form label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text-soft);
+      }
+
+      .assistant-form input,
+      .assistant-form select {
+        width: 100%;
+        border: 1px solid rgba(23, 23, 23, 0.12);
+        border-radius: 12px;
+        background: #fafafa;
+        padding: 11px 12px;
+        color: var(--text-dark);
+      }
+
+      .assistant-form button,
+      .assistant-list button {
+        border: none;
+        border-radius: 999px;
+        background: var(--yellow-strong);
+        color: var(--text-dark);
+        font-weight: 800;
+        cursor: pointer;
+        padding: 11px 14px;
+      }
+
+      .assistant-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .assistant-item {
+        background: #fafafa;
+        border: 1px solid rgba(23, 23, 23, 0.06);
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+
+      .assistant-item small {
+        display: block;
+        color: var(--text-soft);
+      }
+
+      .assistant-price-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .assistant-price-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #f7f7f7;
+        border: 1px solid rgba(23, 23, 23, 0.06);
+      }
+
+      .assistant-call-btn {
+        background: #111111;
+        color: var(--white);
+      }
+
+      .admin-login-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(17, 17, 17, 0.68);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+        z-index: 110;
+        padding: 20px;
+      }
+
+      .admin-login-modal.is-open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      .admin-login-panel {
+        position: relative;
+        width: min(420px, 100%);
+        background: var(--white);
+        border-radius: 26px;
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.28);
+        padding: 28px 24px 22px;
+      }
+
+      .admin-login-panel h3 {
+        margin: 0 0 8px;
+        text-align: center;
+        font-size: clamp(1.8rem, 3vw, 2.3rem);
+      }
+
+      .admin-login-panel p {
+        margin: 0 0 22px;
+        text-align: center;
+        color: var(--text-soft);
+      }
+
+      .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .login-form label {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--text-dark);
+      }
+
+      .login-form input {
+        width: 100%;
+        padding: 14px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(23, 23, 23, 0.12);
+        background: #fafafa;
+        color: var(--text-dark);
+      }
+
+      .login-form input:focus {
+        outline: 2px solid rgba(241, 196, 15, 0.18);
+        border-color: rgba(241, 196, 15, 0.7);
+      }
+
+      .login-form button {
+        margin-top: 4px;
+      }
+
+      .admin-login-message {
+        display: none;
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #fff1f1;
+        color: #912626;
+        border: 1px solid #f3c6c6;
+        font-size: 0.9rem;
+      }
+
+      .admin-login-message.show {
+        display: block;
+      }
+
+      @media (max-width: 980px) {
+        .hero-inner,
+        .intro-grid,
+        .modal-panel,
+        .footer-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .service-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .specialties-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .testimonials-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-card {
+          justify-self: start;
+        }
+      }
+
+      @media (max-width: 680px) {
+        .nav {
+          flex-wrap: wrap;
+          justify-content: center;
+          padding: 14px 0;
+        }
+
+        .nav-links {
+          justify-content: center;
+        }
+
+        .hero {
+          min-height: 670px;
+        }
+
+        .hero-copy {
+          text-align: center;
+        }
+
+        .hero-actions {
+          justify-content: center;
+        }
+
+        .service-grid,
+        .specialties-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .best-banner {
+          padding: 30px 22px;
+          min-height: 360px;
+        }
+
+        .booking-banner {
+          padding: 30px 20px;
+        }
+
+        .modal-copy {
+          padding: 30px 22px 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container nav">
+        <a href="#top" class="brand" aria-label="EQUILIBRA inicio">
+          <span class="brand-mark"><span>e</span></span>
+          <span>EQUILIBRA</span>
+        </a>
+        <nav class="nav-links" aria-label="Navegación principal">
+          <a href="#inicio">Inicio</a>
+          <a href="#servicios">Servicios</a>
+          <a href="#especialidades">Especialidades</a>
+          <a href="#testimonios">Testimonios</a>
+          <button type="button" class="btn btn-primary admin-login-trigger" style="padding: 12px 18px;">Admin</button>
+          <a href="#contacto" class="cta-link">Reservar cita</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="inicio">
+      <section class="hero">
+        <div class="container hero-inner">
+          <div class="hero-copy">
+            <span class="eyebrow">Bienestar integral</span>
+            <h1>Tu camino hacia el bienestar físico comienza aquí</h1>
+            <p>
+              En EQUILIBRA reunimos especialistas, tecnología y una guía cercana para ayudarte
+              a recuperar tu movimiento, fortalecer tu salud y vivir con más energía.
+            </p>
+            <div class="hero-actions">
+              <button type="button" class="btn btn-primary" data-open="fisioterapia-deportiva">Agenda tu cita</button>
+              <button type="button" class="btn btn-secondary" data-open="abordaje-integral">Conócenos</button>
+            </div>
+          </div>
+
+          <aside class="hero-card" aria-label="estadísticas de la clínica">
+            <div class="mini-title">Nuestra clínica</div>
+            <div class="stats">
+              <div class="stat">
+                <strong>2+</strong>
+                <span>Años de experiencia</span>
+              </div>
+              <div class="stat">
+                <strong>1.200</strong>
+                <span>Pacientes atendidos</span>
+              </div>
+              <div class="stat">
+                <strong>95%</strong>
+                <span>Satisfacción</span>
+              </div>
+              <div class="stat">
+                <strong>7 días</strong>
+                <span>Atención continua</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="intro section" id="nosotros">
+        <div class="container intro-grid">
+          <div class="intro-image">
+            <img
+              src="assets/images/logo2.jpg"
+              alt="Logo de EQUILIBRA"
+            />
+          </div>
+
+          <div class="intro-copy">
+            <h2>El verdadero bienestar comienza en movimiento</h2>
+            <p>
+              En EQUILIBRA entendemos que la salud no es solo ausencia de dolor: es equilibrio,
+              fuerza, claridad mental y calidad de vida. Por eso combinamos atención médica,
+              rehabilitación, hábitos saludables y acompañamiento personalizado para que tú puedas
+              recuperar tu mejor versión.
+            </p>
+            <p>
+              Cada plan está pensado para acompañarte con ciencia, empatía y una experiencia de
+              cuidado integral para tu cuerpo y mente.
+            </p>
+            <button type="button" class="btn btn-primary" data-open="abordaje-integral">Más Información</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="services section" id="servicios">
+        <div class="container">
+          <header class="section-header">
+            <h2>Nuestros servicios</h2>
+            <p>Atención multidisciplinaria diseñada para ayudarte a avanzar con seguridad y confianza.</p>
+          </header>
+
+          <div class="service-grid">
+            <article class="service-card" tabindex="0" data-open="fisioterapia-deportiva" aria-label="Fisioterapia Deportiva">
+              <div class="card-overlay"></div>
+              <img src="assets/images/fisioterapia deportiva.jpg" alt="Fisioterapia Deportiva" />
+              <div class="card-body">
+                <h3>Fisioterapia Deportiva</h3>
+              </div>
+            </article>
+
+            <article class="service-card" tabindex="0" data-open="traumatologia" aria-label="Traumatología">
+              <div class="card-overlay"></div>
+              <img src="assets/images/traumatologia.jpg" alt="Traumatología" />
+              <div class="card-body">
+                <h3>Traumatología</h3>
+              </div>
+            </article>
+
+            <article class="service-card" tabindex="0" data-open="psicologia" aria-label="Psicología">
+              <div class="card-overlay"></div>
+              <img src="assets/images/psicologia.jpg" alt="Psicología" />
+              <div class="card-body">
+                <h3>Psicología</h3>
+              </div>
+            </article>
+
+            <article class="service-card" tabindex="0" data-open="nutricion" aria-label="Nutrición">
+              <div class="card-overlay"></div>
+              <img src="assets/images/nutricion.jpg" alt="Nutrición" />
+              <div class="card-body">
+                <h3>Nutrición</h3>
+              </div>
+            </article>
+
+            <article class="service-card" tabindex="0" data-open="entrenamiento-funcional" aria-label="Entrenamiento funcional">
+              <div class="card-overlay"></div>
+              <img src="assets/images/entrenamiento-funcional.jpg" alt="Entrenamiento funcional" />
+              <div class="card-body">
+                <h3>Entrenamiento funcional</h3>
+              </div>
+            </article>
+
+            <article class="service-card" tabindex="0" data-open="boxeo" aria-label="Boxeo">
+              <div class="card-overlay"></div>
+              <img src="assets/images/boxeo.jpg" alt="Boxeo" />
+              <div class="card-body">
+                <h3>Boxeo</h3>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="specialties section" id="especialidades">
+        <div class="container">
+          <header class="section-header">
+            <h2>En qué nos especializamos</h2>
+            <p>Soluciones integrales para mejorar tu salud, rendimiento y calidad de vida.</p>
+          </header>
+
+          <div class="specialties-grid">
+            <article class="spec-card">
+              <div class="spec-icon">🏃</div>
+              <h3>Recuperación deportiva</h3>
+              <p>Tratamientos personalizados para prevenir lesiones y optimizar tu rendimiento.</p>
+              <button type="button" data-open="fisioterapia-deportiva">Más información</button>
+            </article>
+
+            <article class="spec-card">
+              <div class="spec-icon">🦴</div>
+              <h3>Diagnóstico articular</h3>
+              <p>Evaluación y manejo especializado para dolor y movilidad de columna, extremidades y articulaciones.</p>
+              <button type="button" data-open="traumatologia">Más información</button>
+            </article>
+
+            <article class="spec-card">
+              <div class="spec-icon">🧠</div>
+              <h3>Salud mental</h3>
+              <p>Acompañamiento profesional para hábitos, ansiedad, estrés y bienestar emocional.</p>
+              <button type="button" data-open="psicologia">Más información</button>
+            </article>
+
+            <article class="spec-card">
+              <div class="spec-icon">🥗</div>
+              <h3>Nutrición funcional</h3>
+              <p>Planes orientados a mejorar energía, cuerpo y metas reales con hábitos sostenibles.</p>
+              <button type="button" data-open="nutricion">Más información</button>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="best-banner" data-open="abordaje-integral" tabindex="0" role="button" aria-label="Lo que hacemos mejor">
+            <div class="content">
+              <h2>Lo que hacemos mejor</h2>
+              <p>
+                Abordamos cada caso desde una visión integral: evaluamos movimiento, dolor,
+                hábitos, emociones y objetivos para crear un plan claro, realista y eficaz.
+              </p>
+              <button type="button" class="btn">Más información</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="testimonials section" id="testimonios">
+        <div class="container">
+          <header class="section-header">
+            <h2>Por qué las personas nos prefieren</h2>
+            <p>La confianza de quienes han vivido una transformación real con nosotros.</p>
+          </header>
+
+          <div class="testimonials-grid">
+            <article class="testimonial">
+              <div class="stars" aria-label="5 estrellas">★★★★★</div>
+              <p>“El trato fue humano, profesional y muy enfocado en la recuperación. Volví a moverme con confianza y sin dolor.”</p>
+              <div class="person">
+                <div class="avatar">J</div>
+                <div>
+                  <strong>Javier M.</strong>
+                  <span>Paciente de fisioterapia</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="testimonial">
+              <div class="stars" aria-label="5 estrellas">★★★★★</div>
+              <p>“La evaluación integral fue clave. Entendieron no solo el problema físico, sino también el desgaste emocional y laboral.”</p>
+              <div class="person">
+                <div class="avatar">A</div>
+                <div>
+                  <strong>Ana R.</strong>
+                  <span>Atención psicológica</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="testimonial">
+              <div class="stars" aria-label="5 estrellas">★★★★★</div>
+              <p>“Desde el primer momento sentí un plan claro para mejorar mi rendimiento. Superé mis metas con apoyo constante.”</p>
+              <div class="person">
+                <div class="avatar">C</div>
+                <div>
+                  <strong>Carlos T.</strong>
+                  <span>Entrenamiento funcional</span>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="contacto">
+        <div class="container">
+          <div class="booking-banner">
+            <h2>Reserva tu cita Ahora!</h2>
+            <button type="button" class="btn assistant-trigger" data-assist-action="agenda">Hablar con el asistente</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container footer-grid">
+        <div>
+          <div class="footer-brand">
+            <span class="brand-mark"><span>e</span></span>
+            <span>EQUILIBRA</span>
+          </div>
+          <p class="footer-copy">
+            Clínica de bienestar integral centrada en tu salud física, emocional y funcional.
+          </p>
+        </div>
+
+        <div>
+          <h3>Contacto</h3>
+          <p>Dirección: Caracas, Venezuela</p>
+          <p>Teléfono: +58 412-1234567</p>
+          <p>Correo: hola@equilibra.com</p>
+        </div>
+
+        <div>
+          <h3>Horarios</h3>
+          <p>Lunes a Viernes: 8:00 AM - 7:00 PM</p>
+          <p>Sábado: 9:00 AM - 2:00 PM</p>
+          <p>Domingo: Cerrado</p>
+        </div>
+      </div>
+
+      <div class="container footer-bottom">
+        © 2026 EQUILIBRA - Consultorio de bienestar integral.
+      </div>
+    </footer>
+
+    <div class="modal" id="serviceModal" aria-hidden="true">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="close-modal" type="button" aria-label="Cerrar modal">×</button>
+        <div class="modal-video">
+          <iframe
+            id="modalVideo"
+            src=""
+            title="Video explicativo del servicio"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+
+        <div class="modal-copy">
+          <h3 id="modalTitle">Servicio</h3>
+          <p id="modalDescription"></p>
+          <ul id="modalBenefits" class="benefits"></ul>
+          <button type="button" id="modalAssistantButton" class="btn btn-primary">Hablar con el asistente</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="assistant-widget" id="assistantWidget">
+      <div class="assistant-panel" id="assistantPanel" aria-live="polite">
+        <div class="assistant-header">
+          <h3>Asistente EQUILIBRA</h3>
+          <button type="button" class="assistant-close" aria-label="Cerrar asistente" id="assistantClose">×</button>
+        </div>
+        <div class="assistant-content">
+          <div id="assistantMessages" class="assistant-messages"></div>
+          <div id="assistantActions" class="assistant-actions"></div>
+          <div id="assistantFormWrap" class="assistant-form-wrap"></div>
+        </div>
+      </div>
+      <button type="button" class="assistant-toggle" id="assistantToggle" aria-expanded="false">Asistente</button>
+    </div>
+
+    <div class="admin-login-modal" id="adminLoginModal" aria-hidden="true">
+      <div class="admin-login-panel" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+        <button class="close-modal" type="button" aria-label="Cerrar login admin" data-close-admin-login>×</button>
+        <h3 id="adminLoginTitle">Admin</h3>
+        <p>Accede para ver las citas agendadas.</p>
+
+        <div id="adminLoginError" class="admin-login-message">Contraseña incorrecta. Intenta de nuevo.</div>
+
+        <form id="adminLoginForm" class="login-form">
+          <div>
+            <label for="adminPassword">Contraseña</label>
+            <input id="adminPassword" type="password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-primary">Entrar</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const serviceData = {
+        'fisioterapia-deportiva': {
+          title: 'Fisioterapia Deportiva',
+          description:
+            'Recupera tu movilidad, fuerza y rendimiento con una rehabilitación guiada por especialistas en movimiento y lesiones deportivas. Evaluamos la causa del dolor y diseñamos un plan personalizado para volver a competir o entrenar con confianza.',
+          benefits: [
+            'Rehabilitación funcional y prevención de lesiones.',
+            'Mejora de movilidad, estabilidad y fuerza.',
+            'Acompañamiento para atletas y personas activas.'
+          ],
+          video: 'Insertar video de fisioterapia deportiva aquí'
+        },
+        traumatologia: {
+          title: 'Traumatología',
+          description:
+            'A través de una valoración clínica precisa, tratamos dolores articulares, golpes, lesiones musculoesqueléticas y problemas de movilidad para devolver calidad de vida y optimizar la función corporal.',
+          benefits: [
+            'Diagnóstico claro y orientación terapéutica.',
+            'Control de dolor y mejora de la movilidad.',
+            'Planes de tratamiento personalizados y sostenibles.'
+          ],
+          video: 'Insertar video de traumatología aquí'
+        },
+        psicologia: {
+          title: 'Psicología',
+          description:
+            'Brindamos un espacio de apoyo profesional para manejar ansiedad, estrés, hábitos, cambios de vida y bienestar emocional, integrando herramientas prácticas para vivir con más equilibrio.',
+          benefits: [
+            'Acompañamiento emocional basado en evidencia.',
+            'Desarrollo de estrategias para el bienestar mental.',
+            'Atención empática y personalizada.'
+          ],
+          video: 'Insertar video de psicología aquí'
+        },
+        nutricion: {
+          title: 'Nutrición',
+          description:
+            'Potenciamos hábitos saludables, energía y composición corporal con un enfoque realista y personalizado, pensado para mejorar tu salud sin afectar tu calidad de vida.',
+          benefits: [
+            'Plan nutricional adaptado a tus metas.',
+            'Mejora de energía y hábitos sostenibles.',
+            'Acompañamiento para salud metabólica y bienestar general.'
+          ],
+          video: 'Insertar video de nutrición aquí'
+        },
+        'entrenamiento-funcional': {
+          title: 'Entrenamiento Funcional',
+          description:
+            'Mejora tu fuerza, coordinación, resistencia y movilidad con entrenamientos diseñados para la vida real, fortaleciendo tu cuerpo de manera integral y segura.',
+          benefits: [
+            'Fortalecimiento de core, movilidad y resistencia.',
+            'Entrenamiento seguro y adaptado a tu nivel.',
+            'Mejora del rendimiento diario y físico.'
+          ],
+          video: 'Insertar video de entrenamiento funcional aquí'
+        },
+        boxeo: {
+          title: 'Boxeo',
+          description:
+            'Explora un entrenamiento dinámico y completo que trabaja resistencia, coordinación, disciplina y condición física, con una guía segura y motivadora.',
+          benefits: [
+            'Mejora cardiovascular y de resistencia.',
+            'Fortalecimiento muscular y coordinación.',
+            'Entrenamiento motivador y de alto impacto positivo.'
+          ],
+          video: 'Insertar video de boxeo aquí'
+        },
+        'abordaje-integral': {
+          title: 'Abordaje Integral',
+          description:
+            'En EQUILIBRA no tratamos solo síntomas: entendemos la relación entre movimiento, dolor, hábitos, emociones y objetivos para diseñar un plan de bienestar completo y sostenido en el tiempo.',
+          benefits: [
+            'Valoración integral de salud y rendimiento.',
+            'Plan adaptado a tus metas y realidad.',
+            'Acompañamiento multidisciplinario en una sola clínica.'
+          ],
+          video: 'Insertar video de abordaje integral aquí'
+        }
+      };
+
+      const modal = document.getElementById('serviceModal');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalDescription = document.getElementById('modalDescription');
+      const modalBenefits = document.getElementById('modalBenefits');
+      const modalVideo = document.getElementById('modalVideo');
+      const modalAssistantButton = document.getElementById('modalAssistantButton');
+      const closeButton = document.querySelector('.close-modal');
+      const adminLoginModal = document.getElementById('adminLoginModal');
+      const adminLoginForm = document.getElementById('adminLoginForm');
+      const adminPasswordInput = document.getElementById('adminPassword');
+      const adminLoginError = document.getElementById('adminLoginError');
+      const adminLoginTriggers = document.querySelectorAll('.admin-login-trigger');
+      const assistantToggle = document.getElementById('assistantToggle');
+      const assistantPanel = document.getElementById('assistantPanel');
+      const assistantClose = document.getElementById('assistantClose');
+      const assistantMessages = document.getElementById('assistantMessages');
+      const assistantActions = document.getElementById('assistantActions');
+      const assistantFormWrap = document.getElementById('assistantFormWrap');
+      const assistantTriggerButtons = document.querySelectorAll('.assistant-trigger');
+      const APPOINTMENT_STORAGE_KEY = 'equilibra_appointments_v1';
+
+      function loadAppointments() {
+        try {
+          const raw = localStorage.getItem(APPOINTMENT_STORAGE_KEY);
+          if (!raw) {
+            return [];
+          }
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function saveAppointments(list) {
+        localStorage.setItem(APPOINTMENT_STORAGE_KEY, JSON.stringify(list));
+      }
+
+      function formatDateLong(dateValue) {
+        const date = new Date(dateValue + 'T00:00:00');
+        return new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+      }
+
+      function getBookedTimesForDate(dateValue) {
+        const appointments = loadAppointments();
+        return appointments.filter((item) => item.date === dateValue).map((item) => item.time);
+      }
+
+      function addAssistantMessage(text, type = 'bot') {
+        const message = document.createElement('div');
+        message.className = `assistant-message ${type}`;
+        message.innerHTML = `<p>${text}</p>`;
+        assistantMessages.appendChild(message);
+        assistantMessages.scrollTop = assistantMessages.scrollHeight;
+      }
+
+      function renderAssistantMenu() {
+        assistantMessages.innerHTML = '';
+        addAssistantMessage('¡Hola! Soy tu asistente de EQUILIBRA. Puedo ayudarte a agendar citas, consultar precios, cancelar una cita o llamar a un fisioterapeuta.', 'bot');
+
+        assistantActions.innerHTML = `
+          <button type="button" class="assistant-action" data-assist-action="agenda">Agendar cita</button>
+          <button type="button" class="assistant-action" data-assist-action="prices">Consultar precios</button>
+          <button type="button" class="assistant-action" data-assist-action="cancel">Cancelar cita</button>
+          <button type="button" class="assistant-action" data-assist-action="call">Llamar fisioterapeuta</button>
+        `;
+
+        assistantFormWrap.innerHTML = '';
+      }
+
+      function openAssistant(action = 'menu') {
+        assistantPanel.classList.add('is-open');
+        assistantToggle.setAttribute('aria-expanded', 'true');
+
+        if (action === 'menu') {
+          renderAssistantMenu();
+          return;
+        }
+
+        if (action === 'agenda') {
+          renderBookingAssistant();
+        }
+
+        if (action === 'prices') {
+          renderPriceAssistant();
+        }
+
+        if (action === 'cancel') {
+          renderCancelAssistant();
+        }
+
+        if (action === 'call') {
+          window.location.href = 'tel:+584121234567';
+          addAssistantMessage('Se está intentando contactar con el fisioterapeuta. Si lo prefieres, también puedes agendar una cita desde aquí.', 'bot');
+        }
+      }
+
+      function closeAssistant() {
+        assistantPanel.classList.remove('is-open');
+        assistantToggle.setAttribute('aria-expanded', 'false');
+      }
+
+      function getDateOptions() {
+        const dates = [];
+        for (let offset = 0; offset < 10; offset += 1) {
+          const date = new Date();
+          date.setDate(date.getDate() + offset);
+          dates.push({
+            value: new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0],
+            label: new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }).format(date)
+          });
+        }
+        return dates;
+      }
+
+      function getAvailableTimeOptions(selectedDate) {
+        const booked = getBookedTimesForDate(selectedDate);
+        return ['08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '12:00', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00']
+          .filter((time) => !booked.includes(time));
+      }
+
+      function renderBookingAssistant() {
+        assistantMessages.innerHTML = '';
+        addAssistantMessage('Perfecto. Completa estos datos y te sugiero un horario disponible.', 'bot');
+        assistantActions.innerHTML = '<button type="button" class="assistant-action" data-assist-action="menu">Volver al inicio</button>';
+        assistantFormWrap.innerHTML = `
+          <form class="assistant-form" id="assistantBookingForm">
+            <label>
+              Nombre completo
+              <input type="text" name="name" placeholder="Ej. Sofía Ramírez" required />
+            </label>
+            <label>
+              Teléfono
+              <input type="tel" name="phone" placeholder="0412-1234567" required />
+            </label>
+            <label>
+              Correo
+              <input type="email" name="email" placeholder="correo@ejemplo.com" required />
+            </label>
+            <label>
+              Servicio
+              <select name="service" required>
+                <option value="">Selecciona un servicio</option>
+                <option>Fisioterapia Deportiva</option>
+                <option>Traumatología</option>
+                <option>Psicología</option>
+                <option>Nutrición</option>
+                <option>Entrenamiento Funcional</option>
+                <option>Boxeo</option>
+              </select>
+            </label>
+            <label>
+              Fecha
+              <select name="date" id="assistantDateSelect" required></select>
+            </label>
+            <label>
+              Hora
+              <select name="time" id="assistantTimeSelect" required></select>
+            </label>
+            <button type="submit">Guardar cita</button>
+          </form>
+        `;
+
+        const dateSelect = document.getElementById('assistantDateSelect');
+        const timeSelect = document.getElementById('assistantTimeSelect');
+
+        getDateOptions().forEach((option) => {
+          const opt = document.createElement('option');
+          opt.value = option.value;
+          opt.textContent = option.label;
+          dateSelect.appendChild(opt);
+        });
+
+        dateSelect.addEventListener('change', () => {
+          const availableOptions = getAvailableTimeOptions(dateSelect.value);
+          timeSelect.innerHTML = '<option value="">Selecciona una hora</option>' + availableOptions.map((slot) => `<option value="${slot}">${slot}</option>`).join('');
+        });
+
+        const firstDate = dateSelect.value;
+        const firstAvailable = getAvailableTimeOptions(firstDate);
+        timeSelect.innerHTML = '<option value="">Selecciona una hora</option>' + firstAvailable.map((slot) => `<option value="${slot}">${slot}</option>`).join('');
+      }
+
+      function renderPriceAssistant() {
+        assistantMessages.innerHTML = '';
+        addAssistantMessage('Estos son nuestros precios orientativos para cada servicio:', 'bot');
+        assistantActions.innerHTML = '<button type="button" class="assistant-action" data-assist-action="menu">Volver al inicio</button>';
+        assistantFormWrap.innerHTML = `
+          <div class="assistant-price-list">
+            <div class="assistant-price-item"><span>Fisioterapia Deportiva</span><strong>Bs. 250.000</strong></div>
+            <div class="assistant-price-item"><span>Traumatología</span><strong>Bs. 230.000</strong></div>
+            <div class="assistant-price-item"><span>Psicología</span><strong>Bs. 200.000</strong></div>
+            <div class="assistant-price-item"><span>Nutrición</span><strong>Bs. 170.000</strong></div>
+            <div class="assistant-price-item"><span>Entrenamiento Funcional</span><strong>Bs. 180.000</strong></div>
+            <div class="assistant-price-item"><span>Boxeo</span><strong>Bs. 160.000</strong></div>
+          </div>
+        `;
+      }
+
+      function renderCancelAssistant() {
+        assistantMessages.innerHTML = '';
+        addAssistantMessage('Estas son tus citas activas. Selecciona la que quieres cancelar.', 'bot');
+        assistantActions.innerHTML = '<button type="button" class="assistant-action" data-assist-action="menu">Volver al inicio</button>';
+
+        const appointments = loadAppointments().filter((item) => item.status !== 'cancelada');
+
+        if (!appointments.length) {
+          assistantFormWrap.innerHTML = '<p>No tienes citas activas para cancelar.</p>';
+          return;
+        }
+
+        assistantFormWrap.innerHTML = `
+          <div class="assistant-list">
+            ${appointments.map((item) => `
+              <div class="assistant-item">
+                <strong>${item.service}</strong>
+                <small>${formatDateLong(item.date)} • ${item.time}</small>
+                <button type="button" data-cancel-id="${item.id}">Cancelar cita</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      function handleAssistantBooking(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const service = formData.get('service');
+        const name = formData.get('name').toString().trim();
+        const phone = formData.get('phone').toString().trim();
+        const email = formData.get('email').toString().trim();
+        const date = formData.get('date').toString();
+        const time = formData.get('time').toString();
+
+        if (!service || !name || !phone || !email || !date || !time) {
+          addAssistantMessage('Debes completar todos los campos para agendar la cita.', 'bot');
+          return;
+        }
+
+        const currentAppointments = loadAppointments();
+        const exists = currentAppointments.some((item) => item.date === date && item.time === time);
+        if (exists) {
+          addAssistantMessage('Ese horario ya está ocupado. Elige otro, por favor.', 'bot');
+          return;
+        }
+
+        const appointment = {
+          id: crypto.randomUUID ? crypto.randomUUID() : `apt-${Date.now()}`,
+          name,
+          phone,
+          email,
+          service,
+          date,
+          time,
+          status: 'pendiente',
+          createdAt: Date.now()
+        };
+
+        currentAppointments.push(appointment);
+        saveAppointments(currentAppointments);
+        notifyAdmins(appointment);
+
+        assistantMessages.innerHTML = '';
+        addAssistantMessage(`¡Listo! Tu cita quedó agendada en ${service} para ${formatDateLong(date)} a las ${time}.`, 'bot');
+        assistantActions.innerHTML = '<button type="button" class="assistant-action" data-assist-action="menu">Volver al inicio</button>';
+        assistantFormWrap.innerHTML = '';
+      }
+
+      function openAdminLogin() {
+        adminLoginModal.classList.add('is-open');
+        adminLoginModal.setAttribute('aria-hidden', 'false');
+        adminPasswordInput.focus();
+      }
+
+      function closeAdminLogin() {
+        adminLoginModal.classList.remove('is-open');
+        adminLoginModal.setAttribute('aria-hidden', 'true');
+        adminLoginError.classList.remove('show');
+        adminPasswordInput.value = '';
+      }
+
+      adminLoginTriggers.forEach((trigger) => {
+        trigger.addEventListener('click', openAdminLogin);
+      });
+
+      document.querySelector('[data-close-admin-login]').addEventListener('click', closeAdminLogin);
+
+      adminLoginModal.addEventListener('click', (event) => {
+        if (event.target === adminLoginModal) {
+          closeAdminLogin();
+        }
+      });
+
+      adminLoginForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        if (adminPasswordInput.value === 'equilibra123') {
+          localStorage.setItem('equilibra_admin_auth', 'true');
+          closeAdminLogin();
+          window.location.href = 'admin.html';
+          return;
+        }
+
+        adminLoginError.classList.add('show');
+        adminPasswordInput.value = '';
+        adminPasswordInput.focus();
+      });
+
+      function openModal(key) {
+        const item = serviceData[key];
+        if (!item) return;
+
+        modalTitle.textContent = item.title;
+        modalDescription.textContent = item.description;
+        modalBenefits.innerHTML = item.benefits.map((benefit) => `<li>${benefit}</li>`).join('');
+        modalVideo.src = item.video;
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeModal() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        modalVideo.src = '';
+      }
+
+      document.querySelectorAll('[data-open]').forEach((element) => {
+        const key = element.getAttribute('data-open');
+
+        element.addEventListener('click', () => openModal(key));
+        element.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openModal(key);
+          }
+        });
+      });
+
+      closeButton.addEventListener('click', closeModal);
+      modalAssistantButton.addEventListener('click', () => {
+        closeModal();
+        openAssistant('agenda');
+      });
+
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          closeModal();
+        }
+      });
+
+      assistantToggle.addEventListener('click', () => {
+        const isOpen = assistantPanel.classList.contains('is-open');
+        if (isOpen) {
+          closeAssistant();
+        } else {
+          openAssistant('menu');
+        }
+      });
+
+      assistantClose.addEventListener('click', closeAssistant);
+
+      assistantActions.addEventListener('click', (event) => {
+        const action = event.target.dataset.assistAction;
+        if (!action) return;
+        openAssistant(action);
+      });
+
+      assistantFormWrap.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (form.id === 'assistantBookingForm') {
+          handleAssistantBooking(event);
+        }
+      });
+
+      assistantFormWrap.addEventListener('click', (event) => {
+        const cancelId = event.target.dataset.cancelId;
+        if (!cancelId) return;
+
+        const appointments = loadAppointments().filter((item) => item.id !== cancelId);
+        saveAppointments(appointments);
+        renderCancelAssistant();
+        addAssistantMessage('La cita ha sido cancelada correctamente.', 'bot');
+      });
+
+      assistantTriggerButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          openAssistant(button.dataset.assistAction || 'agenda');
+        });
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+          closeModal();
+        }
+
+        if (event.key === 'Escape' && assistantPanel.classList.contains('is-open')) {
+          closeAssistant();
+        }
+      });
+    </script>
+  </body>
+</html>

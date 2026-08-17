@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EQUILIBRA | Usuario</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="app-shell" data-page="user">
+    <header class="topbar">
+      <div class="container navbar">
+        <div class="brand" aria-label="EQUILIBRA">
+          <span class="brand-mark">E</span>
+          <span>EQUILIBRA</span>
+        </div>
+
+        <nav class="nav-links" aria-label="Navegación principal">
+          <a href="index.html">Inicio</a>
+          <a href="user.html" class="active">Agendar cita</a>
+          <a href="admin.html">Administración</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="app-layout">
+      <aside class="sidebar">
+        <div class="brand" aria-label="EQUILIBRA sidebar">
+          <span class="brand-mark">E</span>
+          <span>EQUILIBRA</span>
+        </div>
+
+        <nav class="side-links">
+          <a href="user.html" class="active">📅 Agendar cita</a>
+          <a href="admin.html">🛠️ Vista admin</a>
+          <a href="index.html">🏠 Volver al inicio</a>
+        </nav>
+      </aside>
+
+      <main class="app-main">
+        <div class="top-panel">
+          <h1>Agendar cita</h1>
+          <span class="badge">✅ Calendario disponible</span>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="card app-form">
+            <form id="bookingForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="name">Nombre completo</label>
+                  <input id="name" type="text" placeholder="Ej. Sofía Ramírez" required />
+                </div>
+                <div class="form-group">
+                  <label for="phone">Teléfono</label>
+                  <input id="phone" type="tel" placeholder="0412-1234567" required />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="email">Correo electrónico</label>
+                  <input id="email" type="email" placeholder="correo@ejemplo.com" required />
+                </div>
+                <div class="form-group">
+                  <label for="service">Servicio</label>
+                  <select id="service" required>
+                    <option value="">Selecciona un servicio</option>
+                    <option>Fisioterapia Deportiva</option>
+                    <option>Traumatología</option>
+                    <option>Psicología</option>
+                    <option>Nutrición</option>
+                    <option>Entrenamiento Funcional</option>
+                    <option>Boxeo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="calendar-box card">
+                <div class="calendar-header">
+                  <h3 id="calendarMonth">Mes actual</h3>
+                  <div class="calendar-nav">
+                    <button type="button" id="prevMonth" aria-label="Mes anterior">‹</button>
+                    <button type="button" id="nextMonth" aria-label="Mes siguiente">›</button>
+                  </div>
+                </div>
+
+                <div class="weekdays">
+                  <div>Dom</div>
+                  <div>Lun</div>
+                  <div>Mar</div>
+                  <div>Mié</div>
+                  <div>Jue</div>
+                  <div>Vie</div>
+                  <div>Sáb</div>
+                </div>
+
+                <div id="calendarGrid" class="calendar-grid"></div>
+              </div>
+
+              <div class="form-group">
+                <label>Fecha seleccionada</label>
+                <input id="date" type="date" readonly />
+              </div>
+
+              <div class="form-group">
+                <label>Horarios disponibles</label>
+                <div id="timeSlots" class="time-grid"></div>
+              </div>
+
+              <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Reservar cita</button>
+            </form>
+          </section>
+
+          <aside class="card summary-panel">
+            <h3>Resumen de cita</h3>
+            <div id="summaryList" class="summary-list"></div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

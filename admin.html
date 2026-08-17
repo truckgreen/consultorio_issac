@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EQUILIBRA | Administrador</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="app-shell" data-page="admin">
+    <header class="topbar">
+      <div class="container navbar">
+        <div class="brand" aria-label="EQUILIBRA">
+          <span class="brand-mark">E</span>
+          <span>EQUILIBRA</span>
+        </div>
+
+        <nav class="nav-links" aria-label="Navegación principal">
+          <a href="index.html">Inicio</a>
+          <a href="user.html">Agendar cita</a>
+          <a href="admin.html" class="primary">Admin</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="app-layout">
+      <aside class="sidebar">
+        <div class="brand" aria-label="EQUILIBRA sidebar">
+          <span class="brand-mark">E</span>
+          <span>EQUILIBRA</span>
+        </div>
+
+        <nav class="side-links">
+          <a href="admin.html" class="active">📊 Dashboard</a>
+          <a href="user.html">📅 Ver usuario</a>
+          <a href="index.html">🏠 Inicio</a>
+        </nav>
+      </aside>
+
+      <main class="admin-main">
+        <div class="top-panel">
+          <h1>Panel administrativo</h1>
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <button type="button" id="addAppointmentBtn" class="btn btn-primary" style="padding: 12px 18px;">+ Nueva cita</button>
+            <span class="badge">🟡 Citas del día</span>
+          </div>
+        </div>
+
+        <div class="admin-grid">
+          <section class="stats-row">
+            <div class="stat-card">
+              <div class="label">Total</div>
+              <strong id="totalCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <div class="label">Confirmadas</div>
+              <strong id="confirmedCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <div class="label">Pendientes</div>
+              <strong id="pendingCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <div class="label">Próxima</div>
+              <strong id="nextDate">Sin citas</strong>
+            </div>
+          </section>
+
+          <section class="card table-card">
+            <div class="app-form" style="padding-bottom: 10px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="filterService">Filtrar por servicio</label>
+                <select id="filterService">
+                  <option value="all">Todos los servicios</option>
+                  <option>Fisioterapia Deportiva</option>
+                  <option>Traumatología</option>
+                  <option>Psicología</option>
+                  <option>Nutrición</option>
+                  <option>Entrenamiento Funcional</option>
+                  <option>Boxeo</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Paciente</th>
+                    <th>Servicio</th>
+                    <th>Teléfono</th>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="appointmentsBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div class="admin-form-modal" id="appointmentModal" aria-hidden="true" style="position: fixed; inset: 0; background: rgba(17,17,17,0.62); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; pointer-events: none; transition: 0.2s ease; z-index: 100; padding: 20px;">
+      <div class="card" style="width: min(560px, 100%); padding: 24px; position: relative;">
+        <button type="button" id="closeModalBtn" aria-label="Cerrar" style="position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; border: none; border-radius: 50%; background: #f3f3f3; cursor: pointer; font-size: 1.4rem;">×</button>
+        <h2 id="appointmentModalTitle" style="margin: 0 0 18px; font-size: clamp(1.8rem, 2.2vw, 2.5rem);">Nueva cita</h2>
+
+        <form id="appointmentForm">
+          <input type="hidden" id="appointmentId" />
+
+          <div class="form-row" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="manualName">Nombre</label>
+              <input id="manualName" type="text" required />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="manualPhone">Teléfono</label>
+              <input id="manualPhone" type="tel" required />
+            </div>
+          </div>
+
+          <div class="form-row" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="manualEmail">Correo</label>
+              <input id="manualEmail" type="email" required />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="manualService">Servicio</label>
+              <select id="manualService" required>
+                <option value="">Selecciona</option>
+                <option>Fisioterapia Deportiva</option>
+                <option>Traumatología</option>
+                <option>Psicología</option>
+                <option>Nutrición</option>
+                <option>Entrenamiento Funcional</option>
+                <option>Boxeo</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="manualDate">Fecha</label>
+              <input id="manualDate" type="date" required />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="manualTime">Hora</label>
+              <select id="manualTime" required>
+                <option value="">Selecciona</option>
+                <option>08:30</option>
+                <option>09:00</option>
+                <option>09:30</option>
+                <option>10:00</option>
+                <option>10:30</option>
+                <option>11:00</option>
+                <option>12:00</option>
+                <option>14:00</option>
+                <option>14:30</option>
+                <option>15:00</option>
+                <option>15:30</option>
+                <option>16:00</option>
+                <option>16:30</option>
+                <option>17:00</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 14px; margin-bottom: 0;">
+            <label for="manualStatus">Estado</label>
+            <select id="manualStatus">
+              <option value="pendiente">Pendiente</option>
+              <option value="confirmada">Confirmada</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px;">
+            <button type="button" id="cancelManualBtn" class="small-btn" style="background: #f0f0f0; color: #1b1b1b;">Cancelar</button>
+            <button type="submit" class="btn btn-primary" style="padding: 12px 18px;">Guardar cita</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const token = localStorage.getItem('equilibra_admin_token');
+      if (!token) {
+        window.location.href = 'admin-login.html';
+      }
+    </script>
+    <script src="app.js"></script>
+  </body>
+</html>
