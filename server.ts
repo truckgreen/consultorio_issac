@@ -121,19 +121,49 @@ app.get('/api/health', (req, res) => {
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
   db = loadDatabase();
-  const user = db.users.find((u: any) => u.username === username);
+  const user = db.users.find((u: any) => u.username === (username || 'admin'));
 
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-    return res.status(401).json({ message: 'Credenciales inválidas' });
+  if (!user || !bcrypt.compareSync(password || '', user.password_hash)) {
+    return res.status(401).json({ message: 'Credenciales inválidas. Contraseña incorrecta.' });
   }
 
   const token = Buffer.from(JSON.stringify({ username: user.username, role: user.role, time: Date.now() })).toString('base64');
   return res.json({ ok: true, token, user: { username: user.username, role: user.role } });
 });
 
+app.post('/api/admin/change-password', (req, res) => {
+  const { currentPassword, newPassword, username } = req.body || {};
+  if (!newPassword || newPassword.length < 4) {
+    return res.status(400).json({ message: 'La nueva contraseña debe tener al menos 4 caracteres.' });
+  }
+
+  db = loadDatabase();
+  const targetUser = username || 'admin';
+  const userIndex = db.users.findIndex((u: any) => u.username === targetUser);
+
+  if (userIndex === -1) {
+    return res.status(404).json({ message: 'Usuario no encontrado' });
+  }
+
+  const user = db.users[userIndex];
+  if (currentPassword && !bcrypt.compareSync(currentPassword, user.password_hash)) {
+    return res.status(401).json({ message: 'La contraseña actual no es correcta.' });
+  }
+
+  db.users[userIndex].password_hash = bcrypt.hashSync(newPassword, 10);
+  saveDatabase(db);
+  return res.json({ ok: true, message: 'Contraseña actualizada exitosamente.' });
+});
+
+app.get('/api/admin/verify', (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader) return res.status(401).json({ ok: false, message: 'No autorizado' });
+  return res.json({ ok: true, message: 'Token válido' });
+});
+
 app.get('/api/appointments', (req, res) => {
   db = loadDatabase();
-  const sorted = [...db.appointments].sort((a: any, b: any) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
+  const sorted = [...(db.appointments || [])].sort((a: any, b: any) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
   res.json(sorted);
 });
 
@@ -144,13 +174,13 @@ app.post('/api/appointments', (req, res) => {
   }
 
   db = loadDatabase();
-  const conflict = db.appointments.find((a: any) => a.date === date && a.time === time && a.status !== 'cancelada');
+  const conflict = (db.appointments || []).find((a: any) => a.date === date && a.time === time && a.status !== 'cancelada');
   if (conflict) {
     return res.status(409).json({ message: 'Ese horario ya está ocupado' });
   }
 
   const newAppointment = {
-    id: req.body.id || `apt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    id: String(req.body.id || `apt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`),
     name: String(name).trim(),
     phone: String(phone).trim(),
     email: String(email).trim(),
@@ -158,9 +188,10 @@ app.post('/api/appointments', (req, res) => {
     date: String(date),
     time: String(time),
     status: req.body.status || 'pendiente',
-    created_at: Date.now()
+    created_at: req.body.created_at || Date.now()
   };
 
+  if (!db.appointments) db.appointments = [];
   db.appointments.push(newAppointment);
   saveDatabase(db);
   return res.status(201).json({ message: 'Cita creada correctamente', appointment: newAppointment });
@@ -169,35 +200,57 @@ app.post('/api/appointments', (req, res) => {
 app.put('/api/appointments/:id', (req, res) => {
   const { id } = req.params;
   db = loadDatabase();
-  const index = db.appointments.findIndex((a: any) => a.id === id);
-  if (index === -1) return res.status(404).json({ message: 'Cita no encontrada' });
+  if (!db.appointments) db.appointments = [];
+  
+  const index = db.appointments.findIndex((a: any) => String(a.id) === String(id));
+  const updatedData = {
+    ...req.body,
+    id: String(id),
+    updated_at: Date.now()
+  };
 
-  db.appointments[index] = { ...db.appointments[index], ...req.body, id };
+  if (index === -1) {
+    db.appointments.push(updatedData);
+  } else {
+    db.appointments[index] = { ...db.appointments[index], ...updatedData };
+  }
+
   saveDatabase(db);
-  return res.json({ ok: true, message: 'Cita actualizada', appointment: db.appointments[index] });
+  return res.json({ ok: true, message: 'Cita guardada correctamente', appointment: updatedData });
 });
 
 app.patch('/api/appointments/:id', (req, res) => {
   const { id } = req.params;
   const { status } = req.body || {};
   db = loadDatabase();
-  const appointment = db.appointments.find((a: any) => a.id === id);
-  if (!appointment) return res.status(404).json({ message: 'Cita no encontrada' });
+  if (!db.appointments) db.appointments = [];
+  
+  const appointment = db.appointments.find((a: any) => String(a.id) === String(id));
+  if (appointment) {
+    if (status !== undefined) appointment.status = status;
+    if (req.body.date) appointment.date = req.body.date;
+    if (req.body.time) appointment.time = req.body.time;
+    if (req.body.service) appointment.service = req.body.service;
+    if (req.body.name) appointment.name = req.body.name;
+    if (req.body.phone) appointment.phone = req.body.phone;
+    if (req.body.email) appointment.email = req.body.email;
+    appointment.updated_at = Date.now();
+    saveDatabase(db);
+    return res.json({ ok: true, message: 'Cita actualizada', appointment });
+  }
 
-  appointment.status = status;
-  saveDatabase(db);
-  return res.json({ ok: true, message: `Estado cambiado a ${status}`, appointment });
+  return res.status(404).json({ message: 'Cita no encontrada' });
 });
 
 app.delete('/api/appointments/:id', (req, res) => {
   const { id } = req.params;
   db = loadDatabase();
+  if (!db.appointments) db.appointments = [];
+  
   const before = db.appointments.length;
-  db.appointments = db.appointments.filter((a: any) => a.id !== id);
-  if (db.appointments.length === before) return res.status(404).json({ message: 'Cita no encontrada' });
-
+  db.appointments = db.appointments.filter((a: any) => String(a.id) !== String(id));
   saveDatabase(db);
-  return res.json({ ok: true, message: 'Cita eliminada' });
+  return res.json({ ok: true, message: 'Cita eliminada correctamente' });
 });
 
 // Precios dinámicos

@@ -12,27 +12,61 @@
         place-items: center;
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
         padding: 20px;
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
       }
       .login-container {
-        width: min(440px, 100%);
+        width: min(450px, 100%);
         background: #ffffff;
         border-radius: var(--radius-2xl);
         padding: 40px 32px;
-        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.45);
         border: 1px solid var(--border-light);
       }
       .login-header {
         text-align: center;
-        margin-bottom: 26px;
+        margin-bottom: 24px;
       }
       .login-header h1 {
-        font-size: 1.8rem;
+        font-size: 1.75rem;
         color: var(--slate-900);
         margin: 12px 0 6px;
       }
       .login-header p {
         color: var(--text-muted);
         font-size: 0.9rem;
+      }
+      .password-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .password-input-wrap input {
+        width: 100%;
+        padding-right: 42px;
+      }
+      .toggle-password-btn {
+        position: absolute;
+        right: 10px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+        color: var(--slate-500);
+        padding: 4px;
+      }
+      .credentials-hint {
+        background: var(--slate-50);
+        border: 1px dashed var(--slate-300);
+        border-radius: var(--radius-md);
+        padding: 12px;
+        font-size: 0.82rem;
+        color: var(--slate-600);
+        text-align: center;
+        margin-top: 16px;
+      }
+      .credentials-hint strong {
+        color: var(--slate-900);
       }
     </style>
   </head>
@@ -46,7 +80,7 @@
           <div class="brand-mark">E</div>
         </div>
         <h1>Acceso Administrativo</h1>
-        <p>Ingresa tus credenciales para gestionar citas y tarifas.</p>
+        <p>Ingresa tu clave de seguridad para gestionar citas y tarifas.</p>
       </div>
 
       <form id="adminLoginForm" style="display: flex; flex-direction: column; gap: 16px;">
@@ -57,13 +91,22 @@
 
         <div class="form-field">
           <label for="adminPassword" style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Contraseña</label>
-          <input type="password" id="adminPassword" placeholder="••••••••" style="padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-light); font-size: 0.95rem;" required />
+          <div class="password-input-wrap">
+            <input type="password" id="adminPassword" placeholder="••••••••" style="padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-light); font-size: 0.95rem;" required />
+            <button type="button" class="toggle-password-btn" id="togglePasswordBtn" aria-label="Mostrar contraseña" title="Mostrar/Ocultar">
+              👁️
+            </button>
+          </div>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 13px; margin-top: 8px;">
-          Entrar al Panel
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 13px; margin-top: 6px;">
+          Entrar al Panel de Control
         </button>
       </form>
+
+      <div class="credentials-hint">
+        🔒 <strong>Acceso protegido:</strong> Usuario: <strong>admin</strong> | Clave inicial: <strong>equilibra123</strong>
+      </div>
 
       <div style="text-align: center; margin-top: 22px;">
         <a href="index.html" style="font-size: 0.88rem; color: var(--text-muted); font-weight: 600;">
@@ -77,6 +120,15 @@
       const loginForm = document.getElementById('adminLoginForm');
       const passwordInput = document.getElementById('adminPassword');
       const usernameInput = document.getElementById('adminUsername');
+      const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+
+      if (togglePasswordBtn && passwordInput) {
+        togglePasswordBtn.addEventListener('click', () => {
+          const isPassword = passwordInput.type === 'password';
+          passwordInput.type = isPassword ? 'text' : 'password';
+          togglePasswordBtn.textContent = isPassword ? '🙈' : '👁️';
+        });
+      }
 
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -92,14 +144,14 @@
 
           const data = await res.json();
           if (!res.ok) {
-            throw new Error(data.message || 'Credenciales inválidas');
+            throw new Error(data.message || 'Credenciales inválidas. Contraseña incorrecta.');
           }
 
           localStorage.setItem('equilibra_admin_token', data.token);
           showToast('¡Bienvenido al panel administrativo!', 'success');
           setTimeout(() => {
             window.location.href = 'admin.html';
-          }, 600);
+          }, 450);
         } catch (err) {
           // Fallback para contraseña por defecto 'equilibra123'
           if (password === 'equilibra123') {
@@ -107,7 +159,7 @@
             showToast('¡Acceso concedido!', 'success');
             setTimeout(() => {
               window.location.href = 'admin.html';
-            }, 600);
+            }, 450);
             return;
           }
 

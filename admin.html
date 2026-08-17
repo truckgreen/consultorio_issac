@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EQUILIBRA | Panel Administrativo & Gestión de Precios</title>
     <link rel="stylesheet" href="styles.css" />
+    <script>
+      // Protección de acceso al Panel Admin
+      (function() {
+        const token = localStorage.getItem('equilibra_admin_token');
+        if (!token) {
+          window.location.replace('admin-login.html');
+        }
+      })();
+    </script>
   </head>
   <body class="admin-shell" data-page="admin">
     <!-- Contenedor Global de Notificaciones Toast -->
@@ -29,9 +38,12 @@
         </a>
       </nav>
 
-      <div style="padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08);">
-        <button type="button" id="adminLogoutBtn" class="btn btn-secondary btn-sm" style="width:100%;">
-          Cerrar Sesión
+      <div style="padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 8px;">
+        <button type="button" id="openChangePassBtn" class="btn btn-secondary btn-sm" style="width:100%; font-size: 0.82rem;">
+          🔐 Cambiar Contraseña
+        </button>
+        <button type="button" id="adminLogoutBtn" class="btn btn-secondary btn-sm" style="width:100%; font-size: 0.82rem; background: rgba(239,68,68,0.15); color: #fca5a5; border-color: rgba(239,68,68,0.3);">
+          🚪 Cerrar Sesión
         </button>
       </div>
     </aside>
@@ -41,10 +53,13 @@
       <div class="admin-topbar">
         <div>
           <h1>Panel de Control</h1>
-          <p style="color: var(--text-muted); font-size: 0.92rem;">Administración integral de citas médicas, estado de pacientes y tarifas de servicios.</p>
+          <p style="color: var(--text-muted); font-size: 0.92rem;">Administración integral de citas médicas, pacientes y tarifas sincronizadas.</p>
         </div>
 
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <button type="button" id="topChangePassBtn" class="btn btn-secondary btn-sm">
+            🔐 Seguridad
+          </button>
           <button type="button" id="addAppointmentBtn" class="btn btn-primary">
             + Nueva Cita Manual
           </button>
@@ -91,16 +106,24 @@
             <input type="text" id="searchAppointments" placeholder="Buscar por nombre, teléfono o correo..." />
           </div>
 
-          <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <label for="filterStatus" style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">Estado:</label>
+            <select id="filterStatus" style="padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light); font-size: 0.9rem;">
+              <option value="all">Todos los estados</option>
+              <option value="confirmada">Confirmada</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+
             <label for="filterService" style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">Servicio:</label>
-            <select id="filterService" style="padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+            <select id="filterService" style="padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light); font-size: 0.9rem;">
               <option value="all">Todos los servicios</option>
-              <option>Fisioterapia Deportiva</option>
-              <option>Traumatología</option>
-              <option>Psicología</option>
-              <option>Nutrición</option>
-              <option>Entrenamiento Funcional</option>
-              <option>Boxeo</option>
+              <option value="Fisioterapia Deportiva">Fisioterapia Deportiva</option>
+              <option value="Traumatología">Traumatología</option>
+              <option value="Psicología">Psicología</option>
+              <option value="Nutrición">Nutrición</option>
+              <option value="Entrenamiento Funcional">Entrenamiento Funcional</option>
+              <option value="Boxeo">Boxeo</option>
             </select>
           </div>
         </div>
@@ -181,12 +204,12 @@
               <label for="manualService">Servicio *</label>
               <select id="manualService" required>
                 <option value="">Seleccione</option>
-                <option>Fisioterapia Deportiva</option>
-                <option>Traumatología</option>
-                <option>Psicología</option>
-                <option>Nutrición</option>
-                <option>Entrenamiento Funcional</option>
-                <option>Boxeo</option>
+                <option value="Fisioterapia Deportiva">Fisioterapia Deportiva</option>
+                <option value="Traumatología">Traumatología</option>
+                <option value="Psicología">Psicología</option>
+                <option value="Nutrición">Nutrición</option>
+                <option value="Entrenamiento Funcional">Entrenamiento Funcional</option>
+                <option value="Boxeo">Boxeo</option>
               </select>
             </div>
           </div>
@@ -219,7 +242,7 @@
           </div>
 
           <div class="form-field" style="margin-bottom: 20px;">
-            <label for="manualStatus">Estado inicial</label>
+            <label for="manualStatus">Estado</label>
             <select id="manualStatus">
               <option value="pendiente">Pendiente</option>
               <option value="confirmada">Confirmada</option>
@@ -239,16 +262,69 @@
       </div>
     </div>
 
-    <!-- Verificación simple de sesión para el admin -->
+    <!-- Modal de Confirmación para Eliminar Cita (Sin window.confirm) -->
+    <div class="modal-backdrop" id="deleteConfirmModal" aria-hidden="true">
+      <div class="modal-card" style="max-width: 440px; text-align: center;">
+        <div style="font-size: 2.8rem; margin-bottom: 10px;">🗑️</div>
+        <h2 style="font-size: 1.35rem; margin-bottom: 8px; color: var(--slate-900);">¿Eliminar Cita?</h2>
+        <p id="deleteModalText" style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 24px; line-height: 1.5;">
+          Esta acción no se puede deshacer y borrará permanentemente la cita del paciente.
+        </p>
+        <div style="display: flex; justify-content: center; gap: 12px;">
+          <button type="button" id="cancelDeleteBtn" class="btn btn-secondary btn-sm" style="padding: 10px 20px;">
+            Cancelar
+          </button>
+          <button type="button" id="confirmDeleteBtn" class="btn btn-primary btn-sm" style="background: #ef4444; border-color: #ef4444; color: #ffffff; padding: 10px 20px;">
+            Sí, Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para Cambiar Contraseña del Administrador -->
+    <div class="modal-backdrop" id="changePasswordModal" aria-hidden="true">
+      <div class="modal-card" style="max-width: 460px;">
+        <div class="modal-card-header">
+          <h2 style="font-size: 1.35rem; color: var(--slate-900);">🔐 Cambiar Contraseña Admin</h2>
+          <button type="button" class="modal-close-btn" id="closePassModalBtn" aria-label="Cerrar">&times;</button>
+        </div>
+        <form id="changePasswordForm" style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="form-field">
+            <label for="currentAdminPass" style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Contraseña Actual *</label>
+            <input type="password" id="currentAdminPass" placeholder="••••••••" style="padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light);" required />
+          </div>
+          <div class="form-field">
+            <label for="newAdminPass" style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Nueva Contraseña *</label>
+            <input type="password" id="newAdminPass" placeholder="Mínimo 4 caracteres" minlength="4" style="padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light);" required />
+          </div>
+          <div class="form-field">
+            <label for="confirmAdminPass" style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Confirmar Nueva Contraseña *</label>
+            <input type="password" id="confirmAdminPass" placeholder="Repite la nueva contraseña" minlength="4" style="padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light);" required />
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+            <button type="button" id="cancelPassBtn" class="btn btn-secondary btn-sm">Cancelar</button>
+            <button type="submit" class="btn btn-primary btn-sm">Guardar Contraseña</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Scripts de la aplicación -->
+    <script src="app.js"></script>
     <script>
+      // Manejo de Logout
       const logoutBtn = document.getElementById('adminLogoutBtn');
       if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
           localStorage.removeItem('equilibra_admin_token');
-          window.location.href = 'admin-login.html';
+          if (window.showToast) {
+            window.showToast('Sesión cerrada correctamente.', 'info');
+          }
+          setTimeout(() => {
+            window.location.href = 'admin-login.html';
+          }, 350);
         });
       }
     </script>
-    <script src="app.js"></script>
   </body>
 </html>

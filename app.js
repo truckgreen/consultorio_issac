@@ -390,6 +390,7 @@ function initAdminPage() {
   const pendingCount = document.getElementById('pendingCount');
   const nextDate = document.getElementById('nextDate');
   const filterService = document.getElementById('filterService');
+  const filterStatus = document.getElementById('filterStatus');
   const searchInput = document.getElementById('searchAppointments');
   
   // Modal de Citas
@@ -400,6 +401,24 @@ function initAdminPage() {
   const closeModalBtn = document.getElementById('closeModalBtn');
   const cancelManualBtn = document.getElementById('cancelManualBtn');
   const appointmentIdInput = document.getElementById('appointmentId');
+
+  // Modal de Eliminación de Citas (Sin window.confirm)
+  const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+  const deleteModalText = document.getElementById('deleteModalText');
+  const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+  const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+  let pendingDeleteId = null;
+
+  // Modal de Cambio de Contraseña
+  const changePasswordModal = document.getElementById('changePasswordModal');
+  const openChangePassBtn = document.getElementById('openChangePassBtn');
+  const topChangePassBtn = document.getElementById('topChangePassBtn');
+  const closePassModalBtn = document.getElementById('closePassModalBtn');
+  const cancelPassBtn = document.getElementById('cancelPassBtn');
+  const changePasswordForm = document.getElementById('changePasswordForm');
+  const currentAdminPass = document.getElementById('currentAdminPass');
+  const newAdminPass = document.getElementById('newAdminPass');
+  const confirmAdminPass = document.getElementById('confirmAdminPass');
   
   // Sección de Precios
   const priceGrid = document.getElementById('priceEditorGrid');
@@ -442,7 +461,7 @@ function initAdminPage() {
     const now = new Date();
     const upcoming = appointments
       .filter(a => a.status !== 'cancelada' && new Date(`${a.date}T${a.time}`) >= now)
-      .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`))[0];
+      .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())[0];
 
     if (totalCount) totalCount.textContent = total;
     if (confirmedCount) confirmedCount.textContent = confirmed;
@@ -452,39 +471,44 @@ function initAdminPage() {
     if (!tableBody) return;
 
     const selectedService = filterService ? filterService.value : 'all';
+    const selectedStatus = filterStatus ? filterStatus.value : 'all';
     const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
 
     let filtered = appointments;
     if (selectedService !== 'all') {
       filtered = filtered.filter(a => a.service === selectedService);
     }
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(a => a.status === selectedStatus);
+    }
     if (query) {
       filtered = filtered.filter(a => 
         (a.name && a.name.toLowerCase().includes(query)) ||
         (a.phone && a.phone.includes(query)) ||
-        (a.email && a.email.toLowerCase().includes(query))
+        (a.email && a.email.toLowerCase().includes(query)) ||
+        (a.service && a.service.toLowerCase().includes(query))
       );
     }
 
     if (!filtered.length) {
-      tableBody.innerHTML = '<tr><td colspan="7" class="empty-state">No se encontraron citas con los filtros seleccionados.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="7" class="empty-state" style="text-align:center; padding:32px; color:var(--text-muted);">No se encontraron citas con los filtros seleccionados.</td></tr>';
       return;
     }
 
     tableBody.innerHTML = filtered.map(apt => `
-      <tr>
-        <td><strong>${apt.name}</strong></td>
-        <td>${apt.service}</td>
-        <td>${apt.phone}</td>
+      <tr data-appointment-row="${apt.id}">
+        <td><strong>${apt.name || 'Sin nombre'}</strong></td>
+        <td>${apt.service || 'General'}</td>
+        <td>${apt.phone || 'S/N'}</td>
         <td>${formatDateShort(apt.date)}</td>
-        <td>${apt.time}</td>
-        <td><span class="status-badge ${apt.status}">${apt.status}</span></td>
+        <td><strong>${apt.time}</strong></td>
+        <td><span class="status-badge ${apt.status || 'pendiente'}">${apt.status || 'pendiente'}</span></td>
         <td>
           <div class="table-actions">
-            <button type="button" class="action-btn confirm" data-action="confirm" data-id="${apt.id}" title="Confirmar">✓</button>
-            <button type="button" class="action-btn edit" data-action="edit" data-id="${apt.id}" title="Editar">✏️</button>
-            <button type="button" class="action-btn delete" data-action="cancel" data-id="${apt.id}" title="Cancelar cita">✕</button>
-            <button type="button" class="action-btn delete" data-action="delete" data-id="${apt.id}" title="Eliminar" style="background:#fee2e2;">🗑️</button>
+            <button type="button" class="action-btn confirm" data-action="confirm" data-id="${apt.id}" title="Confirmar Cita">✓</button>
+            <button type="button" class="action-btn edit" data-action="edit" data-id="${apt.id}" title="Editar Cita">✏️</button>
+            <button type="button" class="action-btn delete" data-action="cancel" data-id="${apt.id}" title="Marcar como Cancelada">✕</button>
+            <button type="button" class="action-btn delete" data-action="delete" data-id="${apt.id}" title="Eliminar Registro" style="background:#fee2e2; color:#ef4444; border-color:#fca5a5;">🗑️</button>
           </div>
         </td>
       </tr>
@@ -501,23 +525,37 @@ function initAdminPage() {
   }
 
   async function handleAppointmentAction(action, id) {
-    if (action === 'delete') {
-      if (!confirm('¿Deseas eliminar permanentemente este registro?')) return;
-      try {
-        await fetch(`${API_BASE}/appointments/${id}`, { method: 'DELETE' });
-      } catch (e) {}
+    const list = getLocalAppointments();
+    const apt = list.find(a => String(a.id) === String(id));
 
-      const list = getLocalAppointments().filter(a => a.id !== id);
-      saveLocalAppointments(list);
-      showToast('Cita eliminada correctamente del registro.', 'info');
-      refreshAppointments();
+    if (action === 'delete') {
+      pendingDeleteId = id;
+      if (deleteModalText) {
+        deleteModalText.innerHTML = apt 
+          ? `¿Estás seguro de eliminar la cita de <strong>${apt.name}</strong> (${apt.service} - ${formatDateShort(apt.date)} ${apt.time})?<br><span style="font-size:0.85rem; color:#ef4444;">Esta acción borrará el registro definitivamente.</span>`
+          : 'Esta acción no se puede deshacer y borrará permanentemente la cita del paciente.';
+      }
+      if (deleteConfirmModal) {
+        deleteConfirmModal.classList.add('is-open');
+        deleteConfirmModal.setAttribute('aria-hidden', 'false');
+      }
       return;
     }
 
     if (action === 'edit') {
-      const list = getLocalAppointments();
-      const apt = list.find(a => a.id === id);
-      if (apt) openAppointmentModal('edit', apt);
+      if (apt) {
+        openAppointmentModal('edit', apt);
+      } else {
+        // Buscar desde API si no está en local
+        try {
+          const res = await fetch(`${API_BASE}/appointments`);
+          if (res.ok) {
+            const data = await res.json();
+            const found = data.find((a) => String(a.id) === String(id));
+            if (found) openAppointmentModal('edit', found);
+          }
+        } catch (err) {}
+      }
       return;
     }
 
@@ -529,10 +567,12 @@ function initAdminPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus })
         });
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Error en API patch:', e);
+      }
 
-      const list = getLocalAppointments().map(a => a.id === id ? { ...a, status: newStatus } : a);
-      saveLocalAppointments(list);
+      const updatedList = list.map(a => String(a.id) === String(id) ? { ...a, status: newStatus } : a);
+      saveLocalAppointments(updatedList);
       
       const msg = newStatus === 'confirmada' ? '¡Cita confirmada exitosamente!' : 'Cita marcada como cancelada.';
       showToast(msg, newStatus === 'confirmada' ? 'success' : 'warning');
@@ -540,21 +580,62 @@ function initAdminPage() {
     }
   }
 
-  // Modal de Citas
+  // Modal de Confirmación de Eliminación
+  if (cancelDeleteBtn && deleteConfirmModal) {
+    cancelDeleteBtn.addEventListener('click', () => {
+      deleteConfirmModal.classList.remove('is-open');
+      deleteConfirmModal.setAttribute('aria-hidden', 'true');
+      pendingDeleteId = null;
+    });
+  }
+
+  if (confirmDeleteBtn && deleteConfirmModal) {
+    confirmDeleteBtn.addEventListener('click', async () => {
+      if (!pendingDeleteId) return;
+      const idToDelete = pendingDeleteId;
+
+      try {
+        await fetch(`${API_BASE}/appointments/${idToDelete}`, { method: 'DELETE' });
+      } catch (e) {
+        console.warn('Error eliminando en API:', e);
+      }
+
+      const list = getLocalAppointments().filter(a => String(a.id) !== String(idToDelete));
+      saveLocalAppointments(list);
+      
+      deleteConfirmModal.classList.remove('is-open');
+      deleteConfirmModal.setAttribute('aria-hidden', 'true');
+      pendingDeleteId = null;
+
+      showToast('Cita eliminada correctamente del registro.', 'info');
+      refreshAppointments();
+    });
+  }
+
+  // Modal de Citas (Creación y Edición)
   function openAppointmentModal(mode = 'create', appointment = null) {
     if (!appointmentModal) return;
     if (mode === 'edit' && appointment) {
       if (appointmentModalTitle) appointmentModalTitle.textContent = 'Editar Cita Médica';
-      if (appointmentIdInput) appointmentIdInput.value = appointment.id;
-      document.getElementById('manualName').value = appointment.name || '';
-      document.getElementById('manualPhone').value = appointment.phone || '';
-      document.getElementById('manualEmail').value = appointment.email || '';
-      document.getElementById('manualService').value = appointment.service || '';
-      document.getElementById('manualDate').value = appointment.date || '';
-      document.getElementById('manualTime').value = appointment.time || '';
-      document.getElementById('manualStatus').value = appointment.status || 'pendiente';
+      if (appointmentIdInput) appointmentIdInput.value = String(appointment.id);
+      
+      const nameInput = document.getElementById('manualName');
+      const phoneInput = document.getElementById('manualPhone');
+      const emailInput = document.getElementById('manualEmail');
+      const serviceInput = document.getElementById('manualService');
+      const dateInput = document.getElementById('manualDate');
+      const timeInput = document.getElementById('manualTime');
+      const statusInput = document.getElementById('manualStatus');
+
+      if (nameInput) nameInput.value = appointment.name || '';
+      if (phoneInput) phoneInput.value = appointment.phone || '';
+      if (emailInput) emailInput.value = appointment.email || '';
+      if (serviceInput) serviceInput.value = appointment.service || 'Fisioterapia Deportiva';
+      if (dateInput) dateInput.value = appointment.date || '';
+      if (timeInput) timeInput.value = appointment.time || '09:00';
+      if (statusInput) statusInput.value = appointment.status || 'pendiente';
     } else {
-      if (appointmentModalTitle) appointmentModalTitle.textContent = 'Nueva Cita';
+      if (appointmentModalTitle) appointmentModalTitle.textContent = 'Nueva Cita Manual';
       if (appointmentForm) appointmentForm.reset();
       if (appointmentIdInput) appointmentIdInput.value = '';
     }
@@ -576,39 +657,65 @@ function initAdminPage() {
   if (appointmentForm) {
     appointmentForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const id = appointmentIdInput?.value;
+      const id = appointmentIdInput ? appointmentIdInput.value.trim() : '';
+      
+      const name = document.getElementById('manualName').value.trim();
+      const phone = document.getElementById('manualPhone').value.trim();
+      const email = document.getElementById('manualEmail').value.trim();
+      const service = document.getElementById('manualService').value;
+      const date = document.getElementById('manualDate').value;
+      const time = document.getElementById('manualTime').value;
+      const status = document.getElementById('manualStatus').value;
+
+      if (!name || !phone || !service || !date || !time) {
+        showToast('Por favor completa todos los campos requeridos.', 'warning');
+        return;
+      }
+
       const appointmentData = {
         id: id || `apt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-        name: document.getElementById('manualName').value.trim(),
-        phone: document.getElementById('manualPhone').value.trim(),
-        email: document.getElementById('manualEmail').value.trim(),
-        service: document.getElementById('manualService').value,
-        date: document.getElementById('manualDate').value,
-        time: document.getElementById('manualTime').value,
-        status: document.getElementById('manualStatus').value,
+        name,
+        phone,
+        email: email || `${name.toLowerCase().replace(/\s+/g, '')}@ejemplo.com`,
+        service,
+        date,
+        time,
+        status: status || 'pendiente',
         created_at: Date.now()
       };
 
       if (id) {
+        // EDICIÓN
         try {
           await fetch(`${API_BASE}/appointments/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(appointmentData)
           });
-        } catch (err) {}
+        } catch (err) {
+          console.warn('Error en API edit:', err);
+        }
 
-        const list = getLocalAppointments().map(a => a.id === id ? appointmentData : a);
+        const list = getLocalAppointments();
+        const existingIndex = list.findIndex(a => String(a.id) === String(id));
+        if (existingIndex !== -1) {
+          list[existingIndex] = { ...list[existingIndex], ...appointmentData };
+        } else {
+          list.push(appointmentData);
+        }
         saveLocalAppointments(list);
         showToast('¡Cita actualizada con éxito!', 'success');
       } else {
+        // CREACIÓN
         try {
           await fetch(`${API_BASE}/appointments`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(appointmentData)
           });
-        } catch (err) {}
+        } catch (err) {
+          console.warn('Error en API create:', err);
+        }
 
         const list = getLocalAppointments();
         list.push(appointmentData);
@@ -621,7 +728,71 @@ function initAdminPage() {
     });
   }
 
+  // Modal y Gestión de Cambio de Contraseña
+  const openPassModal = () => {
+    if (changePasswordModal) {
+      if (changePasswordForm) changePasswordForm.reset();
+      changePasswordModal.classList.add('is-open');
+      changePasswordModal.setAttribute('aria-hidden', 'false');
+      if (currentAdminPass) currentAdminPass.focus();
+    }
+  };
+
+  const closePassModal = () => {
+    if (changePasswordModal) {
+      changePasswordModal.classList.remove('is-open');
+      changePasswordModal.setAttribute('aria-hidden', 'true');
+    }
+  };
+
+  if (openChangePassBtn) openChangePassBtn.addEventListener('click', openPassModal);
+  if (topChangePassBtn) topChangePassBtn.addEventListener('click', openPassModal);
+  if (closePassModalBtn) closePassModalBtn.addEventListener('click', closePassModal);
+  if (cancelPassBtn) cancelPassBtn.addEventListener('click', closePassModal);
+
+  if (changePasswordForm) {
+    changePasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPass = currentAdminPass?.value || '';
+      const newPass = newAdminPass?.value || '';
+      const confirmPass = confirmAdminPass?.value || '';
+
+      if (newPass.length < 4) {
+        showToast('La nueva contraseña debe tener al menos 4 caracteres.', 'warning');
+        return;
+      }
+
+      if (newPass !== confirmPass) {
+        showToast('Las contraseñas no coinciden. Verifícalas.', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currentPassword: currentPass,
+            newPassword: newPass,
+            username: 'admin'
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Error al actualizar contraseña');
+        }
+
+        showToast('¡Contraseña de administrador actualizada con éxito!', 'success');
+        closePassModal();
+      } catch (err) {
+        showToast(err.message || 'Contraseña actual incorrecta.', 'error');
+      }
+    });
+  }
+
   if (filterService) filterService.addEventListener('change', refreshAppointments);
+  if (filterStatus) filterStatus.addEventListener('change', refreshAppointments);
   if (searchInput) searchInput.addEventListener('input', refreshAppointments);
 
   // ==========================================
