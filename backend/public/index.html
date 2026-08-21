@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Equilibra | Fisioterapia & Rehabilitación Integral</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #006D77;
+      --primary-dark: #004e55;
+      --primary-light: #83C5BE;
+      --accent: #E29578;
+      --bg: #F8F9FA;
+      --surface: #FFFFFF;
+      --text: #2B2D42;
+      --text-muted: #6C757D;
+      --border: #E9ECEF;
+      --success: #2A9D8F;
+      --radius: 16px;
+      --shadow: 0 10px 30px rgba(0, 109, 119, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Header & Navigation */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--primary);
+      font-weight: 800;
+      font-size: 1.4rem;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--primary);
+      color: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #E8F5E9;
+      color: #2E7D32;
+      padding: 0.35rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background: #2E7D32;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.7);
+      animation: pulse-animation 1.5s infinite;
+    }
+
+    @keyframes pulse-animation {
+      0% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(46, 125, 50, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
+    }
+
+    /* Hero Section */
+    .hero {
+      background: linear-gradient(135deg, #006D77 0%, #004E55 100%);
+      color: white;
+      padding: 4rem 1.5rem 6rem;
+      text-align: center;
+    }
+
+    .hero-content {
+      max-width: 750px;
+      margin: 0 auto;
+    }
+
+    .hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      line-height: 1.2;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      opacity: 0.9;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1000px;
+      margin: -3.5rem auto 4rem;
+      padding: 0 1.5rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .hero h1 {
+        font-size: 1.9rem;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .card-header {
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+    }
+
+    .card-header h2 {
+      font-size: 1.3rem;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: var(--text);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #FAFAFA;
+      font-size: 0.95rem;
+      color: var(--text);
+      transition: all 0.2s ease;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(0, 109, 119, 0.15);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    button.btn-primary {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.9rem 1.5rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    button.btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    button.btn-primary:active {
+      transform: scale(0.99);
+    }
+
+    /* Features List */
+    .feature-item {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(0, 109, 119, 0.1);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    /* Alert Banner */
+    .alert {
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+
+    .alert.success {
+      background: #E8F5E9;
+      color: #2E7D32;
+      border: 1px solid #C8E6C9;
+      display: block;
+    }
+
+    .alert.error {
+      background: #FFEBEE;
+      color: #C62828;
+      border: 1px solid #FFCDD2;
+      display: block;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <div class="brand-icon">🌿</div>
+        <span>Equilibra</span>
+      </a>
+      <div class="status-badge">
+        <span class="pulse"></span>
+        <span>Servidor Activo en Render</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Reserva tu Turno de Fisioterapia</h1>
+      <p>Kinesiología, osteopatía, rehabilitación funcional y reeducación postural. Agenda tu sesión online de manera rápida y segura.</p>
+    </div>
+  </section>
+
+  <!-- Content Grid -->
+  <main class="container">
+    <div class="grid">
+      
+      <!-- Booking Form -->
+      <div class="card">
+        <div class="card-header">
+          <h2>📅 Formulario de Reserva Web</h2>
+        </div>
+
+        <div id="alertBox" class="alert"></div>
+
+        <form id="bookingForm">
+          <div class="form-group">
+            <label for="patientName">Nombre y Apellido *</label>
+            <input type="text" id="patientName" required placeholder="Ej. Juan Pérez">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="patientPhone">Teléfono / WhatsApp *</label>
+              <input type="tel" id="patientPhone" required placeholder="+54 9 11 1234-5678">
+            </div>
+            <div class="form-group">
+              <label for="patientEmail">Email (Opcional)</label>
+              <input type="email" id="patientEmail" placeholder="juan@email.com">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="date">Fecha de la Sesión *</label>
+              <input type="date" id="date" required>
+            </div>
+            <div class="form-group">
+              <label for="time">Hora *</label>
+              <select id="time" required>
+                <option value="">Seleccionar horario</option>
+                <option value="08:30">08:30 hs</option>
+                <option value="09:15">09:15 hs</option>
+                <option value="10:00">10:00 hs</option>
+                <option value="10:45">10:45 hs</option>
+                <option value="11:30">11:30 hs</option>
+                <option value="14:00">14:00 hs</option>
+                <option value="14:45">14:45 hs</option>
+                <option value="15:30">15:30 hs</option>
+                <option value="16:15">16:15 hs</option>
+                <option value="17:00">17:00 hs</option>
+                <option value="17:45">17:45 hs</option>
+                <option value="18:30">18:30 hs</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="specialty">Especialidad / Servicio *</label>
+            <select id="specialty" required>
+              <option value="Fisioterapia y Rehabilitación">Fisioterapia y Rehabilitación</option>
+              <option value="Kinesiología Deportiva">Kinesiología Deportiva</option>
+              <option value="Osteopatía & Terapia Manual">Osteopatía & Terapia Manual</option>
+              <option value="Punción Seca & Neuromodulación">Punción Seca & Neuromodulación</option>
+              <option value="Drenaje Linfático Manual">Drenaje Linfático Manual</option>
+              <option value="Reeducación Postural (RPG)">Reeducación Postural (RPG)</option>
+              <option value="Suelo Pélvico">Suelo Pélvico</option>
+              <option value="Masoterapia Descontracturante">Masoterapia Descontracturante</option>
+              <option value="Pilates Terapéutico">Pilates Terapéutico</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="doctorName">Profesional</label>
+            <select id="doctorName">
+              <option value="Lic. Isaac Rodríguez (Fisioterapeuta)">Lic. Isaac Rodríguez (Fisioterapeuta)</option>
+              <option value="Lic. Elena Morales (Kinesióloga)">Lic. Elena Morales (Kinesióloga)</option>
+              <option value="Lic. Martín Benítez (Osteópata)">Lic. Martín Benítez (Osteópata)</option>
+              <option value="Lic. Sofía Navarro (Suelo Pélvico)">Lic. Sofía Navarro (Suelo Pélvico)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="reason">Motivo de Consulta / Lesión</label>
+            <textarea id="reason" rows="2" placeholder="Ej. Dolor lumbar agudo, contractura cervical, esguince de tobillo..."></textarea>
+          </div>
+
+          <button type="submit" id="submitBtn" class="btn-primary">
+            <span>Confirmar Solicitud de Turno</span>
+            <span>➔</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Info & App Sync -->
+      <div class="card">
+        <div class="card-header">
+          <h2>📱 Sincronización con la App Equilibra</h2>
+        </div>
+
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem;">
+          Cada turno agendado en este sitio web se sincroniza instantáneamente con la aplicación móvil Android de los profesionales.
+        </p>
+
+        <div class="feature-item">
+          <div class="feature-icon">⚡</div>
+          <div>
+            <strong style="display:block; margin-bottom: 0.2rem;">Notificación Inmediata</strong>
+            <span style="font-size: 0.9rem; color: var(--text-muted);">Los administradores reciben alertas sonoras automáticas antes de cada turno.</span>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">💬</div>
+          <div>
+            <strong style="display:block; margin-bottom: 0.2rem;">Confirmación por WhatsApp</strong>
+            <span style="font-size: 0.9rem; color: var(--text-muted);">Envío de recordatorios automáticos con un solo toque al WhatsApp del paciente.</span>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">📋</div>
+          <div>
+            <strong style="display:block; margin-bottom: 0.2rem;">Ficha Clínica & Escala EVA</strong>
+            <span style="font-size: 0.9rem; color: var(--text-muted);">Seguimiento de evolución, tests ortopédicos, rango articular y ejercicios terapéuticos.</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 2rem; padding: 1rem; background: #F1F8F8; border-radius: 12px; border-left: 4px solid var(--primary);">
+          <strong style="color: var(--primary); font-size: 0.9rem; display:block; margin-bottom: 0.3rem;">📡 Endpoint de la API:</strong>
+          <code style="font-size: 0.85rem; color: var(--primary-dark); word-break: break-all;">POST /api/appointments</code>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2026 Equilibra Fisioterapia & Rehabilitación. Todos los derechos reservados.</p>
+  </footer>
+
+  <script>
+    // Inicializar fecha mínima de reserva en hoy
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').min = today;
+    document.getElementById('date').value = today;
+
+    // Manejador del formulario
+    const form = document.getElementById('bookingForm');
+    const alertBox = document.getElementById('alertBox');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const payload = {
+        patientName: document.getElementById('patientName').value.trim(),
+        patientPhone: document.getElementById('patientPhone').value.trim(),
+        patientEmail: document.getElementById('patientEmail').value.trim(),
+        date: document.getElementById('date').value,
+        time: document.getElementById('time').value,
+        specialty: document.getElementById('specialty').value,
+        doctorName: document.getElementById('doctorName').value,
+        reason: document.getElementById('reason').value.trim() || "Consulta / Evaluación Fisioterapéutica"
+      };
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = "<span>Enviando reserva...</span>";
+
+      try {
+        const response = await fetch('/api/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          alertBox.className = 'alert success';
+          alertBox.innerHTML = `<strong>¡Turno registrado con éxito!</strong><br>Te esperamos el <b>${payload.date}</b> a las <b>${payload.time} hs</b> con <b>${payload.doctorName}</b>. Nos comunicaremos a tu WhatsApp (${payload.patientPhone}) para confirmar asistencia.`;
+          form.reset();
+          document.getElementById('date').value = today;
+        } else {
+          alertBox.className = 'alert error';
+          alertBox.textContent = data.error || 'Error al procesar la reserva. Intenta nuevamente.';
+        }
+      } catch (error) {
+        alertBox.className = 'alert error';
+        alertBox.textContent = 'No se pudo conectar con el servidor. Revisa tu conexión a internet.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = "<span>Confirmar Solicitud de Turno</span> <span>➔</span>";
+        alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  </script>
+</body>
+</html>

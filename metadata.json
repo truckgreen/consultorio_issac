@@ -1,6 +1,7 @@
 {
-  "name": "EQUILIBRA - Centro de Bienestar Físico",
-  "description": "Sitio web profesional y plataforma de gestión para EQUILIBRA: fisioterapia, traumatología, psicología, nutrición y entrenamiento con seguimiento en tiempo real.",
+  "name": "Equilibra",
+  "description": "Gestión de turnos de fisioterapia, kinesiología y servicios de rehabilitación, ficha clínica de pacientes, agenda interactiva y recordatorios automáticos.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
+
