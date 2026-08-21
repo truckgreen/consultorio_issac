@@ -1,0 +1,7 @@
+{
+  "name": "Equilibra",
+  "description": "Gestión de turnos de fisioterapia, kinesiología y servicios de rehabilitación, ficha clínica de pacientes, agenda interactiva y recordatorios automáticos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
