@@ -75,7 +75,7 @@ fun WebIntegrationDialog(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var webUrl by remember { mutableStateOf("https://equilibra-fisioterapia.com/api") }
+    var webUrl by remember { mutableStateOf("https://equilibra-sf34.onrender.com/api/health") }
     var pingStatus by remember { mutableStateOf<PingResult?>(null) }
     var isChecking by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableIntStateOf(0) }

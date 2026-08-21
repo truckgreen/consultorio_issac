@@ -388,15 +388,16 @@ fun DashboardScreen(
                         }
                         Column {
                             Text(
-                                text = "Conexión Página Web ↔ App",
+                                text = "Servidor Web en Vivo (Render)",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             Text(
-                                text = "Verificar estado del servidor, webhook y guía de integración.",
+                                text = "https://equilibra-sf34.onrender.com",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
