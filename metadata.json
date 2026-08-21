@@ -1,6 +1,6 @@
 {
-  "name": "EQUILIBRA - Consultorio & Asistente Virtual",
-  "description": "Sistema de gestión para consultorio de bienestar EQUILIBRA con asistente virtual interactivo, agendamiento de citas, gestión dinámica de precios y panel administrativo.",
+  "name": "EQUILIBRA - Centro de Bienestar Físico",
+  "description": "Sitio web profesional y plataforma de gestión para EQUILIBRA: fisioterapia, traumatología, psicología, nutrición y entrenamiento con seguimiento en tiempo real.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
