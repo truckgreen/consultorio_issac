@@ -13,7 +13,7 @@ export interface ImageAsset {
 export const APP_IMAGES = {
   // Hero section main image (Clinical rehabilitation & gym setup)
   hero: {
-    src: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1920&q=80",
+    src: "/imagenes/consultorio.jpg",
     alt: "Centro de Fisioterapia y Rehabilitación Equilibra",
   },
 
@@ -119,3 +119,5 @@ export const APP_IMAGES = {
     alt: "Instalaciones modernas de Equilibra en Sabana Grande",
   },
 };
+
+

@@ -1,0 +1,6 @@
+{
+  "name": "Equilibra",
+  "description": "Panel de administración y control clínico para EQUILIBRA: gestión integral de citas, especialistas, expedientes de pacientes, tarifas y sincronización con Supabase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
