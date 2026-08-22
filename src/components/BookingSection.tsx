@@ -156,11 +156,13 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     setIsSubmitting(true);
 
     setTimeout(() => {
+      const selectedService = SERVICES_DATA.find((s) => s.id === selectedServiceId);
       const randomCode = `EQ-${Math.floor(1000 + Math.random() * 9000)}`;
       const newAppointment: ConfirmedAppointment = {
         id: `app-${Date.now()}`,
         code: randomCode,
         serviceId: selectedServiceId,
+        servicePrice: selectedService ? `${selectedService.priceFormatted} USD` : undefined,
         nombre: nombre.trim(),
         apellido: apellido.trim(),
         telefono: telefono.trim(),
@@ -283,7 +285,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                               {app.code}
                             </span>
                             <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-semibold">
-                              Confirmada
+                              Confirmada {app.servicePrice ? `• ${app.servicePrice}` : ''}
                             </span>
                           </div>
                           <h4 className="font-bold text-slate-900 dark:text-white text-sm">
@@ -378,8 +380,8 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                           >
                             {service.category}
                           </span>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                            {service.duration}
+                          <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                            {service.priceFormatted} USD
                           </span>
                         </div>
                         <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base leading-snug">
@@ -388,11 +390,16 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                         <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mt-1">
                           {service.shortDescription}
                         </p>
+                        {service.packageOption && (
+                          <span className="inline-block mt-1 text-[10px] text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/60 px-1.5 py-0.5 rounded">
+                            {service.packageOption}
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs">
                         <span className={isSelected ? 'text-amber-700 dark:text-amber-400 font-bold' : 'text-slate-500'}>
-                          {isSelected ? '✓ Seleccionado' : 'Elegir servicio'}
+                          {isSelected ? `✓ ${service.priceFormatted} USD` : `${service.duration}`}
                         </span>
                         <div
                           className={`w-4 h-4 rounded-full border flex items-center justify-center ${
@@ -692,8 +699,11 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                    Reserva segura y confirmación inmediata
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Reserva segura y confirmación inmediata</span>
+                    <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 rounded-full">
+                      {selectedServiceObj.priceFormatted} USD
+                    </span>
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {selectedServiceObj.title} • {selectedDate} ({selectedTime || 'Selecciona hora'})
@@ -798,15 +808,27 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
                       Servicio Seleccionado
                     </span>
-                    <p className="font-bold text-slate-900 dark:text-white text-sm">
-                      {selectedServiceObj.title}
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-slate-900 dark:text-white text-sm">
+                        {selectedServiceObj.title}
+                      </p>
+                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                        {selectedServiceObj.priceFormatted} USD
+                      </span>
+                    </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300">
                       Duración aprox: {selectedServiceObj.duration}
                     </p>
-                    <span className="inline-block mt-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-                      {latestAppointment.primeraVisita ? 'Primera Evaluación' : 'Sesión de Seguimiento'}
-                    </span>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <span className="inline-block text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                        {latestAppointment.primeraVisita ? 'Primera Evaluación' : 'Sesión de Seguimiento'}
+                      </span>
+                      {selectedServiceObj.packageOption && (
+                        <span className="inline-block text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                          {selectedServiceObj.packageOption}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800">

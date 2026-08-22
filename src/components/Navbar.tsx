@@ -29,6 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Inicio', href: '#inicio' },
     { label: 'Sobre Nosotros', href: '#sobre-nosotros' },
     { label: 'Servicios', href: '#servicios' },
+    { label: 'Equipo', href: '#equipo' },
     { label: 'Especialidades', href: '#especialidades' },
     { label: '¿Por qué Equilibra?', href: '#por-que-nosotros' },
     { label: 'Agendar Cita', href: '#agendar-cita' },

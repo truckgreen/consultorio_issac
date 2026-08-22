@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { AboutSection } from './components/AboutSection';
 import { ServicesGrid } from './components/ServicesGrid';
+import { TeamSection } from './components/TeamSection';
 import { SpecialtiesSection } from './components/SpecialtiesSection';
 import { PhilosophySection } from './components/PhilosophySection';
 import { WhyChooseUs } from './components/WhyChooseUs';
@@ -96,6 +97,9 @@ export default function App() {
           onSelectService={handleSelectService}
           onOpenBooking={(id) => handleOpenBooking(id)}
         />
+
+        {/* Multidisciplinary Team Section: NUESTRO EQUIPO FISIOJEWSIJEW */}
+        <TeamSection onOpenBooking={(id) => handleOpenBooking(id)} />
 
         {/* 4 Specialties: 'En qué nos especializamos' */}
         <SpecialtiesSection onOpenBooking={(id) => handleOpenBooking(id)} />

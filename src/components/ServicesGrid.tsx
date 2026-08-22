@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, ArrowUpRight, Check, Sparkles, Filter, Info } from 'lucide-react';
+import { Clock, ArrowUpRight, Check, Sparkles, Filter, Info, Tag } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { APP_IMAGES } from '../data/images';
 import { ServiceItem } from '../types';
@@ -41,15 +41,15 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold uppercase tracking-wider mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Atención Integral</span>
+            <span>Precios Transparentes & Atención de Calidad</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4 font-heading">
-            Nuestros servicios
+            Nuestros servicios y tarifas
           </h2>
 
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300">
-            Diseñados para cada etapa de tu vida y condición física: desde el diagnóstico y la rehabilitación activa hasta la optimización deportiva y el bienestar emocional.
+            Atención integral 1 a 1 en Sabana Grande. Conoce los valores de cada especialidad clínica y paquetes con beneficios de ahorro.
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({
           ))}
         </div>
 
-        {/* 9 Services Grid (Responsive: 1 col on mobile, 2 col on tablet, 3 col on desktop) */}
+        {/* 9 Services Grid */}
         <motion.div
           layout
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
@@ -89,7 +89,7 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({
                   key={service.id}
                   className="group bg-white dark:bg-[#151c28] rounded-3xl overflow-hidden shadow-sm hover:shadow-xl border border-slate-200/80 dark:border-slate-800 transition-all duration-300 flex flex-col hover:-translate-y-1.5"
                 >
-                  {/* Image Container with Hover Zoom and Category Badge */}
+                  {/* Image Container */}
                   <div className="relative h-56 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                     <img
                       src={imageAsset.src}
@@ -98,12 +98,19 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({
                       className="w-full h-full object-cover object-center transform group-hover:scale-108 transition-transform duration-500"
                       loading="lazy"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent" />
                     
-                    {/* Duration badge */}
-                    <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold text-white flex items-center gap-1.5 border border-white/20">
-                      <Clock className="w-3 h-3 text-amber-400" />
-                      <span>{service.duration}</span>
+                    {/* Top Badges: Price & Duration */}
+                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2">
+                      <div className="bg-amber-500 text-slate-950 font-black text-xs sm:text-sm px-3 py-1 rounded-full shadow-md flex items-center gap-1">
+                        <span>{service.priceFormatted} USD</span>
+                        <span className="text-[10px] font-semibold text-slate-900/80">/ sesión</span>
+                      </div>
+
+                      <div className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold text-white flex items-center gap-1.5 border border-white/20">
+                        <Clock className="w-3 h-3 text-amber-400" />
+                        <span>{service.duration}</span>
+                      </div>
                     </div>
 
                     {/* Title overlay on bottom of image for punchy contrast */}
@@ -120,6 +127,19 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({
                       <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4 line-clamp-2">
                         {service.shortDescription}
                       </p>
+
+                      {/* Package Option Banner */}
+                      {service.packageOption && (
+                        <div className="mb-4 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/60 flex items-center justify-between text-xs">
+                          <span className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                            <Tag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                            <span>{service.packageOption}</span>
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-200/70 dark:bg-amber-900/80 px-2 py-0.5 rounded-md">
+                            Ahorro
+                          </span>
+                        </div>
+                      )}
 
                       {/* Benefits preview (top 2) */}
                       <div className="space-y-2 mb-6">
@@ -146,7 +166,7 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({
                         onClick={() => onOpenBooking(service.id)}
                         className="inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:scale-95 rounded-full shadow-sm shadow-amber-400/20 transition-all group-hover:bg-amber-400"
                       >
-                        <span>Agendar</span>
+                        <span>Agendar ({service.priceFormatted})</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -169,10 +189,10 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({
               </p>
             </div>
             <button
-              onClick={() => onOpenBooking()}
+              onClick={() => onOpenBooking('fisioterapia')}
               className="px-5 py-2.5 text-sm font-bold text-slate-950 bg-amber-400 hover:bg-amber-500 rounded-full shrink-0 shadow-md"
             >
-              Consulta de Valoración
+              Consulta de Valoración ($35)
             </button>
           </div>
         </div>

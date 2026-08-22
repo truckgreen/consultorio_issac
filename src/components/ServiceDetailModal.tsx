@@ -71,17 +71,39 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
 
           {/* Modal Content */}
           <div className="p-6 sm:p-8 space-y-6">
-            {/* Quick Specs */}
-            <div className="flex flex-wrap items-center gap-4 py-3 px-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm">
+            {/* Quick Specs & Price */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 py-3 px-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm">
               <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <Clock className="w-4 h-4 text-amber-500" />
+                <Clock className="w-4 h-4 text-amber-500 shrink-0" />
                 <span><strong>Duración:</strong> {service.duration}</span>
               </div>
-              <div className="text-slate-300 dark:text-slate-600">|</div>
               <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <Users className="w-4 h-4 text-amber-500" />
+                <Users className="w-4 h-4 text-amber-500 shrink-0" />
                 <span><strong>Modalidad:</strong> Presencial 1 a 1</span>
               </div>
+              <div className="flex items-center gap-2 font-bold text-amber-600 dark:text-amber-400">
+                <span className="text-base sm:text-lg">{service.priceFormatted} USD</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">/ sesión</span>
+              </div>
+            </div>
+
+            {/* Price Note & Package info */}
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs sm:text-sm space-y-1.5">
+              <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white">
+                <span>Tarifa por sesión individual:</span>
+                <span className="text-amber-600 dark:text-amber-400 text-base">{service.priceFormatted} USD</span>
+              </div>
+              {service.priceNote && (
+                <p className="text-slate-600 dark:text-slate-400 text-xs">
+                  {service.priceNote}
+                </p>
+              )}
+              {service.packageOption && (
+                <div className="pt-2 mt-2 border-t border-amber-500/20 flex items-center justify-between text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  <span>Opción de Paquete:</span>
+                  <span className="bg-amber-500/20 px-2.5 py-0.5 rounded-full">{service.packageOption}</span>
+                </div>
+              )}
             </div>
 
             {/* Detailed Description */}

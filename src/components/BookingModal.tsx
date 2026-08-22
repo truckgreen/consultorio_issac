@@ -114,6 +114,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           id: `app-${Date.now()}`,
           code: randomCode,
           serviceId: selectedServiceId,
+          servicePrice: selectedServiceObj ? `${selectedServiceObj.priceFormatted} USD` : undefined,
           nombre: nombre.trim(),
           apellido: apellido.trim(),
           telefono: telefono.trim(),
@@ -210,7 +211,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <span>{service.title}</span>
+                      <div className="flex flex-col">
+                        <span>{service.title}</span>
+                        <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400">
+                          {service.priceFormatted} USD • {service.duration}
+                        </span>
+                      </div>
                       {selectedServiceId === service.id && (
                         <Check className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 ml-2" />
                       )}
@@ -442,9 +448,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-500 dark:text-slate-400">Servicio:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {selectedServiceObj.title}
-                  </span>
+                  <div className="text-right">
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                      {selectedServiceObj.title}
+                    </span>
+                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                      {selectedServiceObj.priceFormatted} USD
+                    </span>
+                  </div>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-500 dark:text-slate-400">Fecha y Horario:</span>

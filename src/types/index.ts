@@ -7,6 +7,10 @@ export interface ServiceItem {
   imageKey: keyof typeof import('../data/images').APP_IMAGES.services;
   benefits: string[];
   duration: string;
+  price: number;
+  priceFormatted: string;
+  packageOption?: string;
+  priceNote?: string;
   targetAudience: string[];
   methodology: string;
 }
@@ -37,6 +41,18 @@ export interface TestimonialItem {
   serviceReceived: string;
   avatar: string;
   date: string;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  specialty: string;
+  category: 'fisioterapia' | 'medicina' | 'nutricion' | 'psicologia' | 'entrenamiento' | 'asistencia';
+  image: string;
+  credentials?: string;
+  bio?: string;
+  relatedServiceId?: string;
 }
 
 export interface FaqItem {
@@ -76,4 +92,5 @@ export interface ConfirmedAppointment extends BookingFormData {
   code: string;
   createdAt: string;
   status: 'confirmada' | 'pendiente_validacion';
+  servicePrice?: string;
 }

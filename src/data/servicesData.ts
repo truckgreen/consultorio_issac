@@ -15,6 +15,10 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Tratamiento individualizado en cabinas privadas y área activa'
     ],
     duration: '50 - 60 min',
+    price: 35,
+    priceFormatted: '$35',
+    packageOption: 'Pack 5 sesiones: $150 ($30 c/u)',
+    priceNote: 'Evaluación inicial + Terapia manual + Agentes físicos',
     targetAudience: ['Personas con dolores musculares o articulares', 'Cervicalgias y lumbalgias', 'Posturas laborales sedentarias'],
     methodology: 'Evaluación funcional inicial, aplicación de agentes físicos y terapia activa con seguimiento de métricas.'
   },
@@ -32,6 +36,10 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Acompañamiento y orientación a padres y cuidadores'
     ],
     duration: '45 - 50 min',
+    price: 35,
+    priceFormatted: '$35',
+    packageOption: 'Pack 4 sesiones: $120 ($30 c/u)',
+    priceNote: 'Sesión personalizada de estimulación y motricidad lúdica',
     targetAudience: ['Lactantes con retraso motor leve', 'Niños y adolescentes con alteraciones posturales', 'Pequeños atletas'],
     methodology: 'Ejercicios neuromusculares adaptados por edad a través de dinámicas de juego terapéutico.'
   },
@@ -49,6 +57,10 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Incremento de la energía y bienestar en la vida diaria'
     ],
     duration: '50 min',
+    price: 30,
+    priceFormatted: '$30',
+    packageOption: 'Pack 5 sesiones: $135 ($27 c/u)',
+    priceNote: 'Movilidad articular, equilibrio y fuerza funcional',
     targetAudience: ['Adultos mayores que desean mantener su independencia', 'Personas en recuperación post-operatoria de cadera/rodilla'],
     methodology: 'Técnicas de movilización suave, reeducación de la marcha y fortalecimiento funcional progresivo.'
   },
@@ -66,6 +78,10 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Terapia manual de alto impacto, ventosas y recuperación activa'
     ],
     duration: '60 min',
+    price: 40,
+    priceFormatted: '$40',
+    packageOption: 'Pack 5 sesiones: $175 ($35 c/u)',
+    priceNote: 'Evaluación biomecánica + Readaptación y retorno a cancha',
     targetAudience: ['Futbolistas, corredores, crossfitters, tenistas', 'Atletas de alto rendimiento y aficionados'],
     methodology: 'Fases progresivas: Control de dolor, movilidad, fuerza, potencia y retorno a gestos deportivos específicos.'
   },
@@ -83,6 +99,10 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Indicación precisa de protocolos no quirúrgicos y quirúrgicos'
     ],
     duration: '30 - 45 min',
+    price: 50,
+    priceFormatted: '$50',
+    packageOption: 'Control post-tratamiento: $30',
+    priceNote: 'Consulta médica traumatológica + Orden de estudios e informe',
     targetAudience: ['Personas con dolor articular persistente', 'Pacientes con traumatismos recientes', 'Segunda opinión médica'],
     methodology: 'Examen físico exhaustivo, revisión de radiografías/resonancias y plan de manejo integral.'
   },
@@ -100,6 +120,10 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Acompañamiento a niños, jóvenes y adultos'
     ],
     duration: '50 min',
+    price: 40,
+    priceFormatted: '$40',
+    packageOption: 'Pack 4 consultas: $140 ($35 c/u)',
+    priceNote: 'Sesión clínica y deportiva individual (50 min)',
     targetAudience: ['Personas en procesos de rehabilitación prolongada', 'Manejo del estrés y burnout', 'Niños y adultos'],
     methodology: 'Terapia cognitivo-conductual, técnicas de regulación emocional y mindfulness aplicado a la salud física.'
   },
@@ -117,6 +141,10 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Periodización nutricional según intensidad de entrenamiento'
     ],
     duration: '45 - 60 min',
+    price: 35,
+    priceFormatted: '$35',
+    packageOption: 'Control mensual de seguimiento: $25',
+    priceNote: 'Evaluación antropométrica + Plan 100% personalizado',
     targetAudience: ['Deportistas en búsqueda de rendimiento', 'Pacientes en recuperación de lesiones', 'Poblaciones con condiciones clínicas'],
     methodology: 'Anamnesis nutricional, cálculo de requerimientos energéticos y pautas de suplementación basada en evidencia.'
   },
@@ -134,6 +162,10 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Entorno motivador, moderno y libre de lesiones'
     ],
     duration: '60 min',
+    price: 25,
+    priceFormatted: '$25',
+    packageOption: 'Plan mensual 8 sesiones: $60 ($7.5 c/u)',
+    priceNote: 'Sesión guiada individual o en grupo reducido',
     targetAudience: ['Personas que buscan ponerse en forma con seguridad', 'Pacientes con alta médica de fisioterapia'],
     methodology: 'Patrones fundamentales de movimiento (empuje, tracción, bisagra de cadera, sentadilla y marcha).'
   },
@@ -151,6 +183,10 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Apto para todas las edades bajo supervisión técnica experta'
     ],
     duration: '60 min',
+    price: 25,
+    priceFormatted: '$25',
+    packageOption: 'Plan mensual 8 clases: $60 ($7.5 c/u)',
+    priceNote: 'Clase técnica y circuito de acondicionamiento físico',
     targetAudience: ['Cualquier persona que busque una actividad física divertida y desafiante', 'Jóvenes y adultos'],
     methodology: 'Trabajo de manoplas, saco, desplazamientos, sombra técnica y circuito de acondicionamiento físico.'
   }
