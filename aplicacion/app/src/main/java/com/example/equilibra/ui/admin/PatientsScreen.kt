@@ -46,7 +46,7 @@ fun PatientsScreen(
     searchQuery: String,
     onSearchChange: (String) -> Unit,
     onViewPatient: (String) -> Unit,
-    onOpenNewAppointment: () => Unit
+    onOpenNewAppointment: () -> Unit
 ) {
     val context = LocalContext.current
 

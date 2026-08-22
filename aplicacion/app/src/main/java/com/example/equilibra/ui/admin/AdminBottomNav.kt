@@ -28,9 +28,9 @@ import com.example.equilibra.ui.theme.AmberPrimary
 @Composable
 fun AdminBottomNav(
     activeTab: AdminNavTab,
-    onSelectTab: (AdminNavTab) => void,
-    onOpenMoreMenu: () => Unit,
-    onOpenNewAppointment: () => Unit,
+    onSelectTab: (AdminNavTab) -> Unit,
+    onOpenMoreMenu: () -> Unit,
+    onOpenNewAppointment: () -> Unit,
     todayAppointmentsCount: Int,
     unreadMessagesCount: Int
 ) {

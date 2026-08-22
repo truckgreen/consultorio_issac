@@ -11,7 +11,7 @@ import {
   Sparkles,
   Info
 } from 'lucide-react';
-import { TimeSlotInfo, SlotStatus } from '../types';
+import { TimeSlotInfo, SlotStatus, ConfirmedAppointment } from '../types';
 import { getSlotsForDate } from '../utils/bookingUtils';
 
 interface BookingCalendarProps {
@@ -20,6 +20,7 @@ interface BookingCalendarProps {
   onSelectDate: (dateStr: string) => void;
   onSelectTime: (timeStr: string) => void;
   serviceId?: string;
+  appointments?: ConfirmedAppointment[];
 }
 
 const MONTH_NAMES = [
@@ -45,6 +46,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
   onSelectDate,
   onSelectTime,
   serviceId,
+  appointments = [],
 }) => {
   // Base date for navigation
   const today = useMemo(() => new Date(), []);
@@ -104,7 +106,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
       const isSelected = selectedDate === dateString;
 
       // Sample day availability state
-      const slots = isSunday ? [] : getSlotsForDate(dateString, serviceId);
+      const slots = isSunday ? [] : getSlotsForDate(dateString, serviceId, appointments);
       const availableCount = slots.filter((s) => s.status === 'disponible').length;
       const pendingCount = slots.filter((s) => s.status === 'por_confirmar').length;
       const busyCount = slots.filter((s) => s.status === 'ocupado').length;
@@ -126,13 +128,13 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
     }
 
     return daysArray;
-  }, [viewYear, viewMonth, today, selectedDate, serviceId]);
+  }, [viewYear, viewMonth, today, selectedDate, serviceId, appointments]);
 
   // Slots for the currently selected date
   const selectedDateSlots = useMemo(() => {
     if (!selectedDate) return [];
-    return getSlotsForDate(selectedDate, serviceId);
-  }, [selectedDate, serviceId]);
+    return getSlotsForDate(selectedDate, serviceId, appointments);
+  }, [selectedDate, serviceId, appointments]);
 
   // Formatted date title in Spanish
   const formattedSelectedDate = useMemo(() => {

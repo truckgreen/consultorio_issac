@@ -39,7 +39,7 @@ fun AppointmentsScreen(
     onDateFilterChange: (String) -> Unit,
     statusFilter: String,
     onStatusFilterChange: (String) -> Unit,
-    onOpenNewAppointment: () => Unit,
+    onOpenNewAppointment: () -> Unit,
     onEditAppointment: (AppointmentEntity) -> Unit,
     onUpdateStatus: (String, String) -> Unit,
     onDeleteAppointment: (String) -> Unit,

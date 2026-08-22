@@ -1,5 +1,6 @@
 import { SlotStatus, TimeSlotInfo, ConfirmedAppointment } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { SERVICES_DATA } from '../data/servicesData';
 
 export const STANDARD_WEEKDAY_SLOTS = [
   '08:00 AM - 09:00 AM',
@@ -46,6 +47,55 @@ export function saveAppointmentToStorage(appointment: ConfirmedAppointment): voi
   }
 }
 
+export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointment[]> {
+  if (!isSupabaseConfigured) return getSavedAppointments();
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Supabase appointments query error:', error.message);
+    return getSavedAppointments();
+  }
+
+  const appointments = (data || []).map((row) => ({
+    id: row.id,
+    code: row.code,
+    serviceId: row.service_id,
+    servicePrice: row.amount ? `${row.amount} USD` : undefined,
+    nombre: row.nombre,
+    apellido: row.apellido,
+    telefono: row.telefono,
+    email: row.email,
+    fecha: row.fecha,
+    hora: row.hora,
+    motivoConsulta: row.motivo || '',
+    primeraVisita: row.primera_visita,
+    createdAt: row.created_at,
+    status: row.status === 'PENDIENTE' ? 'pendiente_validacion' : 'confirmada',
+  })) as ConfirmedAppointment[];
+
+  localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(appointments));
+  return appointments;
+}
+
+export function subscribeToAppointments(onChange: (appointments: ConfirmedAppointment[]) => void): (() => void) | null {
+  if (!isSupabaseConfigured) return null;
+
+  const channel = supabase
+    .channel('public-appointments')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async () => {
+      onChange(await getAppointmentsFromDatabase());
+    })
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
 /**
  * Save appointment to Supabase and fallback/sync with local storage
  */
@@ -60,18 +110,20 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
   try {
     const { error } = await supabase.from('appointments').insert([
       {
+        id: appointment.id,
         code: appointment.code,
         service_id: appointment.serviceId,
-        service_price: appointment.servicePrice,
+        service_title: SERVICES_DATA.find((service) => service.id === appointment.serviceId)?.title || appointment.serviceId,
+        amount: Number.parseFloat(appointment.servicePrice || '') || 35,
         nombre: appointment.nombre,
         apellido: appointment.apellido,
         telefono: appointment.telefono,
         email: appointment.email,
         fecha: appointment.fecha,
         hora: appointment.hora,
-        motivo_consulta: appointment.motivoConsulta || null,
+        motivo: appointment.motivoConsulta || null,
         primera_visita: appointment.primeraVisita,
-        status: appointment.status,
+        status: appointment.status === 'pendiente_validacion' ? 'PENDIENTE' : 'CONFIRMADA',
         created_at: appointment.createdAt || new Date().toISOString(),
       },
     ]);
@@ -125,7 +177,11 @@ export async function saveContactMessageToDatabase(data: {
 /**
  * Returns the slots and their availability for a specific date (YYYY-MM-DD)
  */
-export function getSlotsForDate(dateStr: string, serviceId?: string): TimeSlotInfo[] {
+export function getSlotsForDate(
+  dateStr: string,
+  serviceId?: string,
+  appointments: ConfirmedAppointment[] = getSavedAppointments()
+): TimeSlotInfo[] {
   if (!dateStr) return [];
   
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -138,7 +194,7 @@ export function getSlotsForDate(dateStr: string, serviceId?: string): TimeSlotIn
   }
 
   const baseSlots = dayOfWeek === 6 ? SATURDAY_SLOTS : STANDARD_WEEKDAY_SLOTS;
-  const userAppointments = getSavedAppointments();
+  const userAppointments = appointments;
 
   return baseSlots.map((time, index) => {
     // Check if the user already booked this exact slot in local storage

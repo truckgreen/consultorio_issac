@@ -30,7 +30,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CreateAppointmentDialog(
     defaultSpecialist: String? = null,
-    onDismiss: () => Unit,
+    onDismiss: () -> Unit,
     onConfirm: (
         nombre: String,
         apellido: String,

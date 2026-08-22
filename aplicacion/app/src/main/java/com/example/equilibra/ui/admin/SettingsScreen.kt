@@ -106,7 +106,7 @@ fun SettingsScreen(
                         ) {
                             Icon(Icons.Filled.Phone, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("0414-2398899", fontSize = 11.sp)
+                            Text("0414-123456", fontSize = 11.sp)
                         }
 
                         OutlinedButton(
@@ -119,7 +119,7 @@ fun SettingsScreen(
                         ) {
                             Icon(Icons.Filled.Phone, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("0412-7471858", fontSize = 11.sp)
+                            Text("0412-123456", fontSize = 11.sp)
                         }
                     }
                 }

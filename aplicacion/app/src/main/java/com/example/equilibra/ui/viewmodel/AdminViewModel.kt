@@ -9,11 +9,15 @@ import com.example.equilibra.data.local.AppointmentRepository
 import com.example.equilibra.data.model.AdminNavTab
 import com.example.equilibra.data.model.AdminNotification
 import com.example.equilibra.data.model.ContactLead
-import com.example.equilibra.data.repository.AdminSampleData
+import com.example.equilibra.data.remote.SupabaseAppointmentsDataSource
+import com.example.equilibra.data.remote.SupabaseClient
+import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -23,6 +27,7 @@ import kotlin.random.Random
 class AdminViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: AppointmentRepository
+    private val supabase = SupabaseAppointmentsDataSource()
 
     val allAppointments: StateFlow<List<AppointmentEntity>>
 
@@ -32,10 +37,10 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     private val _isDarkMode = MutableStateFlow(false)
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
-    private val _messages = MutableStateFlow<List<ContactLead>>(AdminSampleData.INITIAL_LEADS)
+    private val _messages = MutableStateFlow<List<ContactLead>>(emptyList())
     val messages: StateFlow<List<ContactLead>> = _messages.asStateFlow()
 
-    private val _notifications = MutableStateFlow<List<AdminNotification>>(AdminSampleData.INITIAL_NOTIFICATIONS)
+    private val _notifications = MutableStateFlow<List<AdminNotification>>(emptyList())
     val notifications: StateFlow<List<AdminNotification>> = _notifications.asStateFlow()
 
     // Filter states
@@ -79,11 +84,27 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = emptyList()
         )
 
-        // Seed initial data if database is empty
+        // Remove only the exact demo records created by older app versions.
         viewModelScope.launch {
-            repository.allAppointments.collect { list ->
-                if (list.isEmpty()) {
-                    repository.insertAll(AdminSampleData.INITIAL_APPOINTMENTS)
+            val demoIds = (1..10).map { "app_$it" }.toSet()
+            val currentAppointments = repository.allAppointments.first()
+            if (currentAppointments.isNotEmpty() && currentAppointments.all { it.id in demoIds }) {
+                repository.deleteAll()
+            }
+
+            val remoteAppointments = supabase.fetch()
+            if (remoteAppointments.isNotEmpty()) {
+                repository.deleteAll()
+                repository.insertAll(remoteAppointments)
+            }
+
+            // Connect to Realtime
+            SupabaseClient.client.realtime.connect()
+
+            // Start observing real-time updates
+            launch {
+                supabase.observeAppointments().collectLatest { appointments ->
+                    repository.insertAll(appointments)
                 }
             }
         }
@@ -187,6 +208,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
                 notes = notes.trim()
             )
             repository.insert(newEntity)
+            supabase.upsert(newEntity)
 
             // Add notification
             val notif = AdminNotification(
@@ -205,12 +227,14 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     fun updateAppointmentStatus(id: String, newStatus: String) {
         viewModelScope.launch {
             repository.updateStatus(id, newStatus)
+            supabase.updateStatus(id, newStatus)
         }
     }
 
     fun updateAppointment(updated: AppointmentEntity) {
         viewModelScope.launch {
             repository.update(updated)
+            supabase.upsert(updated)
             closeEditAppointment()
         }
     }
@@ -218,6 +242,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteAppointment(id: String) {
         viewModelScope.launch {
             repository.deleteById(id)
+            supabase.delete(id)
             if (_editingAppointment.value?.id == id) {
                 closeEditAppointment()
             }
@@ -244,9 +269,8 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     fun resetDemoData() {
         viewModelScope.launch {
             repository.deleteAll()
-            repository.insertAll(AdminSampleData.INITIAL_APPOINTMENTS)
-            _messages.value = AdminSampleData.INITIAL_LEADS
-            _notifications.value = AdminSampleData.INITIAL_NOTIFICATIONS
+            _messages.value = emptyList()
+            _notifications.value = emptyList()
         }
     }
 

@@ -192,6 +192,26 @@ export async function getAppointmentsFromDb(): Promise<Appointment[]> {
   }
 }
 
+export function subscribeToAppointments(onChange: (appointments: Appointment[]) => void): (() => void) | null {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const channel = client
+    .channel('admin-appointments')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async () => {
+      onChange(await getAppointmentsFromDb());
+    })
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.warn('Supabase Realtime no pudo suscribirse a appointments. Revisa Realtime y RLS en Supabase.');
+      }
+    });
+
+  return () => {
+    void client.removeChannel(channel);
+  };
+}
+
 export async function insertAppointment(appointment: Appointment): Promise<{ success: boolean; data?: Appointment; error?: string }> {
   // Always persist locally
   const currentLocal = getLocalAppointments();
@@ -438,4 +458,7 @@ ON appointments FOR ALL TO public USING (true) WITH CHECK (true);
 
 CREATE POLICY "Permitir todo en contact_messages" 
 ON contact_messages FOR ALL TO public USING (true) WITH CHECK (true);
+
+-- 4. Activar cambios en tiempo real para que la web y el panel compartan la agenda
+ALTER PUBLICATION supabase_realtime ADD TABLE appointments;
 `;

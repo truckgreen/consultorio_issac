@@ -30,6 +30,8 @@ import {
   saveAppointmentToDatabase,
   generateIcsCalendar,
   getSlotsForDate,
+  getAppointmentsFromDatabase,
+  subscribeToAppointments,
 } from '../utils/bookingUtils';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 
@@ -77,6 +79,20 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
 
   // Saved appointments list for quick access
   const [savedAppointments, setSavedAppointments] = useState<ConfirmedAppointment[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    getAppointmentsFromDatabase().then((appointments) => {
+      if (mounted) setSavedAppointments(appointments);
+    });
+    const unsubscribe = subscribeToAppointments((appointments) => {
+      if (mounted) setSavedAppointments(appointments);
+    });
+    return () => {
+      mounted = false;
+      unsubscribe?.();
+    };
+  }, []);
   const [showSavedList, setShowSavedList] = useState<boolean>(false);
 
   useEffect(() => {
@@ -93,7 +109,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
   // When date changes, check if the currently selected time is valid for the new date
   useEffect(() => {
     if (selectedDate) {
-      const slots = getSlotsForDate(selectedDate, selectedServiceId);
+      const slots = getSlotsForDate(selectedDate, selectedServiceId, savedAppointments);
       const availableSlots = slots.filter((s) => s.status !== 'ocupado');
       if (availableSlots.length > 0) {
         const stillValid = availableSlots.some((s) => s.time === selectedTime);
@@ -105,7 +121,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
         setSelectedTime('');
       }
     }
-  }, [selectedDate, selectedServiceId]);
+  }, [selectedDate, selectedServiceId, savedAppointments]);
 
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
@@ -459,6 +475,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   }
                 }}
                 serviceId={selectedServiceId}
+                appointments={savedAppointments}
               />
 
               {formErrors.fecha && (

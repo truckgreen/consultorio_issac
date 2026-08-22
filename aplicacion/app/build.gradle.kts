@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -53,6 +54,24 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    val envFile = rootProject.file(".env")
+    val envValues = if (envFile.exists()) {
+        envFile.readLines()
+            .mapNotNull { line ->
+                val separator = line.indexOf('=')
+                if (separator <= 0) null else line.substring(0, separator) to line.substring(separator + 1).trim()
+            }
+            .toMap()
+    } else {
+        emptyMap()
+    }
+
+    buildTypes.all {
+        buildConfigField("String", "SUPABASE_URL", "\"${envValues["VITE_SUPABASE_URL"].orEmpty()}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${envValues["VITE_SUPABASE_ANON_KEY"].orEmpty()}\"")
     }
 }
 
@@ -70,6 +89,13 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.coil.compose)
+
+    // Supabase
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.realtime)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.kotlinx.serialization.json)
 
     // Room Database
     implementation(libs.androidx.room.runtime)

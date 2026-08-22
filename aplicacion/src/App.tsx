@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { AdminHeader } from './components/admin/AdminHeader';
 import { AdminSidebar, AdminTab } from './components/admin/AdminSidebar';
 import { MobileBottomNav } from './components/admin/MobileBottomNav';
@@ -15,6 +16,7 @@ import { CreateAppointmentModal } from './components/admin/CreateAppointmentModa
 import { EditAppointmentModal } from './components/admin/EditAppointmentModal';
 import { PatientDetailModal } from './components/admin/PatientDetailModal';
 import { SupabaseModal } from './components/SupabaseModal';
+import { SpecialistAuth } from './components/admin/SpecialistAuth';
 
 import { 
   Appointment, 
@@ -27,7 +29,9 @@ import {
 
 import { 
   getCurrentSupabaseConfig, 
+  getSupabaseClient,
   getAppointmentsFromDb, 
+  subscribeToAppointments,
   insertAppointment, 
   updateAppointmentInDb, 
   deleteAppointmentFromDb,
@@ -57,6 +61,8 @@ export function App() {
 
   // 3. Database & App Data State
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getCurrentSupabaseConfig());
+  const [authSession, setAuthSession] = useState<Session | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>(INITIAL_NOTIFICATIONS);
@@ -73,6 +79,24 @@ export function App() {
 
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) {
+      setAuthChecked(true);
+      return;
+    }
+
+    client.auth.getSession().then(({ data }) => {
+      setAuthSession(data.session);
+      setAuthChecked(true);
+    });
+
+    const { data: listener } = client.auth.onAuthStateChange((_event, session) => {
+      setAuthSession(session);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
   // Apply dark mode class to HTML root
   useEffect(() => {
     if (isDarkMode) {
@@ -87,13 +111,17 @@ export function App() {
   // Initial Data Fetching from Supabase & Local Cache
   useEffect(() => {
     async function loadData() {
+      const config = getCurrentSupabaseConfig();
+      setSupabaseConfig(config);
       const dbAppointments = await getAppointmentsFromDb();
       if (dbAppointments && dbAppointments.length > 0) {
         setAppointments(dbAppointments);
-      } else {
+      } else if (!config.isConnected) {
         // Populate initial seed data so the clinic dashboard is immediately populated
         setAppointments(INITIAL_SAMPLE_APPOINTMENTS);
         saveLocalAppointments(INITIAL_SAMPLE_APPOINTMENTS);
+      } else {
+        setAppointments([]);
       }
 
       const dbMessages = await getContactMessagesFromDb();
@@ -104,10 +132,15 @@ export function App() {
         saveLocalMessages(INITIAL_SAMPLE_MESSAGES);
       }
 
-      setSupabaseConfig(getCurrentSupabaseConfig());
     }
 
     loadData();
+
+    const unsubscribe = subscribeToAppointments((updatedAppointments) => {
+      setAppointments(updatedAppointments);
+    });
+
+    return () => unsubscribe?.();
   }, []);
 
   // CRUD Operations for Appointments
@@ -234,6 +267,15 @@ export function App() {
     patientsTotal: new Set(appointments.map(a => `${a.nombre.toLowerCase()}_${a.apellido.toLowerCase()}`)).size,
     unreadMessages: messages.filter(m => m.status === 'NUEVO').length
   };
+
+  if (!authChecked) {
+    return <div className="min-h-screen bg-slate-950" />;
+  }
+
+  const supabaseClient = getSupabaseClient();
+  if (!authSession && supabaseClient) {
+    return <SpecialistAuth client={supabaseClient} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-amber-500 selection:text-white flex flex-col">

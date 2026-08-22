@@ -39,7 +39,7 @@ import java.time.format.DateTimeFormatter
 fun DashboardScreen(
     appointments: List<AppointmentEntity>,
     messages: List<ContactLead>,
-    onOpenNewAppointment: () => Unit,
+    onOpenNewAppointment: () -> Unit,
     onNavigateToTab: (AdminNavTab) -> Unit,
     onEditAppointment: (AppointmentEntity) -> Unit,
     onUpdateStatus: (String, String) -> Unit,

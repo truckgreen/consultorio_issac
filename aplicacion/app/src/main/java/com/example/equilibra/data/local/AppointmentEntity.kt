@@ -2,8 +2,10 @@ package com.example.equilibra.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(tableName = "appointments")
+@Serializable
 data class AppointmentEntity(
     @PrimaryKey val id: String,
     val code: String,
