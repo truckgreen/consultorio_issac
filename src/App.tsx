@@ -1,176 +1,141 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
-import { HeroSection } from './components/HeroSection';
-import { IntroPhilosophySection } from './components/IntroPhilosophySection';
-import { ServicesGridSection } from './components/ServicesGridSection';
-import { PricingAndVideosSection } from './components/PricingAndVideosSection';
-import { SpecialtiesDeepDive } from './components/SpecialtiesDeepDive';
-import { MethodologySection } from './components/MethodologySection';
+import { Hero } from './components/Hero';
+import { AboutSection } from './components/AboutSection';
+import { ServicesGrid } from './components/ServicesGrid';
+import { SpecialtiesSection } from './components/SpecialtiesSection';
+import { PhilosophySection } from './components/PhilosophySection';
+import { WhyChooseUs } from './components/WhyChooseUs';
+import { InteractiveAssessment } from './components/InteractiveAssessment';
+import { BookingSection } from './components/BookingSection';
 import { TestimonialsSection } from './components/TestimonialsSection';
-import { BookingAndContactSection } from './components/BookingAndContactSection';
-import { Footer } from './components/Footer';
+import { InteractiveFaq } from './components/InteractiveFaq';
+import { ContactFooter } from './components/ContactFooter';
+import { BookingModal } from './components/BookingModal';
 import { ServiceDetailModal } from './components/ServiceDetailModal';
-import { ServiceVideoModal } from './components/ServiceVideoModal';
-import { AdminMobileApp } from './components/AdminMobileApp';
-
-import { ServiceDetail, Testimonial } from './types';
-import { StorageService } from './services/storageService';
+import { ServiceItem } from './types';
 
 export default function App() {
-  const [services, setServices] = useState<ServiceDetail[]>([]);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  
-  // Modals state
-  const [selectedServiceForModal, setSelectedServiceForModal] = useState<ServiceDetail | null>(null);
-  const [selectedServiceForVideoModal, setSelectedServiceForVideoModal] = useState<ServiceDetail | null>(null);
-  const [isAdminAppOpen, setIsAdminAppOpen] = useState(false);
-  const [preselectedBookingService, setPreselectedBookingService] = useState<string>('Fisioterapia General');
+  // Dark mode initialized from localStorage or default dark/light preference
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('equilibra_theme');
+      if (savedTheme) {
+        return savedTheme === 'dark';
+      }
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
 
-  const refreshData = () => {
-    setServices(StorageService.getServices());
-    setTestimonials(StorageService.getTestimonials());
-  };
+  // Selected Service for on-page booking
+  const [selectedBookingServiceId, setSelectedBookingServiceId] = useState<string>('fisioterapia');
+
+  // Booking Modal State (optional fallback)
+  const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
+
+  // Service Detail Modal State
+  const [activeDetailService, setActiveDetailService] = useState<ServiceItem | null>(null);
 
   useEffect(() => {
-    refreshData();
-    const cleanup = StorageService.onDatabaseChange(() => {
-      refreshData();
-    });
-
-    // Check if the page is opened with ?admin=true or in standalone PWA mode
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('admin') === 'true' || window.location.hash === '#admin') {
-      setIsAdminAppOpen(true);
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('equilibra_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('equilibra_theme', 'light');
     }
+  }, [darkMode]);
 
-    return cleanup;
-  }, []);
+  const handleToggleDarkMode = () => {
+    setDarkMode((prev) => !prev);
+  };
 
-  const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+  const handleOpenBooking = (serviceId?: string) => {
+    if (serviceId) {
+      setSelectedBookingServiceId(serviceId);
+    }
+    const section = document.getElementById('agendar-cita');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      setBookingModalOpen(true);
     }
   };
 
-  const handleBookService = (serviceTitle: string) => {
-    setPreselectedBookingService(serviceTitle);
-    scrollToSection('contacto');
+  const handleCloseBooking = () => {
+    setBookingModalOpen(false);
   };
 
-  const handleOpenSpecialtyModal = (specialtyTitle: string) => {
-    const match = services.find(
-      (s) =>
-        s.title.toLowerCase().includes(specialtyTitle.toLowerCase()) ||
-        specialtyTitle.toLowerCase().includes(s.title.toLowerCase()) ||
-        specialtyTitle.toLowerCase().includes(s.categoryName.toLowerCase())
-    ) || services[0];
-    setSelectedServiceForModal(match);
+  const handleSelectService = (service: ServiceItem) => {
+    setActiveDetailService(service);
+  };
+
+  const handleCloseDetail = () => {
+    setActiveDetailService(null);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-indigo-500/20">
-      
-      {/* Navigation Bar for public website */}
+    <div className="min-h-screen bg-[#faf8f5] dark:bg-[#0f141c] text-slate-800 dark:text-slate-100 transition-colors duration-300 font-sans">
+      {/* Navigation Header */}
       <Navbar
-        onOpenMobileApp={() => setIsAdminAppOpen(true)}
-        onOpenClinicalPortal={() => setIsAdminAppOpen(true)}
-        onBookAppointmentClick={() => scrollToSection('contacto')}
+        darkMode={darkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        onOpenBooking={handleOpenBooking}
       />
 
-      {/* Main Public Website Sections */}
-      <main className="flex-1">
-        
+      <main>
         {/* Hero Section */}
-        <HeroSection
-          onExploreServices={() => scrollToSection('servicios')}
-          onExplorePricing={() => scrollToSection('tarifas')}
-          onBookAppointment={() => scrollToSection('contacto')}
+        <Hero onOpenBooking={() => handleOpenBooking()} />
+
+        {/* About Section: 'El verdadero bienestar comienza en movimiento' */}
+        <AboutSection onOpenBooking={() => handleOpenBooking()} />
+
+        {/* 9 Services Grid: 'Nuestros servicios' */}
+        <ServicesGrid
+          onSelectService={handleSelectService}
+          onOpenBooking={(id) => handleOpenBooking(id)}
         />
 
-        {/* Intro Philosophy Section */}
-        <IntroPhilosophySection
-          onLearnMore={() => scrollToSection('especialidades')}
-          onBookAppointment={() => scrollToSection('contacto')}
-        />
+        {/* 4 Specialties: 'En qué nos especializamos' */}
+        <SpecialtiesSection onOpenBooking={(id) => handleOpenBooking(id)} />
 
-        {/* Services Grid with dynamic live prices and videos */}
-        <ServicesGridSection
-          services={services}
-          onSelectService={(srv) => setSelectedServiceForModal(srv)}
-          onBookService={handleBookService}
-          onOpenVideo={(srv) => setSelectedServiceForVideoModal(srv)}
-        />
+        {/* Philosophy: 'Lo que hacemos mejor - Realizamos un abordaje integral' */}
+        <PhilosophySection onOpenBooking={() => handleOpenBooking()} />
 
-        {/* Transparent Pricing & Explanatory Video Section */}
-        <PricingAndVideosSection
-          services={services}
-          onOpenVideo={(srv) => setSelectedServiceForVideoModal(srv)}
-          onBookService={handleBookService}
-        />
+        {/* Value Proposition: 'Por qué las personas nos prefieren' */}
+        <WhyChooseUs onOpenBooking={() => handleOpenBooking()} />
 
-        {/* 4 Core Pillars */}
-        <SpecialtiesDeepDive
-          onOpenSpecialtyModal={handleOpenSpecialtyModal}
-          onBookAppointment={() => scrollToSection('contacto')}
-        />
+        {/* Interactive Self-Assessment Symptom / Goal Guide */}
+        <InteractiveAssessment onOpenBooking={(id) => handleOpenBooking(id)} />
 
-        {/* Methodology & Value Proposition */}
-        <MethodologySection
-          onBookAppointment={() => scrollToSection('contacto')}
-          onOpenMobileTracker={() => setIsAdminAppOpen(true)}
-        />
+        {/* Directly In-Page Interactive Booking System with Calendar and Real-time Slot Statuses */}
+        <BookingSection preselectedServiceId={selectedBookingServiceId} />
 
-        {/* Client Testimonials */}
-        <TestimonialsSection
-          testimonials={testimonials}
-          onTestimonialAdded={refreshData}
-        />
+        {/* Testimonials: 'Comentarios de nuestros clientes' */}
+        <TestimonialsSection />
 
-        {/* Online Booking Form & Contact Information */}
-        <BookingAndContactSection
-          preselectedService={preselectedBookingService}
-          onBookingSuccess={() => {
-            refreshData();
-          }}
-        />
-
+        {/* Interactive FAQ */}
+        <InteractiveFaq />
       </main>
 
-      {/* Footer with Staff Access */}
-      <Footer
-        onOpenMobileApp={() => setIsAdminAppOpen(true)}
-        onOpenClinicalPortal={() => setIsAdminAppOpen(true)}
-        onBookAppointment={() => scrollToSection('contacto')}
+      {/* Contact & Footer with hours, address & appointment CTA */}
+      <ContactFooter onOpenBooking={() => handleOpenBooking()} />
+
+      {/* Quick Booking Modal Support */}
+      <BookingModal
+        isOpen={bookingModalOpen}
+        onClose={handleCloseBooking}
+        initialServiceId={selectedBookingServiceId}
       />
 
-      {/* Service Detail Modal */}
+      {/* Service Deep Dive Modal */}
       <ServiceDetailModal
-        service={selectedServiceForModal}
-        isOpen={Boolean(selectedServiceForModal)}
-        onClose={() => setSelectedServiceForModal(null)}
-        onBookAppointment={handleBookService}
-        onOpenVideo={(srv) => {
-          setSelectedServiceForModal(null);
-          setSelectedServiceForVideoModal(srv);
-        }}
+        service={activeDetailService}
+        onClose={handleCloseDetail}
+        onBookService={(id) => handleOpenBooking(id)}
       />
-
-      {/* Service Explanatory Video Modal Player */}
-      <ServiceVideoModal
-        service={selectedServiceForVideoModal}
-        isOpen={Boolean(selectedServiceForVideoModal)}
-        onClose={() => setSelectedServiceForVideoModal(null)}
-        onBookAppointment={handleBookService}
-      />
-
-      {/* ADMIN MOBILE APPLICATION (Exclusive for Clinic Staff & Administrators) */}
-      {isAdminAppOpen && (
-        <AdminMobileApp
-          onClose={() => setIsAdminAppOpen(false)}
-        />
-      )}
-
     </div>
   );
 }
+

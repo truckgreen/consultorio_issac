@@ -1,7 +1,6 @@
 {
-  "name": "Equilibra",
-  "description": "Gestión de turnos de fisioterapia, kinesiología y servicios de rehabilitación, ficha clínica de pacientes, agenda interactiva y recordatorios automáticos.",
+  "name": "Equilibra - Fisioterapia & Bienestar Integral",
+  "description": "Sitio web moderno, interactivo y responsivo para Equilibra, centro de fisioterapia avanzada, traumatología, nutrición, psicología y entrenamiento funcional con modo oscuro.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
-
