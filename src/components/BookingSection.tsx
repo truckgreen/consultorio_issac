@@ -27,10 +27,11 @@ import { BookingFormData, ConfirmedAppointment } from '../types';
 import { BookingCalendar } from './BookingCalendar';
 import {
   getSavedAppointments,
-  saveAppointmentToStorage,
+  saveAppointmentToDatabase,
   generateIcsCalendar,
   getSlotsForDate,
 } from '../utils/bookingUtils';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 interface BookingSectionProps {
   preselectedServiceId?: string;
@@ -145,17 +146,16 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     return Object.keys(errors).length === 0;
   };
 
-  const handleBookAppointment = (e: React.FormEvent) => {
+  const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
-      // Scroll to the first error if needed
       return;
     }
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
+    try {
       const selectedService = SERVICES_DATA.find((s) => s.id === selectedServiceId);
       const randomCode = `EQ-${Math.floor(1000 + Math.random() * 9000)}`;
       const newAppointment: ConfirmedAppointment = {
@@ -175,13 +175,16 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
         status: 'confirmada',
       };
 
-      // Save locally
-      saveAppointmentToStorage(newAppointment);
+      // Save to Supabase and sync local storage
+      await saveAppointmentToDatabase(newAppointment);
       setLatestAppointment(newAppointment);
       setSavedAppointments(getSavedAppointments());
       setIsSubmitting(false);
       setActiveStep('confirmed');
-    }, 600);
+    } catch (error) {
+      console.error('Error booking appointment:', error);
+      setIsSubmitting(false);
+    }
   };
 
   const handleCopyCode = (code: string) => {

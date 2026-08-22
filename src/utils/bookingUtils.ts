@@ -1,4 +1,5 @@
 import { SlotStatus, TimeSlotInfo, ConfirmedAppointment } from '../types';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 export const STANDARD_WEEKDAY_SLOTS = [
   '08:00 AM - 09:00 AM',
@@ -38,10 +39,86 @@ export function saveAppointmentToStorage(appointment: ConfirmedAppointment): voi
   if (typeof window === 'undefined') return;
   try {
     const current = getSavedAppointments();
-    const updated = [appointment, ...current];
+    const updated = [appointment, ...current.filter(a => a.id !== appointment.id)];
     localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(updated));
   } catch (e) {
     console.error('Error saving appointment:', e);
+  }
+}
+
+/**
+ * Save appointment to Supabase and fallback/sync with local storage
+ */
+export async function saveAppointmentToDatabase(appointment: ConfirmedAppointment): Promise<{ success: boolean; error?: string }> {
+  // Always keep a local copy for instant UI feedback and offline resilience
+  saveAppointmentToStorage(appointment);
+
+  if (!isSupabaseConfigured) {
+    return { success: true };
+  }
+
+  try {
+    const { error } = await supabase.from('appointments').insert([
+      {
+        code: appointment.code,
+        service_id: appointment.serviceId,
+        service_price: appointment.servicePrice,
+        nombre: appointment.nombre,
+        apellido: appointment.apellido,
+        telefono: appointment.telefono,
+        email: appointment.email,
+        fecha: appointment.fecha,
+        hora: appointment.hora,
+        motivo_consulta: appointment.motivoConsulta || null,
+        primera_visita: appointment.primeraVisita,
+        status: appointment.status,
+        created_at: appointment.createdAt || new Date().toISOString(),
+      },
+    ]);
+
+    if (error) {
+      console.warn('Supabase insertion note:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Supabase request error:', err);
+    return { success: false, error: err?.message || 'Error al conectar con Supabase' };
+  }
+}
+
+/**
+ * Save contact message to Supabase
+ */
+export async function saveContactMessageToDatabase(data: {
+  nombre: string;
+  email: string;
+  telefono?: string;
+  mensaje: string;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) {
+    return { success: true };
+  }
+
+  try {
+    const { error } = await supabase.from('contact_messages').insert([
+      {
+        nombre: data.nombre,
+        email: data.email,
+        telefono: data.telefono || null,
+        mensaje: data.mensaje,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    if (error) {
+      console.warn('Supabase contact message error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error al conectar con Supabase' };
   }
 }
 

@@ -21,7 +21,7 @@ import { CLINIC_INFO } from '../data/featuresData';
 import { BookingFormData, ConfirmedAppointment } from '../types';
 import { BookingCalendar } from './BookingCalendar';
 import {
-  saveAppointmentToStorage,
+  saveAppointmentToDatabase,
   generateIcsCalendar,
   getSlotsForDate,
 } from '../utils/bookingUtils';
@@ -103,7 +103,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return Object.keys(errors).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === 1) {
       setStep(2);
     } else if (step === 2) {
@@ -126,7 +126,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           createdAt: new Date().toISOString(),
           status: 'confirmada',
         };
-        saveAppointmentToStorage(newApp);
+        await saveAppointmentToDatabase(newApp);
         setCreatedAppointment(newApp);
         setStep(3);
       }
