@@ -269,11 +269,11 @@ export const ContactFooter: React.FC<ContactFooterProps> = ({ onOpenBooking }) =
         </div>
 
         {/* Bottom copyright and back-to-top */}
-        <div className="pt-8 flex flex-col gap-5 text-xs text-slate-400">
-          {/* Contact links row — more prominent */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-5 border-b border-slate-800">
-            <div className="flex items-center gap-2 text-slate-400 text-sm font-bold uppercase tracking-wider">
-              <MessageCircle className="w-4 h-4 text-amber-400" />
+        <div className="pt-8 flex flex-col gap-4 text-xs text-slate-400">
+          {/* Contact links row */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-4 border-b border-slate-800">
+            <div className="flex items-center gap-2 text-slate-500 text-[11px] uppercase tracking-wider font-semibold">
+              <MessageCircle className="w-3.5 h-3.5" />
               <span>Contacto Directo</span>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -282,20 +282,20 @@ export const ContactFooter: React.FC<ContactFooterProps> = ({ onOpenBooking }) =
                 href="https://wa.me/584242724617"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-green-600/25 hover:bg-green-600/40 border border-green-500/50 text-green-300 hover:text-green-200 transition-all text-sm font-bold shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-600/20 hover:bg-green-600/30 border border-green-600/40 text-green-400 hover:text-green-300 transition-all text-[11px] font-semibold"
               >
-                <MessageCircle className="w-4 h-4" />
-                <span>Admin · +58 424-2724617</span>
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>Chat Admin · +58 424 272 4617</span>
               </a>
-              {/* Developer WhatsApp — destacado */}
+              {/* Developer WhatsApp */}
               <a
                 href="https://wa.me/gr/ZVOTHXPPR7DJ1"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-blue-500/25 hover:bg-blue-500/40 border border-blue-400/60 text-blue-300 hover:text-blue-200 transition-all text-sm font-bold shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/40 text-blue-400 hover:text-blue-300 transition-all text-[11px] font-semibold"
               >
-                <Code2 className="w-4 h-4" />
-                <span>Soporte Técnico · Desarrollador</span>
+                <Code2 className="w-3.5 h-3.5" />
+                <span>Soporte Desarrollador</span>
               </a>
             </div>
           </div>
@@ -315,7 +315,6 @@ export const ContactFooter: React.FC<ContactFooterProps> = ({ onOpenBooking }) =
             </button>
           </div>
         </div>
-
 
       </div>
     </footer>

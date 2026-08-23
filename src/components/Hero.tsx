@@ -10,8 +10,7 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
   return (
     <section
       id="inicio"
-      className="relative flex items-center justify-center pt-28 pb-20 overflow-hidden"
-      style={{ minHeight: '100svh' }}
+      className="relative min-h-[92vh] flex items-center justify-center pt-24 pb-16 overflow-hidden"
     >
       {/* Background Image with Cinematic Overlay */}
       <div className="absolute inset-0 z-0">
