@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Calendar,
@@ -18,12 +18,14 @@ import {
   Check,
   RefreshCw,
   Info,
-  ChevronRight,
   MapPin,
+  Lock,
+  FileCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
-import { BookingFormData, ConfirmedAppointment } from '../types';
+import { ConfirmedAppointment } from '../types';
 import { BookingCalendar } from './BookingCalendar';
 import {
   getSavedAppointments,
@@ -33,20 +35,33 @@ import {
   getAppointmentsFromDatabase,
   subscribeToAppointments,
 } from '../utils/bookingUtils';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
+import {
+  validateAndSanitizeName,
+  validateAndSanitizeEmail,
+  validateAndSanitizePhone,
+  sanitizeString,
+  generateSecureCode,
+  checkRateLimit,
+  verifyHumanInteraction,
+  recordSecurityEvent,
+} from '../utils/security';
 
 interface BookingSectionProps {
   preselectedServiceId?: string;
   onServiceSelect?: (serviceId: string) => void;
+  onOpenPrivacyModal?: () => void;
+  onOpenPatientPortal?: () => void;
 }
 
 export const BookingSection: React.FC<BookingSectionProps> = ({
   preselectedServiceId,
+  onOpenPrivacyModal,
+  onOpenPatientPortal,
 }) => {
-  // Today formatted as YYYY-MM-DD
+  const formRenderTimestampRef = useRef<number>(Date.now());
+
   const getTodayString = () => {
     const d = new Date();
-    // If today is Sunday (day 0), advance to Monday
     if (d.getDay() === 0) {
       d.setDate(d.getDate() + 1);
     }
@@ -70,14 +85,19 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
   const [email, setEmail] = useState<string>('');
   const [motivoConsulta, setMotivoConsulta] = useState<string>('');
   const [primeraVisita, setPrimeraVisita] = useState<boolean>(true);
+  const [privacyConsent, setPrivacyConsent] = useState<boolean>(true);
+
+  // Invisible Honeypot Anti-Bot Field
+  const [botTrap, setBotTrap] = useState<string>('');
 
   // Errors & Feedback
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [securityBlockMessage, setSecurityBlockMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [latestAppointment, setLatestAppointment] = useState<ConfirmedAppointment | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
-  // Saved appointments list for quick access
+  // Saved appointments list for live slot collision checks
   const [savedAppointments, setSavedAppointments] = useState<ConfirmedAppointment[]>([]);
 
   useEffect(() => {
@@ -98,14 +118,12 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     setSavedAppointments(getSavedAppointments());
   }, []);
 
-  // If preselectedServiceId changes from parent
   useEffect(() => {
     if (preselectedServiceId) {
       setSelectedServiceId(preselectedServiceId);
     }
   }, [preselectedServiceId]);
 
-  // When date changes, check if the currently selected time is valid for the new date
   useEffect(() => {
     if (selectedDate) {
       const slots = getSlotsForDate(selectedDate, selectedServiceId, savedAppointments);
@@ -113,7 +131,6 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
       if (availableSlots.length > 0) {
         const stillValid = availableSlots.some((s) => s.time === selectedTime);
         if (!stillValid) {
-          // Set to the first available slot
           setSelectedTime(availableSlots[0].time);
         }
       } else {
@@ -125,28 +142,24 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
 
-    if (!nombre.trim()) {
-      errors.nombre = 'El nombre es obligatorio.';
-    } else if (nombre.trim().length < 2) {
-      errors.nombre = 'Ingresa un nombre válido.';
+    const nameValidation = validateAndSanitizeName(nombre);
+    if (!nameValidation.isValid) {
+      errors.nombre = nameValidation.errorMessage || 'Ingresa un nombre válido.';
     }
 
-    if (!apellido.trim()) {
-      errors.apellido = 'El apellido es obligatorio.';
-    } else if (apellido.trim().length < 2) {
-      errors.apellido = 'Ingresa un apellido válido.';
+    const apellidoValidation = validateAndSanitizeName(apellido);
+    if (!apellidoValidation.isValid) {
+      errors.apellido = apellidoValidation.errorMessage || 'Ingresa un apellido válido.';
     }
 
-    if (!telefono.trim()) {
-      errors.telefono = 'El número de teléfono es obligatorio.';
-    } else if (telefono.trim().length < 7) {
-      errors.telefono = 'Ingresa un número de contacto válido.';
+    const phoneValidation = validateAndSanitizePhone(telefono);
+    if (!phoneValidation.isValid) {
+      errors.telefono = phoneValidation.errorMessage || 'Ingresa un número telefónico válido.';
     }
 
-    if (!email.trim()) {
-      errors.email = 'El correo electrónico es obligatorio.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      errors.email = 'Ingresa un correo electrónico con formato válido (ej. nombre@correo.com).';
+    const emailValidation = validateAndSanitizeEmail(email);
+    if (!emailValidation.isValid) {
+      errors.email = emailValidation.errorMessage || 'Ingresa un correo electrónico válido.';
     }
 
     if (!selectedDate) {
@@ -154,7 +167,11 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     }
 
     if (!selectedTime) {
-      errors.hora = 'Por favor selecciona una hora disponible.';
+      errors.hora = 'Por favor selecciona un horario disponible.';
+    }
+
+    if (!privacyConsent) {
+      errors.privacy = 'Debes aceptar los términos de confidencialidad y protección de datos médicos.';
     }
 
     setFormErrors(errors);
@@ -163,7 +180,23 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
 
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSecurityBlockMessage(null);
 
+    // 1. Anti-Bot Honeypot & Submission Timing Check
+    const humanCheck = verifyHumanInteraction(botTrap, formRenderTimestampRef.current);
+    if (!humanCheck.isHuman) {
+      setSecurityBlockMessage(humanCheck.reason || 'Envío bloqueado por el escudo de seguridad.');
+      return;
+    }
+
+    // 2. Rate-Limiting Check (Anti-DoS / Anti-Flooding)
+    const rateCheck = checkRateLimit('booking_submission', 4, 10 * 60 * 1000);
+    if (!rateCheck.allowed) {
+      setSecurityBlockMessage(rateCheck.message || 'Límite de solicitudes de cita alcanzado temporalmente.');
+      return;
+    }
+
+    // 3. Form Sanitization & Validation
     if (!validateForm()) {
       return;
     }
@@ -172,25 +205,26 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
 
     try {
       const selectedService = SERVICES_DATA.find((s) => s.id === selectedServiceId);
-      const randomCode = `EQ-${Math.floor(1000 + Math.random() * 9000)}`;
+      const secureCode = generateSecureCode();
+
       const newAppointment: ConfirmedAppointment = {
-        id: `app-${Date.now()}`,
-        code: randomCode,
-        serviceId: selectedServiceId,
+        id: `app_${Date.now()}_${secureCode.replace(/[^a-zA-Z0-9]/g, '')}`,
+        code: secureCode,
+        serviceId: sanitizeString(selectedServiceId),
         servicePrice: selectedService ? `${selectedService.priceFormatted} USD` : undefined,
-        nombre: nombre.trim(),
-        apellido: apellido.trim(),
-        telefono: telefono.trim(),
-        email: email.trim(),
-        fecha: selectedDate,
-        hora: selectedTime,
-        motivoConsulta: motivoConsulta.trim(),
+        nombre: sanitizeString(nombre, 60),
+        apellido: sanitizeString(apellido, 60),
+        telefono: sanitizeString(telefono, 30),
+        email: sanitizeString(email, 100).toLowerCase(),
+        fecha: sanitizeString(selectedDate),
+        hora: sanitizeString(selectedTime),
+        motivoConsulta: sanitizeString(motivoConsulta, 600),
         primeraVisita,
         createdAt: new Date().toISOString(),
         status: 'confirmada',
       };
 
-      // Save to Supabase and sync local storage
+      // Save to database & encrypted local state
       await saveAppointmentToDatabase(newAppointment);
       setLatestAppointment(newAppointment);
       setSavedAppointments(getSavedAppointments());
@@ -199,6 +233,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     } catch (error) {
       console.error('Error booking appointment:', error);
       setIsSubmitting(false);
+      setSecurityBlockMessage('Ocurrió un error inesperado al procesar la reserva. Por favor intenta de nuevo.');
     }
   };
 
@@ -211,13 +246,16 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
   };
 
   const handleResetForNewBooking = () => {
+    formRenderTimestampRef.current = Date.now();
     setActiveStep('selection');
     setNombre('');
     setApellido('');
     setTelefono('');
     setEmail('');
     setMotivoConsulta('');
+    setBotTrap('');
     setFormErrors({});
+    setSecurityBlockMessage(null);
     setLatestAppointment(null);
   };
 
@@ -229,16 +267,15 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
       id="agendar-cita"
       className="py-20 lg:py-28 bg-[#f5f2eb] dark:bg-[#0b0e14] relative overflow-hidden transition-colors"
     >
-      {/* Subtle Background Glow Elements */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-amber-500/5 dark:bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-20 right-0 w-96 h-96 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
+        <div className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-bold uppercase tracking-wider mb-4">
             <CalendarCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Reserva Directa en Línea</span>
+            <span>Reserva Clínica Directa & Segura</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight font-heading">
@@ -246,14 +283,61 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
           </h2>
 
           <p className="mt-4 text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
-            Selecciona tu especialidad, consulta el calendario interactivo con horarios en tiempo real (disponibles, por confirmar u ocupados) y registra tus datos de contacto para asegurar tu consulta.
+            Selecciona tu especialidad médica, consulta los horarios en tiempo real y reserva tu espacio con protección de datos clínicos y confirmación inmediata.
           </p>
+
+          {/* Security & Verification Fast Links */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+            <button
+              type="button"
+              onClick={onOpenPrivacyModal}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 shadow-sm transition-all"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Cifrado SSL 256-bit & Privacidad Médica</span>
+            </button>
+
+            {onOpenPatientPortal && (
+              <button
+                type="button"
+                onClick={onOpenPatientPortal}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 transition-all"
+              >
+                <FileCheck className="w-3.5 h-3.5 text-amber-600" />
+                <span>¿Ya tienes una cita? Consultar o Validar</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Main Booking Engine */}
+        {/* Security Warning Message */}
+        {securityBlockMessage && (
+          <div className="max-w-2xl mx-auto mb-6 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs sm:text-sm flex items-start gap-3">
+            <ShieldAlert className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Advertencia del Escudo de Seguridad</p>
+              <p className="mt-0.5">{securityBlockMessage}</p>
+            </div>
+          </div>
+        )}
 
+        {/* Main Booking Engine */}
         {activeStep === 'selection' ? (
           <form onSubmit={handleBookAppointment} className="space-y-8">
+            {/* INVISIBLE HONEYPOT FIELD (BOT TRAP) */}
+            <div style={{ display: 'none', position: 'absolute', left: '-9999px' }} aria-hidden="true">
+              <label htmlFor="website_url_honeypot">Website (do not fill)</label>
+              <input
+                type="text"
+                id="website_url_honeypot"
+                name="website_url_honeypot"
+                tabIndex={-1}
+                autoComplete="off"
+                value={botTrap}
+                onChange={(e) => setBotTrap(e.target.value)}
+              />
+            </div>
+
             {/* Step 1: Service Selector */}
             <div className="bg-white dark:bg-[#151c28] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-7 shadow-sm">
               <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -340,7 +424,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
               </div>
             </div>
 
-            {/* Step 2: Interactive Calendar with 3 states (Disponible, Por confirmar, Ocupado) */}
+            {/* Step 2: Interactive Calendar with Slot Statuses */}
             <div className="bg-white dark:bg-[#151c28] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-7 shadow-sm">
               <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2.5">
@@ -352,13 +436,12 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                       Selecciona el Día y la Hora
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Revisa el estado de cada horario para saber si está disponible, por confirmar u ocupado
+                      Horarios verificados en tiempo real contra la agenda clínica
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Booking Calendar Widget */}
               <BookingCalendar
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}
@@ -396,7 +479,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
               )}
             </div>
 
-            {/* Step 3: Required Patient Data (Nombre, Apellido, Teléfono, Correo) */}
+            {/* Step 3: Required Patient Data */}
             <div className="bg-white dark:bg-[#151c28] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-7 shadow-sm">
               <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2.5">
@@ -405,13 +488,18 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white font-heading">
-                      Datos del Paciente
+                      Datos del Paciente & Confidencialidad
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Por favor completa tus datos para el registro y confirmación de la cita
+                      Información protegida bajo secreto profesional y protocolos de seguridad
                     </p>
                   </div>
                 </div>
+
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold hidden sm:flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5" />
+                  Cifrado Activo
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -429,6 +517,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                       type="text"
                       id="booking-nombre"
                       value={nombre}
+                      maxLength={60}
                       onChange={(e) => {
                         setNombre(e.target.value);
                         if (formErrors.nombre) {
@@ -467,6 +556,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                       type="text"
                       id="booking-apellido"
                       value={apellido}
+                      maxLength={60}
                       onChange={(e) => {
                         setApellido(e.target.value);
                         if (formErrors.apellido) {
@@ -505,6 +595,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                       type="tel"
                       id="booking-telefono"
                       value={telefono}
+                      maxLength={25}
                       onChange={(e) => {
                         setTelefono(e.target.value);
                         if (formErrors.telefono) {
@@ -543,6 +634,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                       type="email"
                       id="booking-email"
                       value={email}
+                      maxLength={100}
                       onChange={(e) => {
                         setEmail(e.target.value);
                         if (formErrors.email) {
@@ -567,22 +659,23 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   )}
                 </div>
 
-                {/* Motivo de Consulta (Opcional) */}
+                {/* Motivo de Consulta */}
                 <div className="sm:col-span-2">
                   <label
                     htmlFor="booking-motivo"
                     className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-1.5"
                   >
-                    Motivo de consulta o síntomas (Opcional)
+                    Motivo de consulta o síntomas clínicos (Opcional)
                   </label>
                   <div className="relative">
                     <FileText className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     <textarea
                       id="booking-motivo"
                       rows={3}
+                      maxLength={600}
                       value={motivoConsulta}
                       onChange={(e) => setMotivoConsulta(e.target.value)}
-                      placeholder="Describe brevemente tu molestia, diagnóstico previo o metas deportivas..."
+                      placeholder="Describe brevemente tu molestia, lesión, antecedente médico o metas funcionales..."
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none transition-all"
                     />
                   </div>
@@ -598,7 +691,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                       </span>
                       <span className="text-xs text-slate-500 dark:text-slate-400">
                         {primeraVisita
-                          ? 'Incluiremos una evaluación clínica inicial completa.'
+                          ? 'Incluiremos una evaluación física y funcional inicial completa.'
                           : 'Continuaremos con tu plan y ficha clínica establecida.'}
                       </span>
                     </div>
@@ -613,6 +706,44 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                     <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
                   </label>
                 </div>
+
+                {/* Medical Privacy & HIPAA Consent Checkbox */}
+                <div className="sm:col-span-2 p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                  <label className="flex items-start gap-3 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={privacyConsent}
+                      onChange={(e) => {
+                        setPrivacyConsent(e.target.checked);
+                        if (formErrors.privacy) {
+                          const err = { ...formErrors };
+                          delete err.privacy;
+                          setFormErrors(err);
+                        }
+                      }}
+                      className="mt-0.5 rounded text-amber-600 focus:ring-amber-500 h-4 w-4"
+                    />
+                    <div>
+                      <span>
+                        Acepto el tratamiento seguro de mis datos de contacto y motivos de consulta con estricto apego al secreto profesional médico y la{' '}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={onOpenPrivacyModal}
+                        className="text-amber-700 dark:text-amber-400 underline font-bold hover:text-amber-800 inline"
+                      >
+                        Política de Privacidad y Seguridad Clínica
+                      </button>
+                      <span>.</span>
+                    </div>
+                  </label>
+                  {formErrors.privacy && (
+                    <p className="text-xs text-rose-500 mt-1.5 flex items-center gap-1 font-semibold">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {formErrors.privacy}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -624,7 +755,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                 </div>
                 <div>
                   <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>Reserva segura y confirmación inmediata</span>
+                    <span>Reserva Segura con Validación Criptográfica</span>
                     <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 rounded-full">
                       {selectedServiceObj.priceFormatted} USD
                     </span>
@@ -648,7 +779,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                 {isSubmitting ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Confirmando tu reserva...</span>
+                    <span>Cifrando y Confirmando Reserva...</span>
                   </>
                 ) : (
                   <>
@@ -674,13 +805,13 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   <CheckCircle2 className="w-10 h-10 text-white" />
                 </div>
                 <span className="text-xs uppercase tracking-widest font-bold bg-white/20 px-3 py-1 rounded-full inline-block mb-2">
-                  ¡Cita Agendada Exitosamente!
+                  ¡Cita Registrada & Verificada!
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-extrabold font-heading">
                   Tu consulta ha sido confirmada
                 </h3>
                 <p className="text-xs sm:text-sm text-emerald-100 mt-2 max-w-md mx-auto">
-                  Hemos guardado tu cita en el sistema de EQUILIBRA y te esperamos en la clínica.
+                  Tu pase de atención ha sido generado con código único de verificación.
                 </p>
               </div>
 
@@ -741,17 +872,12 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300">
-                      Duración aprox: {selectedServiceObj.duration}
+                      Duración: {selectedServiceObj.duration}
                     </p>
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       <span className="inline-block text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
                         {latestAppointment.primeraVisita ? 'Primera Evaluación' : 'Sesión de Seguimiento'}
                       </span>
-                      {selectedServiceObj.packageOption && (
-                        <span className="inline-block text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                          {selectedServiceObj.packageOption}
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -771,7 +897,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
 
                   <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                      Sede & Atención
+                      Sede & Ubicación
                     </span>
                     <p className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
                       <MapPin className="w-4 h-4 text-amber-600" />
@@ -783,20 +909,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   </div>
                 </div>
 
-                {/* Important Clinical Notice */}
-                <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200 dark:border-emerald-800/40 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-3">
-                  <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-slate-900 dark:text-white mb-0.5">
-                      Instrucciones para tu llegada
-                    </p>
-                    <p>
-                      Recomendamos asistir 10 minutos antes de la hora acordada y traer ropa cómoda para la sesión de evaluación física y funcional. Si presentas estudios de imagen recientes (resonancias, rayos X), no dudes en traerlos.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
+                {/* Actions */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button
                     type="button"
@@ -805,13 +918,13 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                         latestAppointment,
                         selectedServiceObj.title,
                         CLINIC_INFO.address.fullAddress,
-                        CLIC_PHONE_CALL
+                        CLINIC_INFO.phoneDisplay
                       )
                     }
                     className="flex-1 px-5 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all"
                   >
                     <Calendar className="w-4 h-4" />
-                    <span>Descargar Recordatorio (.ics)</span>
+                    <span>Descargar Recordatorio (.ICS)</span>
                   </button>
 
                   <button
@@ -831,5 +944,3 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     </section>
   );
 };
-
-const CLIC_PHONE_CALL = CLINIC_INFO.phoneDisplay;

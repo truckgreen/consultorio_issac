@@ -28,6 +28,20 @@ export const CLINIC_INFO = {
   ]
 };
 
+export const DEVELOPER_SUPPORT_INFO = {
+  teamName: 'Equipo de Desarrollo Web & Infraestructura',
+  leadDev: 'Desarrollador Full Stack & Soporte Técnico',
+  email: 'paezjose481@gmail.com',
+  secondaryEmail: 'paezjose481@gmail.com',
+  phoneDisplay: '+58 424-2724617',
+  whatsappUrl: 'https://wa.me/584242724617?text=Hola%2C%20tengo%20una%20duda%20o%20requiero%20soporte%20t%C3%A9cnico%20con%20la%20plataforma%20EQUILIBRA',
+  supportHours: 'Lunes a Domingo: 8:00 AM - 10:00 PM (GMT-4)',
+  responseTime: 'Menos de 2 horas',
+  techStack: 'React 18, TypeScript, Tailwind CSS, Cloud Ingress, Motor Criptográfico',
+  version: 'v2.4.0 (Build 2026.8)',
+  status: 'Operativo & En Línea'
+};
+
 export const PHILOSOPHY_DATA = {
   subtitle: 'Realizamos un abordaje integral, el paciente no es solo una lesión',
   title: 'Lo que hacemos mejor',

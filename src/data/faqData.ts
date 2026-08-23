@@ -25,5 +25,10 @@ export const FAQ_DATA: FaqItem[] = [
     category: 'Servicios',
     question: '¿Tienen programas de entrenamiento para personas sin lesiones?',
     answer: '¡Por supuesto! Nuestras disciplinas de Entrenamiento Funcional y Boxeo están abiertas a cualquier persona que desee mejorar su fuerza, salud cardiovascular, movilidad y manejo del estrés, siempre bajo la supervisión de profesionales de la salud y el movimiento.'
+  },
+  {
+    category: 'Soporte y Plataforma',
+    question: '¿Cómo puedo contactar al desarrollador o solicitar soporte técnico con la web o mi cita?',
+    answer: 'Puedes contactar directamente al equipo de desarrollo y soporte técnico a través del botón "Soporte Técnico / Desarrollador" en la barra de navegación o pie de página. También puedes escribir a soporte.tecnico@equilibrave.com o vía WhatsApp al +58 424-2724617 para resolver cualquier duda sobre el sistema de reservas, validación de citas o incidencias de la web.'
   }
 ];

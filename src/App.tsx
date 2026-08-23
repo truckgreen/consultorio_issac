@@ -14,6 +14,10 @@ import { InteractiveFaq } from './components/InteractiveFaq';
 import { ContactFooter } from './components/ContactFooter';
 import { BookingModal } from './components/BookingModal';
 import { ServiceDetailModal } from './components/ServiceDetailModal';
+import { SecurityPrivacyModal } from './components/SecurityPrivacyModal';
+import { PatientPortalModal } from './components/PatientPortalModal';
+import { SpecialistAccessModal } from './components/SpecialistAccessModal';
+import { DeveloperSupportModal } from './components/DeveloperSupportModal';
 import { ServiceItem } from './types';
 
 export default function App() {
@@ -32,11 +36,13 @@ export default function App() {
   // Selected Service for on-page booking
   const [selectedBookingServiceId, setSelectedBookingServiceId] = useState<string>('fisioterapia');
 
-  // Booking Modal State (optional fallback)
+  // Modals state
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
-
-  // Service Detail Modal State
   const [activeDetailService, setActiveDetailService] = useState<ServiceItem | null>(null);
+  const [privacyModalOpen, setPrivacyModalOpen] = useState<boolean>(false);
+  const [patientPortalOpen, setPatientPortalOpen] = useState<boolean>(false);
+  const [specialistAccessOpen, setSpecialistAccessOpen] = useState<boolean>(false);
+  const [developerSupportOpen, setDeveloperSupportOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (darkMode) {
@@ -83,54 +89,69 @@ export default function App() {
         darkMode={darkMode}
         onToggleDarkMode={handleToggleDarkMode}
         onOpenBooking={handleOpenBooking}
+        onOpenPrivacyModal={() => setPrivacyModalOpen(true)}
+        onOpenPatientPortal={() => setPatientPortalOpen(true)}
+        onOpenSpecialistAccess={() => setSpecialistAccessOpen(true)}
+        onOpenDeveloperSupport={() => setDeveloperSupportOpen(true)}
       />
 
       <main>
         {/* Hero Section */}
         <Hero onOpenBooking={() => handleOpenBooking()} />
 
-        {/* About Section: 'El verdadero bienestar comienza en movimiento' */}
+        {/* About Section */}
         <AboutSection onOpenBooking={() => handleOpenBooking()} />
 
-        {/* 9 Services Grid: 'Nuestros servicios' */}
+        {/* 9 Services Grid */}
         <ServicesGrid
           onSelectService={handleSelectService}
           onOpenBooking={(id) => handleOpenBooking(id)}
         />
 
-        {/* Multidisciplinary Team Section: NUESTRO EQUIPO FISIOJEWSIJEW */}
+        {/* Multidisciplinary Team Section */}
         <TeamSection onOpenBooking={(id) => handleOpenBooking(id)} />
 
-        {/* 4 Specialties: 'En qué nos especializamos' */}
+        {/* 4 Specialties */}
         <SpecialtiesSection onOpenBooking={(id) => handleOpenBooking(id)} />
 
-        {/* Philosophy: 'Lo que hacemos mejor - Realizamos un abordaje integral' */}
-        <PhilosophySection onOpenBooking={() => handleOpenBooking()} />
+        {/* Philosophy */}
+        <PhilosophySection onOpenBooking={(id) => handleOpenBooking(id)} />
 
-        {/* Value Proposition: 'Por qué las personas nos prefieren' */}
+        {/* Value Proposition */}
         <WhyChooseUs onOpenBooking={() => handleOpenBooking()} />
 
         {/* Interactive Self-Assessment Symptom / Goal Guide */}
         <InteractiveAssessment onOpenBooking={(id) => handleOpenBooking(id)} />
 
-        {/* Directly In-Page Interactive Booking System with Calendar and Real-time Slot Statuses */}
-        <BookingSection preselectedServiceId={selectedBookingServiceId} />
+        {/* Directly In-Page Interactive Booking System with Calendar and Security Controls */}
+        <BookingSection
+          preselectedServiceId={selectedBookingServiceId}
+          onOpenPrivacyModal={() => setPrivacyModalOpen(true)}
+          onOpenPatientPortal={() => setPatientPortalOpen(true)}
+        />
 
-        {/* Testimonials: 'Comentarios de nuestros clientes' */}
+        {/* Testimonials */}
         <TestimonialsSection />
 
         {/* Interactive FAQ */}
         <InteractiveFaq />
       </main>
 
-      {/* Contact & Footer with hours, address & appointment CTA */}
-      <ContactFooter onOpenBooking={() => handleOpenBooking()} />
+      {/* Contact & Footer with hours, address, portals & security */}
+      <ContactFooter
+        onOpenBooking={() => handleOpenBooking()}
+        onOpenPrivacyModal={() => setPrivacyModalOpen(true)}
+        onOpenPatientPortal={() => setPatientPortalOpen(true)}
+        onOpenSpecialistAccess={() => setSpecialistAccessOpen(true)}
+        onOpenDeveloperSupport={() => setDeveloperSupportOpen(true)}
+      />
 
       {/* Quick Booking Modal Support */}
       <BookingModal
         isOpen={bookingModalOpen}
         onClose={handleCloseBooking}
         initialServiceId={selectedBookingServiceId}
+        onOpenPrivacyModal={() => setPrivacyModalOpen(true)}
       />
 
       {/* Service Deep Dive Modal */}
@@ -139,7 +160,31 @@ export default function App() {
         onClose={handleCloseDetail}
         onBookService={(id) => handleOpenBooking(id)}
       />
+
+      {/* Security, Privacy & ARCO Data Compliance Modal */}
+      <SecurityPrivacyModal
+        isOpen={privacyModalOpen}
+        onClose={() => setPrivacyModalOpen(false)}
+      />
+
+      {/* Secure Patient Portal for Appointment Verification & Receipt Management */}
+      <PatientPortalModal
+        isOpen={patientPortalOpen}
+        onClose={() => setPatientPortalOpen(false)}
+        onOpenBooking={(id) => handleOpenBooking(id)}
+      />
+
+      {/* Specialist & Clinical Staff Access Gate (PIN Protected) */}
+      <SpecialistAccessModal
+        isOpen={specialistAccessOpen}
+        onClose={() => setSpecialistAccessOpen(false)}
+      />
+
+      {/* Developer Contact & Technical Support Modal */}
+      <DeveloperSupportModal
+        isOpen={developerSupportOpen}
+        onClose={() => setDeveloperSupportOpen(false)}
+      />
     </div>
   );
 }
-
