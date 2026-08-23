@@ -34,7 +34,7 @@ export const DEVELOPER_SUPPORT_INFO = {
   email: 'paezjose481@gmail.com',
   secondaryEmail: 'paezjose481@gmail.com',
   phoneDisplay: '+58 424-2724617',
-  whatsappUrl: 'https://wa.me/584242724617?text=Hola%2C%20tengo%20una%20duda%20o%20requiero%20soporte%20t%C3%A9cnico%20con%20la%20plataforma%20EQUILIBRA',
+  whatsappUrl: 'https://wa.me/qr/ZVOTHXHPPR7DJ1?text=Hola%2C%20tengo%20una%20duda%20o%20requiero%20soporte%20t%C3%A9cnico%20con%20la%20plataforma%20EQUILIBRA',
   supportHours: 'Lunes a Domingo: 8:00 AM - 10:00 PM (GMT-4)',
   responseTime: 'Menos de 2 horas',
   techStack: 'React 18, TypeScript, Tailwind CSS, Cloud Ingress, Motor Criptográfico',
