@@ -98,13 +98,26 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
                 repository.insertAll(remoteAppointments)
             }
 
+            val remoteMessages = supabase.fetchContactMessages()
+            if (remoteMessages.isNotEmpty()) {
+                _messages.value = remoteMessages
+            }
+
             // Connect to Realtime
-            SupabaseClient.client.realtime.connect()
+            try {
+                SupabaseClient.client.realtime.connect()
+            } catch (_: Exception) {
+            }
 
             // Start observing real-time updates
             launch {
-                supabase.observeAppointments().collectLatest { appointments ->
-                    repository.insertAll(appointments)
+                try {
+                    supabase.observeAppointments().collectLatest { appointments ->
+                        if (appointments.isNotEmpty()) {
+                            repository.insertAll(appointments)
+                        }
+                    }
+                } catch (_: Exception) {
                 }
             }
         }
@@ -262,7 +275,10 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteMessage(id: String) {
-        _messages.value = _messages.value.filter { it.id != id }
+        viewModelScope.launch {
+            _messages.value = _messages.value.filter { it.id != id }
+            supabase.deleteContactMessage(id)
+        }
     }
 
     // Reset & Demo Data

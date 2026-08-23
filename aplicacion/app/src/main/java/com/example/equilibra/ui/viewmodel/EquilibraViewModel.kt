@@ -12,6 +12,7 @@ import com.example.equilibra.data.model.SlotStatus
 import com.example.equilibra.data.model.TeamMember
 import com.example.equilibra.data.model.TimeSlotInfo
 import com.example.equilibra.data.repository.EquilibraDataRepository
+import com.example.equilibra.data.remote.SupabaseAppointmentsDataSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,7 @@ import kotlin.random.Random
 class EquilibraViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: AppointmentRepository
+    private val supabase = SupabaseAppointmentsDataSource()
 
     val allAppointments: StateFlow<List<AppointmentEntity>>
 
@@ -36,6 +38,16 @@ class EquilibraViewModel(application: Application) : AndroidViewModel(applicatio
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+        viewModelScope.launch {
+            try {
+                val remote = supabase.fetch()
+                if (remote.isNotEmpty()) {
+                    repository.insertAll(remote)
+                }
+            } catch (_: Exception) {
+            }
+        }
     }
 
     // Theme Mode
@@ -284,6 +296,7 @@ class EquilibraViewModel(application: Application) : AndroidViewModel(applicatio
 
         viewModelScope.launch {
             repository.insert(newApp)
+            supabase.upsert(newApp)
             _latestConfirmedAppointment.value = newApp
             _isSubmitting.value = false
         }
@@ -297,6 +310,7 @@ class EquilibraViewModel(application: Application) : AndroidViewModel(applicatio
     fun deleteAppointment(id: String) {
         viewModelScope.launch {
             repository.deleteById(id)
+            supabase.delete(id)
         }
     }
 }

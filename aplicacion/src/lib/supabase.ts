@@ -232,20 +232,22 @@ export async function insertAppointment(appointment: Appointment): Promise<{ suc
           code: appointment.code,
           service_id: appointment.service_id,
           service_title: appointment.service_title,
+          service_price: `${appointment.amount || 35} USD`,
+          amount: appointment.amount || 35,
           fecha: appointment.fecha,
           hora: appointment.hora,
           nombre: appointment.nombre,
           apellido: appointment.apellido,
           telefono: appointment.telefono,
           email: appointment.email,
-          motivo: appointment.motivo || '',
+          motivo_consulta: appointment.motivo || '',
           primera_visita: appointment.primera_visita,
           status: appointment.status || 'CONFIRMADA',
           specialist_id: appointment.specialist_id || '',
-          specialist_name: appointment.specialist_name || '',
+          specialist_name: appointment.specialist_name || 'Lic. Isaac Jewsiejew',
           notes: appointment.notes || '',
           payment_status: appointment.payment_status || 'PENDIENTE',
-          amount: appointment.amount || 35
+          created_at: new Date().toISOString()
         }
       ])
       .select();
@@ -362,12 +364,10 @@ export async function sendContactMessageToSupabase(message: Omit<ContactMessage,
     const { error } = await client.from('contact_messages').insert([
       {
         id: newMsg.id,
-        name: newMsg.name,
+        nombre: newMsg.name,
         email: newMsg.email,
-        phone: newMsg.phone || '',
-        subject: newMsg.subject || 'Consulta General',
-        message: newMsg.message,
-        status: newMsg.status,
+        telefono: newMsg.phone || '',
+        mensaje: newMsg.message,
         created_at: newMsg.created_at
       }
     ]);

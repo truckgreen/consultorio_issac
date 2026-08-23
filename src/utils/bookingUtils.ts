@@ -50,35 +50,40 @@ export function saveAppointmentToStorage(appointment: ConfirmedAppointment): voi
 export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointment[]> {
   if (!isSupabaseConfigured) return getSavedAppointments();
 
-  const { data, error } = await supabase
-    .from('appointments')
-    .select('*')
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.warn('Supabase appointments query error:', error.message);
+    if (error) {
+      console.warn('Supabase appointments query error:', error.message);
+      return getSavedAppointments();
+    }
+
+    const appointments = (data || []).map((row) => ({
+      id: String(row.id),
+      code: row.code,
+      serviceId: row.service_id,
+      servicePrice: row.service_price || (row.amount ? `${row.amount} USD` : undefined),
+      nombre: row.nombre,
+      apellido: row.apellido,
+      telefono: row.telefono,
+      email: row.email,
+      fecha: row.fecha,
+      hora: row.hora,
+      motivoConsulta: row.motivo_consulta || row.motivo || '',
+      primeraVisita: row.primera_visita,
+      createdAt: row.created_at,
+      status: row.status === 'PENDIENTE' ? 'pendiente_validacion' : 'confirmada',
+    })) as ConfirmedAppointment[];
+
+    localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(appointments));
+    return appointments;
+  } catch (err) {
+    console.warn('Network error reading Supabase appointments:', err);
     return getSavedAppointments();
   }
-
-  const appointments = (data || []).map((row) => ({
-    id: row.id,
-    code: row.code,
-    serviceId: row.service_id,
-    servicePrice: row.amount ? `${row.amount} USD` : undefined,
-    nombre: row.nombre,
-    apellido: row.apellido,
-    telefono: row.telefono,
-    email: row.email,
-    fecha: row.fecha,
-    hora: row.hora,
-    motivoConsulta: row.motivo || '',
-    primeraVisita: row.primera_visita,
-    createdAt: row.created_at,
-    status: row.status === 'PENDIENTE' ? 'pendiente_validacion' : 'confirmada',
-  })) as ConfirmedAppointment[];
-
-  localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(appointments));
-  return appointments;
 }
 
 export function subscribeToAppointments(onChange: (appointments: ConfirmedAppointment[]) => void): (() => void) | null {
@@ -87,7 +92,8 @@ export function subscribeToAppointments(onChange: (appointments: ConfirmedAppoin
   const channel = supabase
     .channel('public-appointments')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async () => {
-      onChange(await getAppointmentsFromDatabase());
+      const refreshed = await getAppointmentsFromDatabase();
+      onChange(refreshed);
     })
     .subscribe();
 
@@ -108,22 +114,30 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
   }
 
   try {
-    const { error } = await supabase.from('appointments').insert([
+    const service = SERVICES_DATA.find((s) => s.id === appointment.serviceId);
+    const serviceTitle = service?.title || appointment.serviceId;
+    const servicePrice = appointment.servicePrice || (service ? `${service.priceFormatted} USD` : '35 USD');
+    const amount = Number.parseFloat(appointment.servicePrice || '') || (service ? service.price : 35);
+
+    const { error } = await supabase.from('appointments').upsert([
       {
         id: appointment.id,
         code: appointment.code,
         service_id: appointment.serviceId,
-        service_title: SERVICES_DATA.find((service) => service.id === appointment.serviceId)?.title || appointment.serviceId,
-        amount: Number.parseFloat(appointment.servicePrice || '') || 35,
+        service_title: serviceTitle,
+        service_price: servicePrice,
+        amount: amount,
         nombre: appointment.nombre,
         apellido: appointment.apellido,
         telefono: appointment.telefono,
         email: appointment.email,
         fecha: appointment.fecha,
         hora: appointment.hora,
-        motivo: appointment.motivoConsulta || null,
+        motivo_consulta: appointment.motivoConsulta || '',
         primera_visita: appointment.primeraVisita,
         status: appointment.status === 'pendiente_validacion' ? 'PENDIENTE' : 'CONFIRMADA',
+        specialist_name: 'Lic. Isaac Jewsiejew',
+        notes: '',
         created_at: appointment.createdAt || new Date().toISOString(),
       },
     ]);
@@ -156,6 +170,7 @@ export async function saveContactMessageToDatabase(data: {
   try {
     const { error } = await supabase.from('contact_messages').insert([
       {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         nombre: data.nombre,
         email: data.email,
         telefono: data.telefono || null,
