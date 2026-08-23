@@ -73,7 +73,7 @@ data class AppointmentRemoteDto(
                 hora = entity.hora,
                 motivoConsulta = entity.motivoConsulta,
                 primeraVisita = entity.primeraVisita,
-                status = if (entity.status.equals("pendiente_validacion", ignoreCase = true)) "PENDIENTE" else "CONFIRMADA",
+                status = if (entity.status.equals("pendiente_validacion", ignoreCase = true)) "PENDIENTE" else entity.status.uppercase(),
                 specialistName = entity.specialistName,
                 notes = entity.notes
             )
@@ -133,7 +133,7 @@ class SupabaseAppointmentsDataSource {
 
     suspend fun updateStatus(id: String, status: String) {
         try {
-            val dbStatus = if (status.equals("pendiente_validacion", ignoreCase = true)) "PENDIENTE" else "CONFIRMADA"
+            val dbStatus = if (status.equals("pendiente_validacion", ignoreCase = true)) "PENDIENTE" else status.uppercase()
             client.postgrest["appointments"].update({
                 set("status", dbStatus)
             }) {

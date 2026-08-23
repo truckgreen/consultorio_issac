@@ -512,29 +512,19 @@ object EquilibraDataRepository {
             val day = date.dayOfMonth
             val month = date.monthValue
 
-            return baseSlots.mapIndexed { index, time ->
-                val userBooked = userBookedAppointments.any { it.fecha == dateStr && it.hora == time }
-                if (userBooked) {
-                    return@mapIndexed TimeSlotInfo(
-                        time = time,
-                        status = SlotStatus.OCUPADO,
-                        notes = "Reservado por ti recientemente"
-                    )
+            return baseSlots.map { time ->
+                val booked = userBookedAppointments.find { 
+                    it.fecha == dateStr && it.hora == time && !it.status.equals("cancelada", ignoreCase = true) 
                 }
-
-                val seed = (day * 7 + index * 13 + (month * 3)) % 10
-                when {
-                    seed == 1 || seed == 6 -> TimeSlotInfo(
+                if (booked != null) {
+                    val isPending = booked.status.equals("pendiente_validacion", ignoreCase = true)
+                    TimeSlotInfo(
                         time = time,
-                        status = SlotStatus.OCUPADO,
-                        notes = "Horario reservado por otro paciente"
+                        status = if (isPending) SlotStatus.POR_CONFIRMAR else SlotStatus.OCUPADO,
+                        notes = "Horario reservado (${booked.code})"
                     )
-                    seed == 3 || seed == 8 -> TimeSlotInfo(
-                        time = time,
-                        status = SlotStatus.POR_CONFIRMAR,
-                        notes = "En proceso de confirmación clínica"
-                    )
-                    else -> TimeSlotInfo(
+                } else {
+                    TimeSlotInfo(
                         time = time,
                         status = SlotStatus.DISPONIBLE,
                         notes = "Disponible para agendar inmediatamente"

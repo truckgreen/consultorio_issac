@@ -47,7 +47,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     private val _appointmentSearchQuery = MutableStateFlow("")
     val appointmentSearchQuery: StateFlow<String> = _appointmentSearchQuery.asStateFlow()
 
-    private val _appointmentDateFilter = MutableStateFlow("HOY") // HOY, MANANA, SEMANA, TODOS
+    private val _appointmentDateFilter = MutableStateFlow("TODOS") // TODOS, HOY, MANANA, SEMANA
     val appointmentDateFilter: StateFlow<String> = _appointmentDateFilter.asStateFlow()
 
     private val _appointmentStatusFilter = MutableStateFlow("TODOS") // TODOS, confirmada, en_curso, completada, cancelada

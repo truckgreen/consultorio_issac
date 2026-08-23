@@ -209,41 +209,25 @@ export function getSlotsForDate(
   }
 
   const baseSlots = dayOfWeek === 6 ? SATURDAY_SLOTS : STANDARD_WEEKDAY_SLOTS;
-  const userAppointments = appointments;
 
-  return baseSlots.map((time, index) => {
-    // Check if the user already booked this exact slot in local storage
-    const userBooked = userAppointments.some(
+  return baseSlots.map((time) => {
+    // Check if this slot is already booked in the database
+    const booked = appointments.find(
       (app) => app.fecha === dateStr && app.hora === time
     );
 
-    if (userBooked) {
+    if (booked) {
       return {
         time,
-        status: 'ocupado' as SlotStatus,
-        notes: 'Reservado recientemente por ti',
+        status: (booked.status === 'pendiente_validacion' ? 'por_confirmar' : 'ocupado') as SlotStatus,
+        notes: `Horario reservado (${booked.code})`,
       };
-    }
-
-    // Deterministic simulation based on date and time index to create realistic real-time clinic statuses
-    // (some busy, some pending confirmation, some available)
-    const seed = (day * 7 + index * 13 + (month * 3)) % 10;
-    
-    let status: SlotStatus = 'disponible';
-    let notes = 'Disponible para agendar inmediatamente';
-
-    if (seed === 1 || seed === 6) {
-      status = 'ocupado';
-      notes = 'Horario reservado por otro paciente';
-    } else if (seed === 3 || seed === 8) {
-      status = 'por_confirmar';
-      notes = 'En proceso de confirmación clínica';
     }
 
     return {
       time,
-      status,
-      notes,
+      status: 'disponible' as SlotStatus,
+      notes: 'Disponible para agendar inmediatamente',
     };
   });
 }
