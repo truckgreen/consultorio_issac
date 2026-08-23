@@ -8,7 +8,7 @@ export const CLINIC_INFO = {
   aboutText: "Combinamos fisioterapia basada en evidencia, entrenamiento y acompañamiento humano para transformar la experiencia de rehabilitación en algo activo, cercano y motivador.",
   addressFull: "Venezuela, Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 46",
   addressShort: "Centro Profesional del Este, Piso 4, Ofic. 46, Sabana Grande, Caracas",
-  phoneDisplay: "+58 412 747.18.58",
+  phoneDisplay: "+58 424-2724617",
   phoneRaw: "+584127471858",
   email: "contacto@equilibrave.com",
   instagram: "@equilibrave",
@@ -459,7 +459,7 @@ export const FAQS: FaqItem[] = [
   {
     category: "Citas y Atención",
     question: "¿Cómo puedo agendar mi primera cita de evaluación?",
-    answer: "Puedes reservar directamente a través del formulario interactivo de esta web seleccionando el servicio y horario de tu preferencia, o llamándonos al +58 412 747.18.58. Recibirás tu confirmación inmediata con tu código y todos los detalles de tu consulta."
+    answer: "Puedes reservar directamente a través del formulario interactivo de esta web seleccionando el servicio y horario de tu preferencia, o llamándonos al +58 424-2724617. Recibirás tu confirmación inmediata con tu código y todos los detalles de tu consulta."
   },
   {
     category: "Citas y Atención",

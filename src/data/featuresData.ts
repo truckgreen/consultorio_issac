@@ -15,7 +15,7 @@ export const CLINIC_INFO = {
     fullAddress: 'Venezuela, Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 46'
   },
   phone: '+58.412.747.18.58',
-  phoneDisplay: '+58 412 747.18.58',
+  phoneDisplay: '+58 424-2724617',
   phoneRaw: '+584127471858',
   email: 'contacto@equilibrave.com',
   hours: [

@@ -4,7 +4,7 @@ export const FAQ_DATA: FaqItem[] = [
   {
     category: 'Citas y Atención',
     question: '¿Cómo puedo agendar mi primera cita de evaluación?',
-    answer: 'Puedes reservar directamente a través del formulario de este sitio web seleccionando el servicio y horario de tu preferencia, o llamándonos al +58 412 747.18.58. Recibirás tu confirmación inmediata con todos los detalles de tu consulta.'
+    answer: 'Puedes reservar directamente a través del formulario de este sitio web seleccionando el servicio y horario de tu preferencia, o llamándonos al +58 424-2724617. Recibirás tu confirmación inmediata con todos los detalles de tu consulta.'
   },
   {
     category: 'Citas y Atención',

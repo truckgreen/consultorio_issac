@@ -13,7 +13,7 @@ object EquilibraDataRepository {
     val CLINIC_ABOUT_TITLE = "El verdadero bienestar comienza en movimiento"
     val CLINIC_ABOUT_TEXT = "Combinamos fisioterapia basada en evidencia, entrenamiento y acompañamiento humano para transformar la experiencia de rehabilitación en algo activo, cercano y motivador."
     val CLINIC_ADDRESS_FULL = "Venezuela, Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 46"
-    val CLINIC_PHONE_DISPLAY = "+58 412 747.18.58"
+    val CLINIC_PHONE_DISPLAY = "+58 424-2724617"
     val CLINIC_PHONE_RAW = "+584127471858"
     val CLINIC_EMAIL = "contacto@equilibrave.com"
 
@@ -449,7 +449,7 @@ object EquilibraDataRepository {
         FaqItem(
             category = "Citas y Atención",
             question = "¿Cómo puedo agendar mi primera cita de evaluación?",
-            answer = "Puedes reservar directamente a través del formulario de esta aplicación seleccionando el servicio y horario de tu preferencia, o llamándonos al +58 412 747.18.58. Recibirás tu confirmación inmediata con tu código y todos los detalles de tu consulta."
+            answer = "Puedes reservar directamente a través del formulario de esta aplicación seleccionando el servicio y horario de tu preferencia, o llamándonos al +58 424-2724617. Recibirás tu confirmación inmediata con tu código y todos los detalles de tu consulta."
         ),
         FaqItem(
             category = "Citas y Atención",

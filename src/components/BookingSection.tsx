@@ -93,7 +93,6 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
       unsubscribe?.();
     };
   }, []);
-  const [showSavedList, setShowSavedList] = useState<boolean>(false);
 
   useEffect(() => {
     setSavedAppointments(getSavedAppointments());
@@ -249,105 +248,10 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
           <p className="mt-4 text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
             Selecciona tu especialidad, consulta el calendario interactivo con horarios en tiempo real (disponibles, por confirmar u ocupados) y registra tus datos de contacto para asegurar tu consulta.
           </p>
-
-          {/* If there are previously saved appointments */}
-          {savedAppointments.length > 0 && activeStep === 'selection' && (
-            <div className="mt-5 flex justify-center">
-              <button
-                type="button"
-                id="toggle-my-appointments-btn"
-                onClick={() => setShowSavedList(!showSavedList)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
-              >
-                <Calendar className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span>
-                  {showSavedList
-                    ? 'Ocultar mis citas registradas'
-                    : `Ver mis citas agendadas (${savedAppointments.length})`}
-                </span>
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Previously Saved Appointments Viewer */}
-        <AnimatePresence>
-          {showSavedList && savedAppointments.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-10 overflow-hidden"
-            >
-              <div className="bg-white dark:bg-[#151c28] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <CalendarCheck className="w-4 h-4 text-amber-600" />
-                    Citas registradas en este navegador
-                  </h3>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {savedAppointments.length} cita(s)
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {savedAppointments.map((app) => {
-                    const serv = SERVICES_DATA.find((s) => s.id === app.serviceId);
-                    return (
-                      <div
-                        key={app.id}
-                        className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/40">
-                              {app.code}
-                            </span>
-                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-semibold">
-                              Confirmada {app.servicePrice ? `• ${app.servicePrice}` : ''}
-                            </span>
-                          </div>
-                          <h4 className="font-bold text-slate-900 dark:text-white text-sm">
-                            {serv ? serv.title : 'Consulta Médica'}
-                          </h4>
-                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                            Paciente: {app.nombre} {app.apellido}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-2">
-                            <Calendar className="w-3.5 h-3.5 text-amber-600" />
-                            <span>{app.fecha}</span>
-                            <Clock className="w-3.5 h-3.5 text-amber-600 ml-1" />
-                            <span>{app.hora}</span>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              generateIcsCalendar(
-                                app,
-                                serv ? serv.title : 'Consulta',
-                                CLINIC_INFO.address.fullAddress,
-                                CLINIC_INFO.phoneDisplay
-                              )
-                            }
-                            className="text-xs text-amber-700 dark:text-amber-400 hover:underline font-medium"
-                          >
-                            Descargar .ics
-                          </button>
-                          <span className="text-[10px] text-slate-400">Sabana Grande, Piso 4</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Main Booking Engine */}
+
         {activeStep === 'selection' ? (
           <form onSubmit={handleBookAppointment} className="space-y-8">
             {/* Step 1: Service Selector */}

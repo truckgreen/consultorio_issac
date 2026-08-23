@@ -1,26 +1,28 @@
-import React from 'react';
 import { motion } from 'motion/react';
 import { ChevronDown, ArrowRight, Calendar, ShieldCheck, Sparkles, MapPin } from 'lucide-react';
-import { APP_IMAGES } from '../data/images';
 import { CLINIC_INFO } from '../data/featuresData';
 
 interface HeroProps {
   onOpenBooking: () => void;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onOpenBooking }) => {
+export const Hero = ({ onOpenBooking }: HeroProps) => {
   return (
     <section
       id="inicio"
-      className="relative min-h-[92vh] flex items-center justify-center pt-24 pb-16 overflow-hidden"
+      className="relative flex items-center justify-center pt-28 pb-20 overflow-hidden"
+      style={{ minHeight: '100svh' }}
     >
       {/* Background Image with Cinematic Overlay */}
       <div className="absolute inset-0 z-0">
-        <img
-          src={APP_IMAGES.hero.src}
-          alt={APP_IMAGES.hero.alt}
-          referrerPolicy="no-referrer"
-          className="w-full h-full object-cover object-center transform scale-105 filter brightness-[0.45] dark:brightness-[0.35]"
+        <div
+          className="w-full h-full transform scale-105"
+          style={{
+            backgroundImage: "url('/imagenes/consultorio.jpg')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'brightness(0.45)',
+          }}
         />
         {/* Subtle Gradient Overlays */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#faf8f5] via-slate-950/70 to-slate-950/90 dark:from-[#0f141c] dark:via-slate-950/80 dark:to-slate-950/95" />
@@ -47,10 +49,11 @@ export const Hero: React.FC<HeroProps> = ({ onOpenBooking }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.1] mb-6 max-w-4xl"
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.15] mb-6 max-w-4xl"
         >
-          Tu camino hacia el <br className="hidden sm:inline" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300">
+          Tu camino hacia el{' '}
+          <br className="hidden sm:inline" />
+          <span className="text-amber-400">
             bienestar físico
           </span>{' '}
           comienza aquí
