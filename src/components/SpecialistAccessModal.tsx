@@ -233,8 +233,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                      PIN Maestro de Seguridad (Demo: 2026)
-                    </label>
+                                          </label>
                     <div className="relative">
                       <input
                         type={showPin ? 'text' : 'password'}
