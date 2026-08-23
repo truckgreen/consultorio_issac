@@ -52,7 +52,10 @@ import {
   removeDocumentFromPatient,
   saveLocalAppointments,
   saveLocalMessages,
-  saveLocalPatients
+  saveLocalPatients,
+  getLocalAppointments,
+  getLocalMessages,
+  getLocalPatients
 } from './lib/supabase';
 
 import { 
@@ -135,42 +138,34 @@ export function App() {
     }
   }, [isDarkMode]);
 
-  // Initial Data Fetching from Supabase & Local Cache
+  // Initial Data Fetching from Supabase & Local Cache (Empty by default)
   useEffect(() => {
     async function loadData() {
       const config = getCurrentSupabaseConfig();
       setSupabaseConfig(config);
 
-      // Appointments
-      const dbAppointments = await getAppointmentsFromDb();
-      let loadedApps = dbAppointments;
-      if (dbAppointments && dbAppointments.length > 0) {
-        setAppointments(dbAppointments);
-      } else if (!config.isConnected) {
-        setAppointments(INITIAL_SAMPLE_APPOINTMENTS);
-        saveLocalAppointments(INITIAL_SAMPLE_APPOINTMENTS);
-        loadedApps = INITIAL_SAMPLE_APPOINTMENTS;
-      } else {
-        setAppointments([]);
-        loadedApps = [];
-      }
+      // Clean out any legacy demo records from local cache
+      const storedApps = getLocalAppointments().filter(a => !a.id.startsWith('app_seed_') && !a.id.startsWith('seed_'));
+      const storedPatients = getLocalPatients().filter(p => !p.id.startsWith('pat_'));
+      const storedMessages = getLocalMessages().filter(m => !m.id.startsWith('msg_seed_'));
 
-      // Patients
-      const dbPatients = await getPatientsFromDb();
-      if (dbPatients && dbPatients.length > 0) {
-        setPatients(dbPatients);
-      } else {
-        setPatients(INITIAL_SAMPLE_PATIENTS);
-        saveLocalPatients(INITIAL_SAMPLE_PATIENTS);
-      }
+      saveLocalAppointments(storedApps);
+      saveLocalPatients(storedPatients);
+      saveLocalMessages(storedMessages);
 
-      // Messages
-      const dbMessages = await getContactMessagesFromDb();
-      if (dbMessages && dbMessages.length > 0) {
-        setMessages(dbMessages);
+      if (config.isConnected) {
+        const dbAppointments = await getAppointmentsFromDb();
+        setAppointments(dbAppointments || []);
+
+        const dbPatients = await getPatientsFromDb();
+        setPatients(dbPatients || []);
+
+        const dbMessages = await getContactMessagesFromDb();
+        setMessages(dbMessages || []);
       } else {
-        setMessages(INITIAL_SAMPLE_MESSAGES);
-        saveLocalMessages(INITIAL_SAMPLE_MESSAGES);
+        setAppointments(storedApps);
+        setPatients(storedPatients);
+        setMessages(storedMessages);
       }
     }
 

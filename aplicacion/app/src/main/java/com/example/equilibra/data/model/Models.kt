@@ -105,3 +105,35 @@ data class ContactLead(
     val status: String = "NUEVO", // NUEVO, RESPONDIDO, ARCHIVADO
     val adminNotes: String = ""
 )
+
+data class MedicalRecordDocument(
+    val id: String,
+    val patientId: String,
+    val title: String,
+    val category: String = "informe", // informe, resonancia, radiografia, laboratorio, receta, otro
+    val fileName: String,
+    val fileSize: String,
+    val uploadDate: String,
+    val pdfDataUrl: String? = null,
+    val doctorName: String? = null,
+    val notes: String? = null
+)
+
+data class PatientRecord(
+    val id: String,
+    val nombre: String,
+    val apellido: String,
+    val cedula: String? = null,
+    val fechaNacimiento: String? = null,
+    val telefono: String,
+    val email: String,
+    val diagnosticoPrincipal: String? = null,
+    val alergias: String? = null,
+    val medicamentos: String? = null,
+    val antecedentes: String? = null,
+    val contactoEmergenciaNombre: String? = null,
+    val contactoEmergenciaTelefono: String? = null,
+    val notasFisioterapia: String? = null,
+    val createdAt: String? = null,
+    val documents: List<MedicalRecordDocument> = emptyList()
+)

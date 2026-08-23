@@ -136,12 +136,28 @@ fun AdminMainScreen(viewModel: AdminViewModel) {
         )
     }
 
-    patientToView?.let { patient ->
-        AlertDialog(
-            onDismissRequest = { patientToView = null },
-            title = { Text("Expediente del paciente") },
-            text = { Text(patient) },
-            confirmButton = { TextButton(onClick = { patientToView = null }) { Text("Cerrar") } }
+    patientToView?.let { patientFullName ->
+        val patientApps = appointments.filter { "${it.nombre.trim()} ${it.apellido.trim()}" == patientFullName }
+        val patientSummary = PatientSummary(
+            fullName = patientFullName,
+            nombre = patientApps.firstOrNull()?.nombre ?: patientFullName.split(" ").firstOrNull() ?: "",
+            apellido = patientApps.firstOrNull()?.apellido ?: patientFullName.split(" ").getOrNull(1) ?: "",
+            telefono = patientApps.firstOrNull()?.telefono ?: "+58 414-0000000",
+            email = patientApps.firstOrNull()?.email ?: "paciente@equilibra.com",
+            totalAppointments = patientApps.size,
+            completedAppointments = patientApps.count { it.status == "completada" },
+            totalSpent = patientApps.filter { it.status != "cancelada" }.sumOf { it.amount },
+            lastVisitDate = patientApps.firstOrNull()?.fecha ?: "Hoy",
+            appointments = patientApps
+        )
+
+        PatientDetailDialog(
+            patientSummary = patientSummary,
+            onDismiss = { patientToView = null },
+            onOpenNewAppointment = {
+                patientToView = null
+                viewModel.openCreateAppointment()
+            }
         )
     }
 

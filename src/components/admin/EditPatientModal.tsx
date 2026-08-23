@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
-  UserPlus,
+  Edit3,
   User,
   Phone,
   Mail,
@@ -10,34 +10,33 @@ import {
   MapPin,
   HeartPulse,
   AlertTriangle,
-  Upload,
-  CheckCircle2,
-  FileCheck
+  CheckCircle2
 } from 'lucide-react';
-import { PatientRecord, MedicalRecordDocument } from '../../types';
-import { fileToDataUrl, formatBytes } from '../../utils/pdfUtils';
+import { PatientRecord } from '../../types';
 
-interface CreatePatientModalProps {
+interface EditPatientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSavePatient: (newPatient: PatientRecord) => Promise<void> | void;
+  patient: PatientRecord | null;
+  onSaveUpdates: (patientId: string, updates: Partial<PatientRecord>) => Promise<void> | void;
 }
 
-export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
+export const EditPatientModal: React.FC<EditPatientModalProps> = ({
   isOpen,
   onClose,
-  onSavePatient
+  patient,
+  onSaveUpdates
 }) => {
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [cedula, setCedula] = useState('');
-  const [telefono, setTelefono] = useState('+58 ');
+  const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
   const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [genero, setGenero] = useState<'M' | 'F' | 'OTRO'>('M');
   const [direccion, setDireccion] = useState('');
 
-  // Emergency contact
+  // Emergency Contact
   const [contactoNombre, setContactoNombre] = useState('');
   const [contactoTelefono, setContactoTelefono] = useState('');
   const [contactoParentesco, setContactoParentesco] = useState('');
@@ -49,20 +48,35 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
   const [medicamentosActuales, setMedicamentosActuales] = useState('');
   const [clinicalNotes, setClinicalNotes] = useState('');
 
-  // Optional PDF attachment on creation
-  const [initialPdfFile, setInitialPdfFile] = useState<File | null>(null);
-  const [initialPdfDataUrl, setInitialPdfDataUrl] = useState<string>('');
-  const [initialPdfTitle, setInitialPdfTitle] = useState('');
-  const [initialPdfCategory, setInitialPdfCategory] = useState<MedicalRecordDocument['category']>('informe');
-
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (patient) {
+      setNombre(patient.nombre || '');
+      setApellido(patient.apellido || '');
+      setCedula(patient.cedula || '');
+      setTelefono(patient.telefono || '');
+      setEmail(patient.email || '');
+      setFechaNacimiento(patient.fechaNacimiento || '');
+      setGenero(patient.genero || 'M');
+      setDireccion(patient.direccion || '');
+      setContactoNombre(patient.contactoEmergencia?.nombre || '');
+      setContactoTelefono(patient.contactoEmergencia?.telefono || '');
+      setContactoParentesco(patient.contactoEmergencia?.parentesco || '');
+      setMedicalConditions(patient.medicalConditions || '');
+      setAlergias(patient.alergias || '');
+      setAntecedentes(patient.antecedentes || '');
+      setMedicamentosActuales(patient.medicamentosActuales || '');
+      setClinicalNotes(patient.clinicalNotes || '');
+      setErrorMsg(null);
+    }
+  }, [patient, isOpen]);
 
-  // Calculate age if birth date is entered
+  if (!isOpen || !patient) return null;
+
   const calculateAge = (dob: string) => {
-    if (!dob) return undefined;
+    if (!dob) return patient.edad;
     const birth = new Date(dob);
     const now = new Date();
     let age = now.getFullYear() - birth.getFullYear();
@@ -73,66 +87,25 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
     return age > 0 ? age : undefined;
   };
 
-  const handlePdfSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        setErrorMsg('Solo se permiten archivos en formato PDF.');
-        return;
-      }
-      try {
-        const dataUrl = await fileToDataUrl(file);
-        setInitialPdfFile(file);
-        setInitialPdfDataUrl(dataUrl);
-        if (!initialPdfTitle) {
-          setInitialPdfTitle(file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '));
-        }
-      } catch {
-        setErrorMsg('No se pudo leer el archivo PDF.');
-      }
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombre.trim()) {
-      setErrorMsg('Por favor ingresa al menos el nombre del paciente.');
+    if (!nombre.trim() || !apellido.trim()) {
+      setErrorMsg('El nombre y apellido son obligatorios.');
+      return;
+    }
+    if (!telefono.trim()) {
+      setErrorMsg('Ingresa un número de teléfono de contacto.');
       return;
     }
 
-    const patientId = `pat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const age = calculateAge(fechaNacimiento);
-
-    const documents: MedicalRecordDocument[] = [];
-    if (initialPdfFile && initialPdfDataUrl) {
-      documents.push({
-        id: `doc_${Date.now()}_init`,
-        patientId,
-        title: initialPdfTitle.trim() || initialPdfFile.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '),
-        category: initialPdfCategory,
-        fileName: initialPdfFile.name,
-        fileSize: formatBytes(initialPdfFile.size),
-        fileType: 'application/pdf',
-        fileData: initialPdfDataUrl,
-        uploadedAt: new Date().toISOString().split('T')[0],
-        uploadedBy: 'Recepción / Admisión',
-        specialistNotes: 'Documento adjuntado durante el registro inicial del paciente.'
-      });
-    }
-
-    const finalApellido = apellido.trim();
-    const finalTelefono = telefono.trim() && telefono.trim() !== '+58' ? telefono.trim() : '+58';
-    const finalEmail = email.trim() || `${nombre.toLowerCase().trim()}${finalApellido ? '.' + finalApellido.toLowerCase().trim() : ''}@correo.com`;
-
-    const newPatient: PatientRecord = {
-      id: patientId,
+    const updates: Partial<PatientRecord> = {
       nombre: nombre.trim(),
-      apellido: finalApellido,
+      apellido: apellido.trim(),
       cedula: cedula.trim() || undefined,
-      telefono: finalTelefono,
-      email: finalEmail,
+      telefono: telefono.trim(),
+      email: email.trim(),
       fechaNacimiento: fechaNacimiento || undefined,
-      edad: age,
+      edad: calculateAge(fechaNacimiento),
       genero,
       direccion: direccion.trim() || undefined,
       contactoEmergencia: contactoNombre ? {
@@ -140,48 +113,17 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
         telefono: contactoTelefono.trim(),
         parentesco: contactoParentesco.trim() || 'Familiar'
       } : undefined,
-      totalAppointments: 0,
-      completedAppointments: 0,
-      lastVisit: 'Sin visitas aún',
-      firstVisitDate: new Date().toISOString().split('T')[0],
-      totalSpent: 0,
-      medicalConditions: medicalConditions.trim() || 'Ingreso para valoración fisioterapéutica y bienestar integral.',
-      alergias: alergias.trim() || 'Ninguna conocida',
-      antecedentes: antecedentes.trim() || 'Sin antecedentes relevantes reportados.',
-      medicamentosActuales: medicamentosActuales.trim() || 'Ninguno.',
-      clinicalNotes: clinicalNotes.trim() || 'Paciente registrado en el directorio clínico de EQUILIBRA.',
-      documents,
-      createdAt: new Date().toISOString()
+      medicalConditions: medicalConditions.trim(),
+      alergias: alergias.trim(),
+      antecedentes: antecedentes.trim(),
+      medicamentosActuales: medicamentosActuales.trim(),
+      clinicalNotes: clinicalNotes.trim()
     };
 
     setIsSubmitting(true);
-    await onSavePatient(newPatient);
+    await onSaveUpdates(patient.id, updates);
     setIsSubmitting(false);
-    handleReset();
     onClose();
-  };
-
-  const handleReset = () => {
-    setNombre('');
-    setApellido('');
-    setCedula('');
-    setTelefono('+58 ');
-    setEmail('');
-    setFechaNacimiento('');
-    setGenero('M');
-    setDireccion('');
-    setContactoNombre('');
-    setContactoTelefono('');
-    setContactoParentesco('');
-    setMedicalConditions('');
-    setAlergias('');
-    setAntecedentes('');
-    setMedicamentosActuales('');
-    setClinicalNotes('');
-    setInitialPdfFile(null);
-    setInitialPdfDataUrl('');
-    setInitialPdfTitle('');
-    setErrorMsg(null);
   };
 
   return (
@@ -191,21 +133,21 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between gap-4 pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white font-black text-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <UserPlus className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 font-black text-xl flex items-center justify-center">
+              <Edit3 className="w-6 h-6" />
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                Registrar Nuevo Paciente
+                Editar Expediente de Paciente
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Creación de expediente clínico digital en EQUILIBRA
+                Actualizar ficha clínica de <strong>{patient.nombre} {patient.apellido}</strong>
               </p>
             </div>
           </div>
 
           <button
-            onClick={() => { handleReset(); onClose(); }}
+            onClick={onClose}
             className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -221,7 +163,7 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-6 text-xs max-h-[72vh] overflow-y-auto pr-1">
           
-          {/* Section 1: Personal Information */}
+          {/* Personal Info */}
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
               <User className="w-4 h-4 text-amber-500" />
@@ -234,7 +176,6 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="Ej: Carlos"
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -242,10 +183,10 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Apellido</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Apellido *</label>
                 <input
                   type="text"
-                  placeholder="Ej: Silva"
+                  required
                   value={apellido}
                   onChange={(e) => setApellido(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -253,10 +194,10 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Cédula / DNI</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Cédula / Documento</label>
                 <input
                   type="text"
-                  placeholder="Ej: V-19.876.543"
+                  placeholder="V-00.000.000"
                   value={cedula}
                   onChange={(e) => setCedula(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -266,10 +207,10 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Teléfono Móvil (WhatsApp)</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Teléfono Móvil *</label>
                 <input
                   type="text"
-                  placeholder="+58 412 123.45.67"
+                  required
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -280,7 +221,6 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Correo Electrónico</label>
                 <input
                   type="email"
-                  placeholder="correo@ejemplo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -316,7 +256,6 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Dirección / Residencia</label>
               <input
                 type="text"
-                placeholder="Ej: Av. Francisco de Miranda, Chacao, Caracas"
                 value={direccion}
                 onChange={(e) => setDireccion(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -324,19 +263,18 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
             </div>
           </div>
 
-          {/* Section 2: Emergency Contact */}
+          {/* Emergency Contact */}
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
               <Phone className="w-4 h-4 text-amber-500" />
-              <span>2. Contacto de Emergencia (Opcional)</span>
+              <span>2. Contacto de Emergencia</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Nombre Completo</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Nombre</label>
                 <input
                   type="text"
-                  placeholder="Ej: María Silva"
                   value={contactoNombre}
                   onChange={(e) => setContactoNombre(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -346,7 +284,6 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Teléfono</label>
                 <input
                   type="text"
-                  placeholder="+58 414 000.11.22"
                   value={contactoTelefono}
                   onChange={(e) => setContactoTelefono(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -356,7 +293,6 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Parentesco</label>
                 <input
                   type="text"
-                  placeholder="Ej: Madre / Cónyuge / Hermano"
                   value={contactoParentesco}
                   onChange={(e) => setContactoParentesco(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -365,20 +301,20 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Clinical Background & Medical Notes */}
+          {/* Clinical Profile */}
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
               <HeartPulse className="w-4 h-4 text-amber-500" />
-              <span>3. Perfil Clínico & Motivo de Consulta</span>
+              <span>3. Diagnóstico Clínico & Fisioterapia</span>
             </h3>
 
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Diagnóstico / Motivo de Consulta Inicial (Opcional)
+                Diagnóstico / Motivo de Consulta *
               </label>
               <textarea
                 rows={2}
-                placeholder="Ej: Lumbalgia mecánica recurrente tras esfuerzo físico. Contractura paravertebral..."
+                required
                 value={medicalConditions}
                 onChange={(e) => setMedicalConditions(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 resize-none"
@@ -387,10 +323,9 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Alergias Conocidas</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Alergias</label>
                 <input
                   type="text"
-                  placeholder="Ej: AINES, Penicilina, Ninguna..."
                   value={alergias}
                   onChange={(e) => setAlergias(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -400,7 +335,6 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Medicamentos Actuales</label>
                 <input
                   type="text"
-                  placeholder="Ej: Relajante muscular, antiinflamatorio..."
                   value={medicamentosActuales}
                   onChange={(e) => setMedicamentosActuales(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -414,7 +348,6 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="Ej: Cirugía de meniscos en 2021, fractura de radio en la infancia..."
                 value={antecedentes}
                 onChange={(e) => setAntecedentes(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
@@ -423,11 +356,10 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
 
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Notas Iniciales de Fisioterapia & Evolución
+                Notas de Evolución & Fisioterapia
               </label>
               <textarea
                 rows={2}
-                placeholder="Observaciones de postura, rangos de movimiento, palpación o plan sugerido..."
                 value={clinicalNotes}
                 onChange={(e) => setClinicalNotes(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 resize-none"
@@ -435,93 +367,11 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
             </div>
           </div>
 
-          {/* Section 4: Initial PDF Medical Record Attachment */}
-          <div className="space-y-3 p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30">
-            <h3 className="font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider text-[11px] flex items-center gap-2">
-              <FileText className="w-4 h-4 text-amber-500" />
-              <span>4. Anexar Registro Médico en PDF (Opcional)</span>
-            </h3>
-
-            {!initialPdfFile ? (
-              <label className="flex items-center justify-center gap-2 p-4 border border-dashed border-amber-300 dark:border-amber-800 rounded-xl cursor-pointer hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-all text-center">
-                <Upload className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <span className="font-semibold text-amber-900 dark:text-amber-200">
-                  Haz clic para adjuntar un PDF (Informe, Resonancia, Radiografía o Receta)
-                </span>
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  className="hidden"
-                  onChange={handlePdfSelected}
-                />
-              </label>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-300 dark:border-amber-800">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <FileCheck className="w-5 h-5 text-emerald-500 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-900 dark:text-white truncate">
-                        {initialPdfFile.name}
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        {formatBytes(initialPdfFile.size)} • PDF Adjunto
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInitialPdfFile(null);
-                      setInitialPdfDataUrl('');
-                      setInitialPdfTitle('');
-                    }}
-                    className="text-xs text-red-500 hover:underline font-bold"
-                  >
-                    Quitar
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Título del Documento
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Resonancia de Columna"
-                      value={initialPdfTitle}
-                      onChange={(e) => setInitialPdfTitle(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Categoría
-                    </label>
-                    <select
-                      value={initialPdfCategory}
-                      onChange={(e) => setInitialPdfCategory(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                    >
-                      <option value="informe">Informe Médico</option>
-                      <option value="resonancia">Resonancia Magnética (RM)</option>
-                      <option value="radiografia">Radiografía (RX)</option>
-                      <option value="laboratorio">Laboratorio</option>
-                      <option value="receta">Receta / Indicación</option>
-                      <option value="otro">Otro</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Action buttons */}
+          {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
-              onClick={() => { handleReset(); onClose(); }}
+              onClick={onClose}
               className="px-5 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             >
               Cancelar
@@ -533,12 +383,11 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
               className="px-6 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-black flex items-center gap-2 shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Registrar Paciente</span>
+              <span>Guardar Cambios</span>
             </button>
           </div>
 
         </form>
-
       </div>
     </div>
   );

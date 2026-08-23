@@ -145,7 +145,7 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
     const service = SERVICES_DATA.find((s) => s.id === cleanAppointment.serviceId);
     const serviceTitle = service?.title || cleanAppointment.serviceId;
     const servicePrice = cleanAppointment.servicePrice || (service ? `${service.priceFormatted} USD` : '35 USD');
-    const amount = Number.parseFloat(cleanAppointment.servicePrice || '') || (service ? service.price : 35);
+    const amount = Number.parseFloat(String(cleanAppointment.servicePrice || '')) || (service ? service.price : 35);
 
     const { error } = await supabase.from('appointments').upsert([
       {

@@ -228,7 +228,7 @@ object EquilibraDataRepository {
             role = "Fisioterapeuta deportivo",
             specialty = "Rehabilitación y readaptación física en deportistas y atletas de alto rendimiento",
             category = "fisioterapia",
-            imageUrl = "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
             credentials = "Fisioterapeuta Especialista en Deporte",
             bio = "Especialista en prevención de lesiones, terapia manual ortopédica y readaptación deportiva integral para acelerar el retorno seguro a la actividad física de alto nivel.",
             relatedServiceId = "fisioterapia-deportiva"
@@ -239,7 +239,7 @@ object EquilibraDataRepository {
             role = "Fisioterapeuta pediátrica",
             specialty = "Desarrollo psicomotor infantil, estimulación temprana y rehabilitación neuromuscular",
             category = "fisioterapia",
-            imageUrl = "https://images.unsplash.com/photo-1594824813590-b089c922ec9c?auto=format&fit=crop&w=600&q=80",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
             credentials = "Lic. en Fisioterapia Pediátrica",
             bio = "Dedicada al desarrollo motriz, corrección de posturas infantiles y tratamientos neurológicos y ortopédicos adaptados a bebés, niños y adolescentes con calidez y paciencia.",
             relatedServiceId = "fisioterapia-pediatrica"
@@ -250,7 +250,7 @@ object EquilibraDataRepository {
             role = "Fisioterapeuta Geriátrica",
             specialty = "Salud funcional, movilidad articular y prevención de caídas en el adulto mayor",
             category = "fisioterapia",
-            imageUrl = "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
             credentials = "Especialista en Fisioterapia Geriátrica",
             bio = "Enfocada en preservar la autonomía, fuerza muscular, equilibrio y calidad de vida de nuestros adultos mayores mediante terapias activas y personalizadas.",
             relatedServiceId = "fisioterapia-geriatrica"
@@ -261,7 +261,7 @@ object EquilibraDataRepository {
             role = "Nutricionista",
             specialty = "Nutrición clínica, recomposición corporal y planificación dietética para atletas",
             category = "nutricion",
-            imageUrl = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
             credentials = "Lic. en Nutrición y Dietética",
             bio = "Diseña planes de alimentación balanceados y sostenibles que complementan los tratamientos de fisioterapia, optimizan el metabolismo y mejoran el rendimiento físico.",
             relatedServiceId = "nutricion"
@@ -272,7 +272,7 @@ object EquilibraDataRepository {
             role = "Médico traumatólogo",
             specialty = "Diagnóstico ortopédico, lesiones articulares, columna y medicina musculoesquelética",
             category = "medicina",
-            imageUrl = "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
             credentials = "Médico Cirujano Ortopedista y Traumatólogo",
             bio = "Encargado de la evaluación clínica profunda, diagnóstico diferencial por imágenes y tratamiento integral de afecciones óseas, musculares y articulares.",
             relatedServiceId = "traumatologia"
@@ -283,7 +283,7 @@ object EquilibraDataRepository {
             role = "Psicóloga",
             specialty = "Psicología clínica, manejo de estrés, dolor crónico y enfoque biopsicosocial",
             category = "psicologia",
-            imageUrl = "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=600&q=80",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
             credentials = "Lic. en Psicología Clínica",
             bio = "Acompaña a los pacientes en el impacto emocional del dolor, procesos de rehabilitación prolongados, ansiedad y desarrollo de hábitos para el bienestar integral.",
             relatedServiceId = "psicologia"
@@ -294,7 +294,7 @@ object EquilibraDataRepository {
             role = "Profesora de Boxeo",
             specialty = "Boxeo técnico, acondicionamiento cardiovascular, potencia y coordinación motora",
             category = "entrenamiento",
-            imageUrl = "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=600&q=80",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
             credentials = "Instructora Certificada de Boxeo y Preparación Física",
             bio = "Dirige sesiones dinámicas de boxeo y entrenamiento funcional que mejoran la agilidad, reflejos, resistencia cardiovascular y liberación de estrés.",
             relatedServiceId = "boxeo"
@@ -305,7 +305,7 @@ object EquilibraDataRepository {
             role = "Asistente de fisioterapia",
             specialty = "Soporte en terapia física, termoterapia, electroterapia y atención asistencial",
             category = "asistencia",
-            imageUrl = "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=600&q=80",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
             credentials = "Técnico Asistente en Fisioterapia",
             bio = "Brinda apoyo cercano y profesional en la aplicación de agentes físicos, preparación del espacio terapéutico y acompañamiento en cada protocolo de recuperación.",
             relatedServiceId = "fisioterapia"
@@ -316,7 +316,7 @@ object EquilibraDataRepository {
             role = "Asistente de fisioterapia",
             specialty = "Asistencia en ejercicios terapéuticos, mecanoterapia y bienestar del paciente",
             category = "asistencia",
-            imageUrl = "https://images.unsplash.com/photo-1594824813590-b089c922ec9c?auto=format&fit=crop&w=600&q=80",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
             credentials = "Técnica Asistente en Fisioterapia",
             bio = "Asiste a los fisioterapeutas y médicos en la ejecución precisa de rutinas terapéuticas, asegurando una experiencia confortable y atenta durante toda la sesión.",
             relatedServiceId = "fisioterapia"

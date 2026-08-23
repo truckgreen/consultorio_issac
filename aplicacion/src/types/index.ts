@@ -1,4 +1,4 @@
-export type AppointmentStatus = 'CONFIRMADA' | 'PENDIENTE' | 'COMPLETADA' | 'CANCELADA' | 'NO_ASISTIO';
+export type AppointmentStatus = 'CONFIRMADA' | 'PENDIENTE' | 'COMPLETADA' | 'CANCELADA' | 'NO_ASISTIO' | 'confirmada' | 'pendiente' | 'completada' | 'cancelada' | 'pendiente_validacion';
 
 export interface ServiceItem {
   id: string;
@@ -6,7 +6,9 @@ export interface ServiceItem {
   category: 'fisioterapia' | 'medicina' | 'movimiento' | 'bienestar';
   shortDescription: string;
   fullDescription: string;
-  imageUrl: string;
+  imageUrl?: string;
+  imageKey?: string;
+  image?: string;
   benefits: string[];
   duration: string;
   price: number;
@@ -33,7 +35,8 @@ export interface TeamMember {
   role: string;
   specialty: string;
   category: 'fisioterapia' | 'medicina' | 'nutricion' | 'psicologia' | 'entrenamiento' | 'asistencia';
-  imageUrl: string;
+  imageUrl?: string;
+  image?: string;
   credentials: string;
   bio: string;
   relatedServiceId?: string;
@@ -48,7 +51,8 @@ export interface TestimonialItem {
   review: string;
   rating: number;
   serviceReceived: string;
-  avatarUrl: string;
+  avatarUrl?: string;
+  avatar?: string;
   date: string;
 }
 
@@ -66,7 +70,9 @@ export interface WhyUsItem {
   iconName: string;
 }
 
-export type SlotStatus = 'DISPONIBLE' | 'POR_CONFIRMAR' | 'OCUPADO';
+export type SlotStatus = 'DISPONIBLE' | 'POR_CONFIRMAR' | 'OCUPADO' | 'disponible' | 'por_confirmar' | 'ocupado';
+
+export type ConfirmedAppointment = Appointment;
 
 export interface TimeSlotInfo {
   time: string;
@@ -77,8 +83,12 @@ export interface TimeSlotInfo {
 export interface Appointment {
   id: string;
   code: string;
-  service_id: string;
-  service_title: string;
+  service_id?: string;
+  serviceId?: string;
+  service_title?: string;
+  serviceTitle?: string;
+  servicePrice?: number | string;
+  service_price?: number | string;
   fecha: string; // YYYY-MM-DD
   hora: string;  // e.g. "09:00 AM - 10:00 AM"
   nombre: string;
@@ -86,8 +96,11 @@ export interface Appointment {
   telefono: string;
   email: string;
   motivo?: string;
-  primera_visita: boolean;
-  created_at: string;
+  motivoConsulta?: string;
+  primera_visita?: boolean;
+  primeraVisita?: boolean;
+  created_at?: string;
+  createdAt?: string;
   status: AppointmentStatus;
   specialist_id?: string;
   specialist_name?: string;
