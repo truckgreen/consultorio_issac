@@ -96,12 +96,37 @@ export interface Appointment {
   amount?: number;
 }
 
+export interface MedicalRecordDocument {
+  id: string;
+  patientId: string;
+  title: string;
+  description?: string;
+  category: 'informe' | 'radiografia' | 'resonancia' | 'laboratorio' | 'receta' | 'consentimiento' | 'otro';
+  fileName: string;
+  fileSize: string;
+  fileType: string;
+  fileData: string; // Base64 Data URL or remote URL for preview & download
+  uploadedAt: string; // YYYY-MM-DD or ISO string
+  uploadedBy?: string;
+  specialistNotes?: string;
+}
+
 export interface PatientRecord {
   id: string;
+  cedula?: string;
   nombre: string;
   apellido: string;
   telefono: string;
   email: string;
+  fechaNacimiento?: string;
+  edad?: number;
+  genero?: 'M' | 'F' | 'OTRO';
+  direccion?: string;
+  contactoEmergencia?: {
+    nombre: string;
+    telefono: string;
+    parentesco: string;
+  };
   totalAppointments: number;
   completedAppointments: number;
   lastVisit: string;
@@ -109,6 +134,11 @@ export interface PatientRecord {
   firstVisitDate: string;
   clinicalNotes?: string;
   medicalConditions?: string;
+  alergias?: string;
+  antecedentes?: string;
+  medicamentosActuales?: string;
+  documents?: MedicalRecordDocument[];
+  createdAt?: string;
 }
 
 export interface ContactMessage {

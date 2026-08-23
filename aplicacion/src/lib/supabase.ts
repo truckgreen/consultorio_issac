@@ -1,8 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Appointment, ContactMessage, SupabaseConfig } from '../types';
+import { Appointment, ContactMessage, SupabaseConfig, PatientRecord, MedicalRecordDocument } from '../types';
 
 const STORAGE_KEY_APPOINTMENTS = 'equilibra_local_appointments';
 const STORAGE_KEY_MESSAGES = 'equilibra_local_messages';
+const STORAGE_KEY_PATIENTS = 'equilibra_local_patients';
 const STORAGE_KEY_URL = 'equilibra_supabase_url';
 const STORAGE_KEY_KEY = 'equilibra_supabase_key';
 
@@ -409,6 +410,209 @@ export async function deleteContactMessageFromDb(id: string): Promise<boolean> {
   } catch {
     return true;
   }
+}
+
+// Local Fallback Storage for Patients
+export function getLocalPatients(): PatientRecord[] {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY_PATIENTS);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveLocalPatients(patients: PatientRecord[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_PATIENTS, JSON.stringify(patients));
+  } catch (e) {
+    console.error('Failed to save patients to local storage', e);
+  }
+}
+
+// Database Operations for Patients
+export async function getPatientsFromDb(): Promise<PatientRecord[]> {
+  const client = getSupabaseClient();
+  const localList = getLocalPatients();
+
+  if (!client) {
+    return localList;
+  }
+
+  try {
+    const { data, error } = await client
+      .from('patients')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Supabase patients query error, falling back to local:', error.message);
+      return localList;
+    }
+
+    if (data && Array.isArray(data)) {
+      // Map and preserve documents if local had base64 docs
+      const merged = data.map((remotePat: any) => {
+        const localMatch = localList.find(l => l.id === remotePat.id);
+        return {
+          ...remotePat,
+          documents: remotePat.documents || localMatch?.documents || []
+        };
+      });
+      saveLocalPatients(merged);
+      return merged;
+    }
+
+    return localList;
+  } catch (err) {
+    console.warn('Network error fetching patients from Supabase, using local:', err);
+    return localList;
+  }
+}
+
+export async function insertPatientInDb(patient: PatientRecord): Promise<{ success: boolean; data?: PatientRecord; error?: string }> {
+  // Always persist locally
+  const currentLocal = getLocalPatients();
+  const updatedLocal = [patient, ...currentLocal.filter(p => p.id !== patient.id)];
+  saveLocalPatients(updatedLocal);
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return { success: true, data: patient };
+  }
+
+  try {
+    const { data, error } = await client
+      .from('patients')
+      .upsert([
+        {
+          id: patient.id,
+          cedula: patient.cedula || '',
+          nombre: patient.nombre,
+          apellido: patient.apellido,
+          telefono: patient.telefono,
+          email: patient.email,
+          fecha_nacimiento: patient.fechaNacimiento || null,
+          edad: patient.edad || null,
+          genero: patient.genero || 'M',
+          direccion: patient.direccion || '',
+          contacto_emergencia: patient.contactoEmergencia || null,
+          total_appointments: patient.totalAppointments || 0,
+          completed_appointments: patient.completedAppointments || 0,
+          last_visit: patient.lastVisit || '',
+          total_spent: patient.totalSpent || 0,
+          first_visit_date: patient.firstVisitDate || '',
+          clinical_notes: patient.clinicalNotes || '',
+          medical_conditions: patient.medicalConditions || '',
+          alergias: patient.alergias || '',
+          antecedentes: patient.antecedentes || '',
+          medicamentos_actuales: patient.medicamentosActuales || '',
+          documents: patient.documents || [],
+          created_at: patient.createdAt || new Date().toISOString()
+        }
+      ])
+      .select();
+
+    if (error) {
+      console.warn('Could not insert patient to Supabase table (persisted locally):', error.message);
+      return { success: true, data: patient, error: error.message };
+    }
+
+    return { success: true, data: (data && data[0]) ? data[0] : patient };
+  } catch (err: any) {
+    console.warn('Supabase patient insertion failed (stored locally):', err);
+    return { success: true, data: patient, error: err?.message };
+  }
+}
+
+export async function updatePatientInDb(id: string, updates: Partial<PatientRecord>): Promise<boolean> {
+  const currentLocal = getLocalPatients();
+  const updatedLocal = currentLocal.map(pat => {
+    if (pat.id === id) {
+      return { ...pat, ...updates };
+    }
+    return pat;
+  });
+  saveLocalPatients(updatedLocal);
+
+  const client = getSupabaseClient();
+  if (!client) return true;
+
+  try {
+    const { error } = await client
+      .from('patients')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) {
+      console.warn('Supabase patient update error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase patient update exception:', err);
+    return true;
+  }
+}
+
+export async function deletePatientFromDb(id: string): Promise<boolean> {
+  const current = getLocalPatients();
+  saveLocalPatients(current.filter(p => p.id !== id));
+
+  const client = getSupabaseClient();
+  if (!client) return true;
+
+  try {
+    const { error } = await client.from('patients').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase patient delete error:', error.message);
+    }
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+export async function addDocumentToPatient(patientId: string, document: MedicalRecordDocument): Promise<boolean> {
+  const current = getLocalPatients();
+  const updated = current.map(p => {
+    if (p.id === patientId) {
+      const existingDocs = p.documents || [];
+      return {
+        ...p,
+        documents: [document, ...existingDocs.filter(d => d.id !== document.id)]
+      };
+    }
+    return p;
+  });
+  saveLocalPatients(updated);
+
+  const targetPatient = updated.find(p => p.id === patientId);
+  if (targetPatient) {
+    await updatePatientInDb(patientId, { documents: targetPatient.documents });
+  }
+  return true;
+}
+
+export async function removeDocumentFromPatient(patientId: string, documentId: string): Promise<boolean> {
+  const current = getLocalPatients();
+  const updated = current.map(p => {
+    if (p.id === patientId) {
+      const existingDocs = p.documents || [];
+      return {
+        ...p,
+        documents: existingDocs.filter(d => d.id !== documentId)
+      };
+    }
+    return p;
+  });
+  saveLocalPatients(updated);
+
+  const targetPatient = updated.find(p => p.id === patientId);
+  if (targetPatient) {
+    await updatePatientInDb(patientId, { documents: targetPatient.documents });
+  }
+  return true;
 }
 
 export const SUPABASE_SQL_SCHEMA = `-- Copia y pega este script en el SQL Editor de Supabase para inicializar el Panel Admin de EQUILIBRA:

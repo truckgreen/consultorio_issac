@@ -1,4 +1,273 @@
-import { Appointment, ContactMessage, AdminNotification } from '../types';
+import { Appointment, ContactMessage, AdminNotification, PatientRecord } from '../types';
+import { generateMedicalReportPdfDataUrl } from '../utils/pdfUtils';
+
+export const INITIAL_SAMPLE_PATIENTS: PatientRecord[] = [
+  {
+    id: 'pat_alejandro_mendoza',
+    cedula: 'V-20.145.892',
+    nombre: 'Alejandro',
+    apellido: 'Mendoza',
+    telefono: '+58 414 123.45.67',
+    email: 'alejandro.mendoza@gmail.com',
+    fechaNacimiento: '1996-04-12',
+    edad: 29,
+    genero: 'M',
+    direccion: 'Av. Solano López, Edif. Los Alpes, Apto 4-B, Sabana Grande, Caracas',
+    contactoEmergencia: {
+      nombre: 'Mariana Mendoza',
+      telefono: '+58 414 777.88.99',
+      parentesco: 'Hermana'
+    },
+    totalAppointments: 4,
+    completedAppointments: 3,
+    lastVisit: new Date().toISOString().split('T')[0],
+    firstVisitDate: '2025-01-15',
+    totalSpent: 160,
+    medicalConditions: 'Esguince de tobillo derecho Grado II (Ligamento Peroneoastragalino Anterior).',
+    alergias: 'Ninguna conocida (NKDA)',
+    antecedentes: 'Sin cirugías previas. Deportista amateur de fútbol.',
+    medicamentosActuales: 'Ibuprofeno 400mg SOS en caso de dolor agudo.',
+    clinicalNotes: 'Paciente con excelente evolución funcional. Se encuentra en fase de readaptación con ejercicios propioceptivos y fortalecimiento excéntrico de gemelos y peroneos. Fuerza muscular 5/5.',
+    createdAt: '2025-01-15T10:00:00.000Z',
+    documents: [
+      {
+        id: 'doc_am_1',
+        patientId: 'pat_alejandro_mendoza',
+        title: 'Informe Fisioterapéutico de Evolución Funcional',
+        description: 'Evaluación goniométrica y propioceptiva de tobillo derecho con protocolo de readaptación deportiva.',
+        category: 'informe',
+        fileName: 'Informe_Fisioterapia_AlejandroMendoza.pdf',
+        fileSize: '24.5 KB',
+        fileType: 'application/pdf',
+        fileData: generateMedicalReportPdfDataUrl({
+          patientName: 'Alejandro Mendoza',
+          patientIdDoc: 'V-20.145.892',
+          doctorName: 'Lic. Isaac Jewsiejew',
+          doctorSpecialty: 'Fisioterapia Deportiva & Readaptación',
+          reportTitle: 'Informe de Evolución en Fisioterapia Deportiva',
+          date: new Date().toISOString().split('T')[0],
+          category: 'Informe Clínico',
+          diagnosis: 'Esguince de Tobillo Derecho Grado II con inestabilidad funcional residual leve.',
+          evolutionNotes: 'El paciente completó 8 sesiones de fisioterapia con terapia manual, drenaje linfático, neurodinamia y entrenamiento en plataforma inestable. Rango de dorsiflexión completo a 20 grados.',
+          recommendations: [
+            'Continuar 4 semanas con ejercicios de propiocepción en casa.',
+            'Uso de tobillera preventiva en entrenamientos de alto impacto.',
+            'Alta médica deportiva programada para control en 15 días.'
+          ]
+        }),
+        uploadedAt: new Date().toISOString().split('T')[0],
+        uploadedBy: 'Lic. Isaac Jewsiejew',
+        specialistNotes: 'Favorable respuesta al tratamiento kinésico.'
+      }
+    ]
+  },
+  {
+    id: 'pat_elena_castillo',
+    cedula: 'V-16.890.341',
+    nombre: 'Elena',
+    apellido: 'Castillo',
+    telefono: '+58 412 987.65.43',
+    email: 'elena.castillo@yahoo.com',
+    fechaNacimiento: '1988-11-23',
+    edad: 37,
+    genero: 'F',
+    direccion: 'Urb. Bello Monte, Calle Chopin, Qta. Villa Clara, Caracas',
+    contactoEmergencia: {
+      nombre: 'Ricardo Castillo',
+      telefono: '+58 412 111.22.33',
+      parentesco: 'Esposo'
+    },
+    totalAppointments: 2,
+    completedAppointments: 1,
+    lastVisit: new Date().toISOString().split('T')[0],
+    firstVisitDate: '2025-02-01',
+    totalSpent: 100,
+    medicalConditions: 'Meniscopatía grado II cuerno posterior menisco medial rodilla derecha. Condromalacia rotuliana grado I.',
+    alergias: 'Penicilina y derivados betalactámicos',
+    antecedentes: 'Cesárea (2018). Gastritis leve controlada.',
+    medicamentosActuales: 'Glucosamina + Condroitina 1500mg/día.',
+    clinicalNotes: 'Evaluación médica por dolor punzante al descender escaleras. Signo de McMurray levemente positivo. Se solicitó y anexó estudio de Resonancia Magnética.',
+    createdAt: '2025-02-01T09:30:00.000Z',
+    documents: [
+      {
+        id: 'doc_ec_1',
+        patientId: 'pat_elena_castillo',
+        title: 'Informe Traumatológico y Plan Quirúrgico Conservador',
+        description: 'Estudio de rodilla derecha y protocolo de fortalecimiento de cuádriceps y vasto interno.',
+        category: 'resonancia',
+        fileName: 'Resonancia_Rodilla_Elena_Castillo.pdf',
+        fileSize: '28.2 KB',
+        fileType: 'application/pdf',
+        fileData: generateMedicalReportPdfDataUrl({
+          patientName: 'Elena Castillo',
+          patientIdDoc: 'V-16.890.341',
+          doctorName: 'Dr. Rubén Torrealba',
+          doctorSpecialty: 'Traumatología & Cirugía Articular',
+          reportTitle: 'Informe Traumatológico - Estudio de Imagen RM',
+          date: new Date().toISOString().split('T')[0],
+          category: 'Resonancia Magnética & Traumatología',
+          diagnosis: 'Lesión Meniscal Grado II en cuerno posterior de menisco medial sin rotura completa.',
+          evolutionNotes: 'Examen físico revela derrame articular leve, dolor a la palpación interlínea articular medial. Se descarta necesidad de cirugía artroscópica inmediata en vista de buena respuesta a fisioterapia.',
+          recommendations: [
+            'Ciclo de 10 sesiones de fisioterapia con énfasis en vasto medial oblicuo (VMO).',
+            'Evitar impacto y flexión profunda mayor a 90 grados durante 3 semanas.',
+            'Crioterapia local post-ejercicio 15 min 3 veces al día.'
+          ]
+        }),
+        uploadedAt: new Date().toISOString().split('T')[0],
+        uploadedBy: 'Dr. Rubén Torrealba',
+        specialistNotes: 'Manejo conservador con fisioterapia intensiva.'
+      }
+    ]
+  },
+  {
+    id: 'pat_valeria_rondon',
+    cedula: 'V-24.512.780',
+    nombre: 'Valeria',
+    apellido: 'Rondón',
+    telefono: '+58 424 333.22.11',
+    email: 'valeria.rondon@gmail.com',
+    fechaNacimiento: '2001-08-14',
+    edad: 24,
+    genero: 'F',
+    direccion: 'El Rosal, Calle Mohedano, Torre Credicard, Caracas',
+    contactoEmergencia: {
+      nombre: 'Carla Rondón',
+      telefono: '+58 424 999.00.11',
+      parentesco: 'Madre'
+    },
+    totalAppointments: 1,
+    completedAppointments: 0,
+    lastVisit: new Date().toISOString().split('T')[0],
+    firstVisitDate: new Date().toISOString().split('T')[0],
+    totalSpent: 40,
+    medicalConditions: 'Post-operatorio de Plastia LCA rodilla izquierda (6 meses) con kinesiofobia y ansiedad por reincorporación deportiva.',
+    alergias: 'Ninguna',
+    antecedentes: 'Reconstrucción de LCA con injerto HTH en agosto 2024.',
+    medicamentosActuales: 'Ninguno.',
+    clinicalNotes: 'Paciente remitida para acompañamiento psicológico y psicofisiología del dolor. Expresa temor a re-lesión al realizar saltos o giros.',
+    createdAt: new Date().toISOString(),
+    documents: [
+      {
+        id: 'doc_vr_1',
+        patientId: 'pat_valeria_rondon',
+        title: 'Evaluación Psicológica del Retorno al Deporte (TSK-11)',
+        description: 'Escala de Tampa para kinesiofobia y programa de desensibilización sistemática.',
+        category: 'informe',
+        fileName: 'Evaluacion_Psicologica_ValeriaRondon.pdf',
+        fileSize: '22.8 KB',
+        fileType: 'application/pdf',
+        fileData: generateMedicalReportPdfDataUrl({
+          patientName: 'Valeria Rondón',
+          patientIdDoc: 'V-24.512.780',
+          doctorName: 'Lic. Cristina Flores',
+          doctorSpecialty: 'Psicología Clínica & Deportiva',
+          reportTitle: 'Informe Psicológico y Readaptación Mental',
+          date: new Date().toISOString().split('T')[0],
+          category: 'Psicología Deportiva',
+          diagnosis: 'Kinesiofobia moderada post-reconstrucción de LCA con niveles elevados de hipervigilancia propioceptiva.',
+          evolutionNotes: 'Se aplicó la escala TSK-11 arrojando 38/44 pts. Buena receptividad a técnicas de reestructuración cognitiva y visualización motora guiada.',
+          recommendations: [
+            'Sesiones semanales de psicología aplicada al rendimiento deportivo.',
+            'Entrenamiento de biofeedback y respiración diafragmática durante cargas mecánicas.',
+            'Coordinación directa con el equipo de fisioterapia para exposición gradual.'
+          ]
+        }),
+        uploadedAt: new Date().toISOString().split('T')[0],
+        uploadedBy: 'Lic. Cristina Flores',
+        specialistNotes: 'Pronóstico muy favorable con acompañamiento integral.'
+      }
+    ]
+  },
+  {
+    id: 'pat_mateo_gutierrez',
+    cedula: 'V-34.901.122',
+    nombre: 'Mateo',
+    apellido: 'Gutiérrez',
+    telefono: '+58 416 555.77.88',
+    email: 'carlos.gutierrez@outlook.com',
+    fechaNacimiento: '2019-06-10',
+    edad: 6,
+    genero: 'M',
+    direccion: 'La Florida, Av. Los Manolos, Qta. San Judas, Caracas',
+    contactoEmergencia: {
+      nombre: 'Carlos Gutiérrez (Padre)',
+      telefono: '+58 416 555.77.88',
+      parentesco: 'Padre'
+    },
+    totalAppointments: 3,
+    completedAppointments: 2,
+    lastVisit: new Date().toISOString().split('T')[0],
+    firstVisitDate: '2025-01-10',
+    totalSpent: 105,
+    medicalConditions: 'Pie plano valgo flexible bilateral y genu valgo fisiológico en seguimiento.',
+    alergias: 'Ninguna',
+    antecedentes: 'Parto a término sin complicaciones neonatales.',
+    medicamentosActuales: 'Ninguno.',
+    clinicalNotes: 'Control de corrección de marcha. Buena tolerancia a los circuitos lúdicos y ejercicios con pelotas y texturas.',
+    createdAt: '2025-01-10T14:00:00.000Z',
+    documents: []
+  },
+  {
+    id: 'pat_carmen_paredes',
+    cedula: 'V-4.819.002',
+    nombre: 'Carmen',
+    apellido: 'Paredes',
+    telefono: '+58 412 888.99.00',
+    email: 'hija.carmen@gmail.com',
+    fechaNacimiento: '1948-03-15',
+    edad: 77,
+    genero: 'F',
+    direccion: 'Chacao, Calle Cecilio Acosta, Edif. Ávila, Piso 2, Caracas',
+    contactoEmergencia: {
+      nombre: 'Sofía Paredes',
+      telefono: '+58 412 888.99.00',
+      parentesco: 'Hija'
+    },
+    totalAppointments: 5,
+    completedAppointments: 4,
+    lastVisit: '2025-02-18',
+    firstVisitDate: '2024-12-05',
+    totalSpent: 150,
+    medicalConditions: 'Coxartrosis grado III bilateral y gonartrosis moderada. Marcha claudicante.',
+    alergias: 'AINES (sensibilidad gástrica)',
+    antecedentes: 'Hipertensión arterial controlada con Losartán 50mg.',
+    medicamentosActuales: 'Losartán Potásico 50mg OD, Paracetamol 1g SOS.',
+    clinicalNotes: 'Mantenimiento articular y reeducación de la marcha. Se trabaja fortalecimiento de glúteo medio y transferencias seguras para prevención de caídas.',
+    createdAt: '2024-12-05T09:00:00.000Z',
+    documents: [
+      {
+        id: 'doc_cp_1',
+        patientId: 'pat_carmen_paredes',
+        title: 'Estudio Radiográfico de Pelvis y Caderas',
+        description: 'Rx comparativa anteroposterior y axial de cadera con disminución de espacio interarticular.',
+        category: 'radiografia',
+        fileName: 'Radiografia_Pelvis_Cadera_CarmenParedes.pdf',
+        fileSize: '31.4 KB',
+        fileType: 'application/pdf',
+        fileData: generateMedicalReportPdfDataUrl({
+          patientName: 'Carmen Paredes',
+          patientIdDoc: 'V-4.819.002',
+          doctorName: 'Lic. Laury Torrealba',
+          doctorSpecialty: 'Fisioterapia Geriátrica & Reumatología',
+          reportTitle: 'Constancia de Tratamiento Kinésico Geriátrico',
+          date: '2025-02-18',
+          category: 'Radiografía & Fisioterapia Geriátrica',
+          diagnosis: 'Coxartrosis Bilateral Grado III con limitación funcional de la rotación interna.',
+          evolutionNotes: 'La paciente muestra excelente apego terapéutico. Disminución del dolor en escala EVA de 8/10 a 4/10. Mayor seguridad en la deambulación independiente con bastón canadiense.',
+          recommendations: [
+            'Mantener programa domiciliario de movilidad y estiramientos suaves.',
+            'Uso constante de calzado con suela antideslizante y soporte de arco.',
+            'Control de densidad ósea cada 6 meses.'
+          ]
+        }),
+        uploadedAt: '2025-02-18',
+        uploadedBy: 'Lic. Laury Torrealba',
+        specialistNotes: 'Gran progreso en equilibrio estático y dinámico.'
+      }
+    ]
+  }
+];
 
 export const INITIAL_SAMPLE_APPOINTMENTS: Appointment[] = [
   {

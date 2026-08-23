@@ -15,6 +15,11 @@ import { SettingsView } from './components/admin/SettingsView';
 import { CreateAppointmentModal } from './components/admin/CreateAppointmentModal';
 import { EditAppointmentModal } from './components/admin/EditAppointmentModal';
 import { PatientDetailModal } from './components/admin/PatientDetailModal';
+import { CreatePatientModal } from './components/admin/CreatePatientModal';
+import { EditPatientModal } from './components/admin/EditPatientModal';
+import { DeletePatientModal } from './components/admin/DeletePatientModal';
+import { UploadMedicalRecordModal } from './components/admin/UploadMedicalRecordModal';
+import { PdfViewerModal } from './components/admin/PdfViewerModal';
 import { SupabaseModal } from './components/SupabaseModal';
 import { SpecialistAuth } from './components/admin/SpecialistAuth';
 
@@ -23,6 +28,7 @@ import {
   AppointmentStatus, 
   ContactMessage, 
   PatientRecord, 
+  MedicalRecordDocument,
   SupabaseConfig, 
   AdminNotification 
 } from './types';
@@ -38,13 +44,21 @@ import {
   getContactMessagesFromDb,
   updateContactMessageStatus,
   deleteContactMessageFromDb,
+  getPatientsFromDb,
+  insertPatientInDb,
+  updatePatientInDb,
+  deletePatientFromDb,
+  addDocumentToPatient,
+  removeDocumentFromPatient,
   saveLocalAppointments,
-  saveLocalMessages
+  saveLocalMessages,
+  saveLocalPatients
 } from './lib/supabase';
 
 import { 
   INITIAL_SAMPLE_APPOINTMENTS, 
   INITIAL_SAMPLE_MESSAGES, 
+  INITIAL_SAMPLE_PATIENTS,
   INITIAL_NOTIFICATIONS 
 } from './data/sampleAdminData';
 
@@ -64,6 +78,7 @@ export function App() {
   const [authSession, setAuthSession] = useState<Session | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [patients, setPatients] = useState<PatientRecord[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>(INITIAL_NOTIFICATIONS);
 
@@ -72,9 +87,21 @@ export function App() {
   const [defaultStaffForNewApp, setDefaultStaffForNewApp] = useState<string | undefined>(undefined);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   
+  // Patient Modals
   const [selectedPatientFile, setSelectedPatientFile] = useState<{
     patient: PatientRecord;
     appointments: Appointment[];
+  } | null>(null);
+
+  const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<PatientRecord | null>(null);
+  const [deletingPatient, setDeletingPatient] = useState<PatientRecord | null>(null);
+  const [uploadingPdfForPatient, setUploadingPdfForPatient] = useState<PatientRecord | null>(null);
+  
+  // PDF Viewer Modal
+  const [viewingPdfDocument, setViewingPdfDocument] = useState<{
+    doc: MedicalRecordDocument;
+    patient: PatientRecord;
   } | null>(null);
 
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
@@ -113,17 +140,31 @@ export function App() {
     async function loadData() {
       const config = getCurrentSupabaseConfig();
       setSupabaseConfig(config);
+
+      // Appointments
       const dbAppointments = await getAppointmentsFromDb();
+      let loadedApps = dbAppointments;
       if (dbAppointments && dbAppointments.length > 0) {
         setAppointments(dbAppointments);
       } else if (!config.isConnected) {
-        // Populate initial seed data so the clinic dashboard is immediately populated
         setAppointments(INITIAL_SAMPLE_APPOINTMENTS);
         saveLocalAppointments(INITIAL_SAMPLE_APPOINTMENTS);
+        loadedApps = INITIAL_SAMPLE_APPOINTMENTS;
       } else {
         setAppointments([]);
+        loadedApps = [];
       }
 
+      // Patients
+      const dbPatients = await getPatientsFromDb();
+      if (dbPatients && dbPatients.length > 0) {
+        setPatients(dbPatients);
+      } else {
+        setPatients(INITIAL_SAMPLE_PATIENTS);
+        saveLocalPatients(INITIAL_SAMPLE_PATIENTS);
+      }
+
+      // Messages
       const dbMessages = await getContactMessagesFromDb();
       if (dbMessages && dbMessages.length > 0) {
         setMessages(dbMessages);
@@ -131,7 +172,6 @@ export function App() {
         setMessages(INITIAL_SAMPLE_MESSAGES);
         saveLocalMessages(INITIAL_SAMPLE_MESSAGES);
       }
-
     }
 
     loadData();
@@ -142,6 +182,106 @@ export function App() {
 
     return () => unsubscribe?.();
   }, []);
+
+  // CRUD Operations for Patients
+  const handleCreatePatient = async (newPatient: PatientRecord) => {
+    setPatients(prev => [newPatient, ...prev]);
+    await insertPatientInDb(newPatient);
+
+    const notif: AdminNotification = {
+      id: `notif_${Date.now()}`,
+      title: 'Nuevo Paciente Registrado',
+      message: `Se ha creado el expediente de ${newPatient.nombre} ${newPatient.apellido}.`,
+      timestamp: 'Ahora mismo',
+      type: 'appointment',
+      read: false,
+      linkTab: 'pacientes'
+    };
+    setNotifications(prev => [notif, ...prev]);
+  };
+
+  const handleUpdatePatient = async (patientId: string, updates: Partial<PatientRecord>) => {
+    setPatients(prev => prev.map(p => {
+      if (p.id === patientId) {
+        const updated = { ...p, ...updates };
+        if (selectedPatientFile && selectedPatientFile.patient.id === patientId) {
+          setSelectedPatientFile({
+            ...selectedPatientFile,
+            patient: updated
+          });
+        }
+        return updated;
+      }
+      return p;
+    }));
+    await updatePatientInDb(patientId, updates);
+  };
+
+  const handleDeletePatient = async (patientId: string) => {
+    setPatients(prev => prev.filter(p => p.id !== patientId));
+    if (selectedPatientFile && selectedPatientFile.patient.id === patientId) {
+      setSelectedPatientFile(null);
+    }
+    await deletePatientFromDb(patientId);
+  };
+
+  // PDF Medical Record Operations
+  const handleSavePdfDocument = async (newDoc: MedicalRecordDocument) => {
+    await addDocumentToPatient(newDoc.patientId, newDoc);
+    setPatients(prev => prev.map(p => {
+      if (p.id === newDoc.patientId) {
+        const currentDocs = p.documents || [];
+        const updatedPatient = {
+          ...p,
+          documents: [newDoc, ...currentDocs.filter(d => d.id !== newDoc.id)]
+        };
+        if (selectedPatientFile && selectedPatientFile.patient.id === newDoc.patientId) {
+          setSelectedPatientFile({
+            ...selectedPatientFile,
+            patient: updatedPatient
+          });
+        }
+        return updatedPatient;
+      }
+      return p;
+    }));
+
+    const notif: AdminNotification = {
+      id: `notif_${Date.now()}`,
+      title: 'Registro PDF Anexado',
+      message: `Nuevo documento "${newDoc.title}" agregado al expediente.`,
+      timestamp: 'Ahora mismo',
+      type: 'appointment',
+      read: false,
+      linkTab: 'pacientes'
+    };
+    setNotifications(prev => [notif, ...prev]);
+  };
+
+  const handleDeletePdfDocument = async (patientId: string, docId: string) => {
+    await removeDocumentFromPatient(patientId, docId);
+    setPatients(prev => prev.map(p => {
+      if (p.id === patientId) {
+        const currentDocs = p.documents || [];
+        const updatedPatient = {
+          ...p,
+          documents: currentDocs.filter(d => d.id !== docId)
+        };
+        if (selectedPatientFile && selectedPatientFile.patient.id === patientId) {
+          setSelectedPatientFile({
+            ...selectedPatientFile,
+            patient: updatedPatient
+          });
+        }
+        return updatedPatient;
+      }
+      return p;
+    }));
+  };
+
+  const handleViewPdfDocument = (doc: MedicalRecordDocument, patient: PatientRecord) => {
+    setViewingPdfDocument({ doc, patient });
+  };
 
   // CRUD Operations for Appointments
   const handleSaveNewAppointment = async (newApp: Appointment) => {
@@ -196,15 +336,19 @@ export function App() {
   const handleLoadDemoData = () => {
     setAppointments(INITIAL_SAMPLE_APPOINTMENTS);
     saveLocalAppointments(INITIAL_SAMPLE_APPOINTMENTS);
+    setPatients(INITIAL_SAMPLE_PATIENTS);
+    saveLocalPatients(INITIAL_SAMPLE_PATIENTS);
     setMessages(INITIAL_SAMPLE_MESSAGES);
     saveLocalMessages(INITIAL_SAMPLE_MESSAGES);
-    alert('Datos de prueba de la clínica EQUILIBRA cargados con éxito.');
+    alert('Datos de prueba y expedientes clínicos de EQUILIBRA cargados con éxito.');
   };
 
   const handleClearLocalData = () => {
     setAppointments([]);
+    setPatients([]);
     setMessages([]);
     saveLocalAppointments([]);
+    saveLocalPatients([]);
     saveLocalMessages([]);
     alert('Registros locales vaciados.');
   };
@@ -246,6 +390,7 @@ export function App() {
     const backupData = {
       timestamp: new Date().toISOString(),
       clinic: 'EQUILIBRA Centro de Fisioterapia & Salud Integral (Sabana Grande)',
+      patients,
       appointments,
       messages
     };
@@ -264,7 +409,7 @@ export function App() {
   const counts = {
     appointmentsToday: appointments.filter(a => a.fecha === todayStr).length,
     appointmentsTotal: appointments.length,
-    patientsTotal: new Set(appointments.map(a => `${a.nombre.toLowerCase()}_${a.apellido.toLowerCase()}`)).size,
+    patientsTotal: patients.length,
     unreadMessages: messages.filter(m => m.status === 'NUEVO').length
   };
 
@@ -340,6 +485,7 @@ export function App() {
 
             {activeTab === 'pacientes' && (
               <PatientsDirectoryView
+                patients={patients}
                 appointments={appointments}
                 onSelectPatientFile={(patient, patientApps) => {
                   setSelectedPatientFile({ patient, appointments: patientApps });
@@ -348,6 +494,11 @@ export function App() {
                   setDefaultStaffForNewApp(undefined);
                   setIsNewAppointmentOpen(true);
                 }}
+                onOpenCreatePatient={() => setIsCreatePatientOpen(true)}
+                onOpenEditPatient={(patient) => setEditingPatient(patient)}
+                onOpenDeletePatient={(patient) => setDeletingPatient(patient)}
+                onOpenUploadPdf={(patient) => setUploadingPdfForPatient(patient)}
+                onViewPdfDocument={handleViewPdfDocument}
               />
             )}
 
@@ -445,6 +596,56 @@ export function App() {
           setDefaultStaffForNewApp(undefined);
           setIsNewAppointmentOpen(true);
         }}
+        onOpenEditPatient={(patient) => {
+          setEditingPatient(patient);
+        }}
+        onOpenDeletePatient={(patient) => {
+          setDeletingPatient(patient);
+        }}
+        onOpenUploadPdf={(patient) => {
+          setUploadingPdfForPatient(patient);
+        }}
+        onViewPdfDocument={handleViewPdfDocument}
+        onDeletePdfDocument={handleDeletePdfDocument}
+      />
+
+      {/* Create Patient Modal */}
+      <CreatePatientModal
+        isOpen={isCreatePatientOpen}
+        onClose={() => setIsCreatePatientOpen(false)}
+        onSavePatient={handleCreatePatient}
+      />
+
+      {/* Edit Patient Modal */}
+      <EditPatientModal
+        isOpen={Boolean(editingPatient)}
+        onClose={() => setEditingPatient(null)}
+        patient={editingPatient}
+        onSaveUpdates={handleUpdatePatient}
+      />
+
+      {/* Delete Patient Modal */}
+      <DeletePatientModal
+        isOpen={Boolean(deletingPatient)}
+        onClose={() => setDeletingPatient(null)}
+        patient={deletingPatient}
+        onConfirmDelete={handleDeletePatient}
+      />
+
+      {/* Upload Medical Record PDF Modal */}
+      <UploadMedicalRecordModal
+        isOpen={Boolean(uploadingPdfForPatient)}
+        onClose={() => setUploadingPdfForPatient(null)}
+        patient={uploadingPdfForPatient}
+        onSaveDocument={handleSavePdfDocument}
+      />
+
+      {/* PDF Viewer & Print Modal */}
+      <PdfViewerModal
+        isOpen={Boolean(viewingPdfDocument)}
+        onClose={() => setViewingPdfDocument(null)}
+        document={viewingPdfDocument?.doc || null}
+        patient={viewingPdfDocument?.patient || null}
       />
 
       {/* Supabase Connection Setup Modal */}
@@ -465,3 +666,4 @@ export function App() {
 }
 
 export default App;
+

@@ -1,6 +1,6 @@
 {
   "name": "Equilibra - Fisioterapia & Bienestar Integral",
-  "description": "Sitio web moderno, interactivo y responsivo para Equilibra, centro de fisioterapia avanzada, traumatología, nutrición, psicología y entrenamiento funcional con modo oscuro.",
+  "description": "Sistema clínico integral para Equilibra con gestión completa de pacientes (crear, ver, editar, eliminar), expediente digital y visor/subida de registros médicos en formato PDF.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
