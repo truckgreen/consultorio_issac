@@ -46,7 +46,7 @@ export const SERVICES: ServiceItem[] = [
     category: "fisioterapia",
     shortDescription: "Evaluación biomecánica y terapia manual personalizada para el alivio del dolor y restauración de la movilidad.",
     fullDescription: "Combinamos técnicas de terapia manual avanzada. Nuestro objetivo es identificar la raíz de tu lesion y devolver al maximo tu funcionalidad.",
-    imageUrl: "/imagenes/fisioterapia.jpg",
+    imageUrl: "/imagenes/servicios/fisioterapia/fondo fisioterapia.jpg",
     benefits: [
       "Alivio significativo del dolor crónico y agudo",
       "Restablecimiento de los arcos de movilidad articular",

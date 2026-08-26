@@ -30,7 +30,7 @@ export const APP_IMAGES = {
   // 9 Core Services (Matches the exact cards in the photo)
   services: {
     fisioterapia: {
-      // Puedes reemplazar esta ruta por tu imagen local (ej: '/imagenes/fisioterapia.jpg') o una URL directa
+      // Puedes reemplazar esta ruta por tu imagen local (ej: '/imagenes/servicios/fisioterapia/fondo fisioterapia.jpg') o una URL directa
       src: "/imagenes/servicios/fisioterapia/fondo fisioterapia.jpg",
       alt: "Fisioterapia y entrenamiento de fuerza en banco asistido",
     },
@@ -84,7 +84,7 @@ export const APP_IMAGES = {
       alt: "Laury Torrealba - Fisioterapeuta Geriátrica",
     },
     stephaniSalina: {
-      src: "/imagenes/fotos de perfil/Stephani Salina.jpg",
+      src: "/imagenes/fotos de perfil/Stephani salina.jpg",
       alt: "Stephani Salina - Nutricionista",
     },
     rubenTorrealba: {
@@ -92,7 +92,7 @@ export const APP_IMAGES = {
       alt: "Rubén Torrealba - Médico traumatólogo",
     },
     cristinaFlores: {
-      src: "/imagenes/fotos de perfil/Cristina Flores.jpg",
+      src: "/imagenes/fotos de perfil/Cristina flores.jpg",
       alt: "Cristina Flores - Psicóloga",
     },
     gabrielaRodriguez: {
