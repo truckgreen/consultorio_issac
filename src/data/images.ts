@@ -35,23 +35,24 @@ export const APP_IMAGES = {
       alt: "Fisioterapia y entrenamiento de fuerza en banco asistido",
     },
     fisioterapiaPediatrica: {
-      src: "https://images.unsplash.com/photo-1588286840104-8957b019727f?auto=format&fit=crop&w=800&q=80",
+      // Puedes colocar tu foto en /imagenes/servicios/fisioterapia-pediatrica/portada.jpg o una URL directa
+      src: "/imagenes/servicios/fisioterapia pediatrica/foto fondo.jpg",
       alt: "Fisioterapia Pediátrica infantil y desarrollo motor",
     },
     fisioterapiaGeriatrica: {
-      src: "https://images.unsplash.com/photo-1581579438747-1dc8d17bbce4?auto=format&fit=crop&w=800&q=80",
+      src: "/imagenes/servicios/fisioterapia geriatrica/foto fondo.jpg",
       alt: "Fisioterapia Geriátrica y movilidad para adultos mayores",
     },
     fisioterapiaDeportiva: {
-      src: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80",
+      src: "/imagenes/servicios/fisioterapia deportiva/foto fondo.jpg",
       alt: "Fisioterapia Deportiva y prevención de lesiones en atletas",
     },
     traumatologia: {
-      src: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&q=80",
+      src: "/imagenes/servicios/traumatologia/foto fondo.jpg",
       alt: "Traumatología y valoración ortopédica integral",
     },
     psicologia: {
-      src: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
+      src: "/imagenes/servicios/psicologia/foto fondo.jpg",
       alt: "Psicología y salud emocional",
     },
     nutricion: {
@@ -63,7 +64,7 @@ export const APP_IMAGES = {
       alt: "Entrenamiento funcional y biomecánica del movimiento",
     },
     boxeo: {
-      src: "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?auto=format&fit=crop&w=800&q=80",
+      src: "/imagenes/servicios/boxeo/foto fondo.jpg",
       alt: "Boxeo terapéutico y acondicionamiento cardiovascular",
     },
   },
