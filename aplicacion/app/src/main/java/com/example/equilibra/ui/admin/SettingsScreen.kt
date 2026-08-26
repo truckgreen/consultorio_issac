@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,19 +15,26 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.equilibra.data.model.AuthUser
 import com.example.equilibra.ui.theme.AmberPrimary
 import com.example.equilibra.ui.theme.EmeraldSuccess
+import com.example.equilibra.ui.theme.NavyDark
+import com.example.equilibra.ui.theme.TealPrimary
 
 @Composable
 fun SettingsScreen(
+    currentUser: AuthUser?,
     isDarkMode: Boolean,
     onToggleDarkMode: () -> Unit,
+    onLogout: () -> Unit,
+    onOpenExcelExport: () -> Unit,
     onResetDemoData: () -> Unit,
     onClearAllData: () -> Unit
 ) {
@@ -49,10 +57,163 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Panel Administrativo • EQUILIBRA",
+                    text = "Portal Clínico & Gestión Multiusuario • EQUILIBRA",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+
+        // Active User / Role Card
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (currentUser?.isSuperAdmin == true) {
+                                            Brush.linearGradient(listOf(Color(0xFFE11D48), Color(0xFF9F1239)))
+                                        } else {
+                                            Brush.linearGradient(listOf(TealPrimary, Color(0xFF0F766E)))
+                                        }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (currentUser?.isSuperAdmin == true) "AD" else currentUser?.initials ?: "EQ",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
+                                    color = Color.White
+                                )
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = currentUser?.name ?: "Sesión Clínica",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (currentUser?.isSuperAdmin == true) Color(0xFFE11D48).copy(alpha = 0.15f) else TealPrimary.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = if (currentUser?.isSuperAdmin == true) "SUPERADMIN" else "ESPECIALISTA",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black),
+                                            color = if (currentUser?.isSuperAdmin == true) Color(0xFFE11D48) else TealPrimary,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = currentUser?.specialty ?: "Fisioterapia y Rehabilitación",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = currentUser?.email ?: "admin@equilibra.com",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onLogout,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberPrimary),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("btn_logout_switch_user")
+                    ) {
+                        Icon(Icons.Filled.Logout, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Cerrar Sesión / Cambiar de Especialista", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Excel Database Export Card
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF107C41)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.TableChart, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                        }
+                        Column {
+                            Text(
+                                text = "Exportar Base de Datos a Excel",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Descargar citas, directorio de pacientes y expedientes en .csv/.xls",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = onOpenExcelExport,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF107C41),
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("btn_open_excel_export_settings")
+                    ) {
+                        Icon(Icons.Filled.Download, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Descargar Base de Datos Completa en Formato Excel", fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
 
@@ -60,9 +221,7 @@ fun SettingsScreen(
         item {
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -226,12 +385,12 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "EQUILIBRA • Panel Administrador v2.0",
+                        text = "EQUILIBRA • Sistema Clínico Integral v2.5",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Base de datos Room SQLite local y activa",
+                        text = "Base de datos Room SQLite con sincronización y exportador Excel",
                         style = MaterialTheme.typography.bodySmall,
                         color = EmeraldSuccess
                     )
@@ -244,7 +403,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             title = { Text("Restablecer Datos Demo") },
-            text = { Text("¿Deseas restaurar la lista de citas, leads y notificaciones de prueba de la clínica EQUILIBRA?") },
+            text = { Text("¿Deseas restaurar la lista de citas, pacientes, leads y notificaciones de prueba de la clínica EQUILIBRA?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -267,7 +426,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
             title = { Text("Vaciar Base de Datos") },
-            text = { Text("¿Estás seguro de que deseas eliminar todas las citas registradas en el dispositivo?") },
+            text = { Text("¿Estás seguro de que deseas eliminar todas las citas y pacientes registrados en el dispositivo?") },
             confirmButton = {
                 Button(
                     onClick = {

@@ -14,6 +14,10 @@ val TealDark = Color(0xFF115E59)
 val TealContainerLight = Color(0xFFCCFBF1)
 val TealContainerDark = Color(0xFF134E4A)
 
+val NavyDark = Color(0xFF060D12)
+val NavyMedium = Color(0xFF132430)
+val NavyLight = Color(0xFF1E3A4C)
+
 val EmeraldSuccess = Color(0xFF10B981)
 val EmeraldSuccessDark = Color(0xFF059669)
 

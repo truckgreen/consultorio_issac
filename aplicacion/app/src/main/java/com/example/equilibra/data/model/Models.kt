@@ -1,5 +1,7 @@
 package com.example.equilibra.data.model
 
+import kotlinx.serialization.Serializable
+
 data class ServiceItem(
     val id: String,
     val title: String,
@@ -106,6 +108,7 @@ data class ContactLead(
     val adminNotes: String = ""
 )
 
+@Serializable
 data class MedicalRecordDocument(
     val id: String,
     val patientId: String,
@@ -119,6 +122,7 @@ data class MedicalRecordDocument(
     val notes: String? = null
 )
 
+@Serializable
 data class PatientRecord(
     val id: String,
     val nombre: String,

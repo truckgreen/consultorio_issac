@@ -22,11 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.equilibra.data.model.AdminNavTab
+import com.example.equilibra.data.model.AuthUser
 import com.example.equilibra.ui.theme.AmberAccent
 import com.example.equilibra.ui.theme.AmberPrimary
 
 @Composable
 fun AdminBottomNav(
+    currentUser: AuthUser?,
     activeTab: AdminNavTab,
     onSelectTab: (AdminNavTab) -> Unit,
     onOpenMoreMenu: () -> Unit,

@@ -31,7 +31,8 @@ fun EquilibraTopBar(
     onToggleDarkMode: () -> Unit,
     savedAppointmentsCount: Int,
     onOpenMyAppointments: () -> Unit,
-    onScrollToBooking: () -> Unit
+    onScrollToBooking: () -> Unit,
+    onOpenSpecialistPortal: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
 
@@ -93,6 +94,22 @@ fun EquilibraTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                if (onOpenSpecialistPortal != null) {
+                    IconButton(
+                        onClick = onOpenSpecialistPortal,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("admin_portal_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AdminPanelSettings,
+                            contentDescription = "Acceso Administrativo / Especialistas",
+                            tint = AmberPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
                 // Call phone action
                 IconButton(
                     onClick = {

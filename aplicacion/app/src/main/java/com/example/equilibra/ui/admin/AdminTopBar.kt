@@ -19,16 +19,21 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.equilibra.data.model.AuthUser
 import com.example.equilibra.ui.theme.AmberPrimary
+import com.example.equilibra.ui.theme.TealPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminTopBar(
+    currentUser: AuthUser?,
     isDarkMode: Boolean,
     onToggleDarkMode: () -> Unit,
     unreadNotificationsCount: Int,
     onOpenNotifications: () -> Unit,
-    onOpenNewAppointment: () -> Unit
+    onOpenNewAppointment: () -> Unit,
+    onLogout: () -> Unit,
+    onNavigateToPatientPortal: (() -> Unit)? = null
 ) {
     TopAppBar(
         title = {
@@ -64,34 +69,61 @@ fun AdminTopBar(
                             ),
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "ADMIN",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 9.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                        
+                        if (currentUser?.isSuperAdmin == true) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFE11D48).copy(alpha = 0.15f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "ADMIN",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp
+                                    ),
+                                    color = Color(0xFFE11D48)
+                                )
+                            }
                         }
                     }
                     Text(
-                        text = "Sede Sabana Grande • Piso 4",
+                        text = if (currentUser?.isSuperAdmin == true) "Dirección Clínica" else currentUser?.specialty ?: "Especialista",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
                         ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
         },
         actions = {
+            IconButton(
+                onClick = onLogout,
+                modifier = Modifier.testTag("admin_logout_btn")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Logout,
+                    contentDescription = "Cerrar Sesión",
+                    tint = Color(0xFFEF4444).copy(alpha = 0.8f)
+                )
+            }
+
+            if (onNavigateToPatientPortal != null) {
+                IconButton(
+                    onClick = onNavigateToPatientPortal,
+                    modifier = Modifier.testTag("admin_switch_to_portal_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Public,
+                        contentDescription = "Ir al Portal de Pacientes",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
             // Dark mode toggle
             IconButton(
                 onClick = onToggleDarkMode,

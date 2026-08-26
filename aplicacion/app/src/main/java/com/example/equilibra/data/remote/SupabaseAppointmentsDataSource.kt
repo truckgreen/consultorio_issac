@@ -106,7 +106,7 @@ data class ContactMessageRemoteDto(
 }
 
 class SupabaseAppointmentsDataSource {
-    private val client = SupabaseClient.client
+    private val client get() = SupabaseClient.client
 
     suspend fun fetch(): List<AppointmentEntity> {
         return try {
