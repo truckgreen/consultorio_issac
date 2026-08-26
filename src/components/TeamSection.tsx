@@ -29,7 +29,7 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
 
   const categories = [
-    { id: 'todos', label: 'Todo el Equipo (9)' },
+    { id: 'todos', label: `Todo el Equipo (${TEAM_MEMBERS.length})` },
     { id: 'fisioterapia', label: 'Fisioterapia' },
     { id: 'medicina', label: 'Traumatología' },
     { id: 'nutricion', label: 'Nutrición' },

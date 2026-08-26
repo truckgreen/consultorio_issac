@@ -72,39 +72,43 @@ export const APP_IMAGES = {
   // 9 Team Members from Fisiojewsiejew / Equilibra
   team: {
     isaacJewsiejew: {
-      src: "/imagenes/fotodeperfil.jpg",
+      src: "/imagenes/fotos de perfil/Isaac Jewsiejew.jpg",
       alt: "Isaac Jewsiejew - Fisioterapeuta deportivo",
     },
     marividRequena: {
-      src: "/imagenes/fotodeperfil.jpg",
+      src: "/imagenes/fotos de perfil/Marivid Requena.jpg",
       alt: "Marivid Requena - Fisioterapeuta pediátrica",
     },
     lauryTorrealba: {
-      src: "/imagenes/fotodeperfil.jpg",
+      src: "/imagenes/fotos de perfil/Laury Torrealba.jpg",
       alt: "Laury Torrealba - Fisioterapeuta Geriátrica",
     },
     stephaniSalina: {
-      src: "/imagenes/fotodeperfil.jpg",
+      src: "/imagenes/fotos de perfil/Stephani Salina.jpg",
       alt: "Stephani Salina - Nutricionista",
     },
     rubenTorrealba: {
-      src: "/imagenes/fotodeperfil.jpg",
+      src: "/imagenes/fotos de perfil/Rubén Torrealba.jpg",
       alt: "Rubén Torrealba - Médico traumatólogo",
     },
     cristinaFlores: {
-      src: "/imagenes/fotodeperfil.jpg",
+      src: "/imagenes/fotos de perfil/Cristina Flores.jpg",
       alt: "Cristina Flores - Psicóloga",
     },
+    gabrielaRodriguez: {
+      src: "/imagenes/fotos de perfil/Gabriela Rodriguez.jpg",
+      alt: "Gabriela Rodríguez - Fisioterapeuta",
+    },
     indiraAcevedo: {
-      src: "/imagenes/fotodeperfil.jpg",
+      src: "/imagenes/fotos de perfil/Indira Acevedo.jpg",
       alt: "Indira Acevedo - Profesora de Boxeo",
     },
-    juanAlzualde: {
-      src: "/imagenes/fotodeperfil.jpg",
-      alt: "Juan Alzualde - Asistente de fisioterapia",
+    kareinysMartinez: {
+      src: "/imagenes/fotos de perfil/Kareinys Martinez.jpg",
+      alt: "Kareinys Martínez - Fisioterapeuta",
     },
     rebeccaTriana: {
-      src: "/imagenes/fotodeperfil.jpg",
+      src: "/imagenes/fotos de perfil/Rebecca Triana.jpg",
       alt: "Rebecca Triana - Asistente de fisioterapia",
     },
   },

@@ -300,14 +300,25 @@ object EquilibraDataRepository {
             relatedServiceId = "boxeo"
         ),
         TeamMember(
-            id = "juan-alzualde",
-            name = "Juan Alzualde",
-            role = "Asistente de fisioterapia",
-            specialty = "Soporte en terapia física, termoterapia, electroterapia y atención asistencial",
-            category = "asistencia",
+            id = "gabriela-rodriguez",
+            name = "Gabriela Rodríguez",
+            role = "Fisioterapeuta",
+            specialty = "Rehabilitación neuromuscular, terapia manual y readaptación biomecánica activa",
+            category = "fisioterapia",
             imageUrl = "/imagenes/fotodeperfil.jpg",
-            credentials = "Técnico Asistente en Fisioterapia",
-            bio = "Brinda apoyo cercano y profesional en la aplicación de agentes físicos, preparación del espacio terapéutico y acompañamiento en cada protocolo de recuperación.",
+            credentials = "Lic. en Fisioterapia",
+            bio = "Especialista en evaluación postural, terapia manual avanzada y diseño de programas de recuperación funcional activos y personalizados.",
+            relatedServiceId = "fisioterapia"
+        ),
+        TeamMember(
+            id = "kareinys-martinez",
+            name = "Kareinys Martínez",
+            role = "Fisioterapeuta",
+            specialty = "Fisioterapia general, electroterapia y rehabilitación musculoesquelética",
+            category = "fisioterapia",
+            imageUrl = "/imagenes/fotodeperfil.jpg",
+            credentials = "Lic. en Fisioterapia",
+            bio = "Enfocada en el tratamiento de afecciones de columna, patologías articulares y aplicación de técnicas miofasciales para la recuperación funcional integral.",
             relatedServiceId = "fisioterapia"
         ),
         TeamMember(
