@@ -24,6 +24,7 @@ import {
   ShieldAlert,
   Package,
   Layers,
+  MessageSquare,
 } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
@@ -38,6 +39,7 @@ import {
   getAppointmentsFromDatabase,
   subscribeToAppointments,
 } from '../utils/bookingUtils';
+import { generateWhatsAppAlertUrl } from '../utils/notificationUtils';
 import {
   validateAndSanitizeName,
   validateAndSanitizeEmail,
@@ -1059,6 +1061,16 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
 
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <a
+                    href={generateWhatsAppAlertUrl(latestAppointment)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Notificar al Especialista por WhatsApp</span>
+                  </a>
+
                   <button
                     type="button"
                     onClick={() =>
@@ -1069,10 +1081,10 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                         CLINIC_INFO.phoneDisplay
                       )
                     }
-                    className="flex-1 px-5 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all"
+                    className="px-5 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all"
                   >
                     <Calendar className="w-4 h-4" />
-                    <span>Descargar Recordatorio (.ICS)</span>
+                    <span>Descargar (.ICS)</span>
                   </button>
 
                   <button

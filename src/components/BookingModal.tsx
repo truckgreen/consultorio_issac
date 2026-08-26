@@ -22,6 +22,7 @@ import {
   Package,
   Layers,
   Award,
+  MessageSquare,
 } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
@@ -34,6 +35,7 @@ import {
   getSlotsForDate,
   getSavedAppointments,
 } from '../utils/bookingUtils';
+import { generateWhatsAppAlertUrl } from '../utils/notificationUtils';
 import {
   validateAndSanitizeName,
   validateAndSanitizeEmail,
@@ -671,6 +673,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 pt-2">
+              <a
+                href={generateWhatsAppAlertUrl(createdAppointment)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Notificar al Especialista por WhatsApp</span>
+              </a>
+
               <button
                 type="button"
                 onClick={() =>
@@ -681,16 +693,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     CLINIC_INFO.phoneDisplay
                   )
                 }
-                className="flex-1 py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all"
+                className="py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all"
               >
                 <Calendar className="w-4 h-4" />
-                <span>Descargar Recordatorio (.ICS)</span>
+                <span>Descargar (.ICS)</span>
               </button>
 
               <button
                 type="button"
                 onClick={onClose}
-                className="py-3 px-6 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 active:scale-[0.98] transition-all"
+                className="py-3 px-5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 active:scale-[0.98] transition-all"
               >
                 Cerrar
               </button>

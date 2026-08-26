@@ -7,6 +7,7 @@ import {
   recordSecurityEvent,
   maskSensitiveData,
 } from './security';
+import { notifySpecialistNewAppointment } from './notificationUtils';
 
 export const STANDARD_WEEKDAY_SLOTS = [
   '08:00 AM - 09:00 AM',
@@ -153,6 +154,9 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
 
   // Always keep a local encrypted/sanitized copy for instant UI feedback
   saveAppointmentToStorage(cleanAppointment);
+
+  // Trigger specialist & clinic notification alert
+  notifySpecialistNewAppointment(cleanAppointment);
 
   // Record security audit event
   recordSecurityEvent({
