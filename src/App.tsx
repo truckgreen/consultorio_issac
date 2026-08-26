@@ -18,6 +18,8 @@ import { PatientPortalModal } from './components/PatientPortalModal';
 import { SpecialistAccessModal } from './components/SpecialistAccessModal';
 import { SecurityPrivacyModal } from './components/SecurityPrivacyModal';
 import { DeveloperSupportModal } from './components/DeveloperSupportModal';
+import { AppDownloadModal } from './components/AppDownloadModal';
+import { BetaNoticeBanner } from './components/BetaNoticeBanner';
 import { ServiceItem } from './types';
 
 export function App() {
@@ -49,6 +51,7 @@ export function App() {
   const [isSpecialistAccessOpen, setIsSpecialistAccessOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isDeveloperSupportOpen, setIsDeveloperSupportOpen] = useState(false);
+  const [isAppDownloadOpen, setIsAppDownloadOpen] = useState(false);
 
   // Handlers
   const handleOpenBooking = (serviceId?: string) => {
@@ -63,6 +66,9 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#faf8f5] dark:bg-[#0f141c] text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950">
+      {/* 0. Beta Phase Notice Banner */}
+      <BetaNoticeBanner />
+
       {/* 1. Sticky Navigation Bar */}
       <Navbar
         darkMode={darkMode}
@@ -142,6 +148,11 @@ export function App() {
       <DeveloperSupportModal
         isOpen={isDeveloperSupportOpen}
         onClose={() => setIsDeveloperSupportOpen(false)}
+      />
+
+      <AppDownloadModal
+        isOpen={isAppDownloadOpen}
+        onClose={() => setIsAppDownloadOpen(false)}
       />
     </div>
   );

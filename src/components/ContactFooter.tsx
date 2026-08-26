@@ -17,6 +17,7 @@ import {
   Lock,
   Search,
   KeyRound,
+  Smartphone,
 } from 'lucide-react';
 import { CLINIC_INFO } from '../data/featuresData';
 import { saveContactMessageToDatabase } from '../utils/bookingUtils';

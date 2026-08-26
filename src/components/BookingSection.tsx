@@ -22,10 +22,13 @@ import {
   Lock,
   FileCheck,
   ShieldAlert,
+  Package,
+  Layers,
 } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
-import { ConfirmedAppointment } from '../types';
+import { SPECIALISTS_ACCOUNTS } from '../data/specialistsAuthData';
+import { ConfirmedAppointment, ServicePricingTier } from '../types';
 import { BookingCalendar } from './BookingCalendar';
 import {
   getSavedAppointments,
@@ -75,6 +78,14 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState<string>(
     preselectedServiceId || 'fisioterapia'
   );
+  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string>('isaac-jewsiejew');
+  const [selectedPackage, setSelectedPackage] = useState<ServicePricingTier>({
+    name: 'Sesión de fisioterapia',
+    description: 'Evaluación + tratamiento personalizado',
+    price: '35€',
+    highlight: true,
+  });
+
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [selectedTime, setSelectedTime] = useState<string>('09:00 AM - 10:00 AM');
 
@@ -118,11 +129,35 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     setSavedAppointments(getSavedAppointments());
   }, []);
 
+  const currentServiceObj =
+    SERVICES_DATA.find((s) => s.id === selectedServiceId) || SERVICES_DATA[0];
+
   useEffect(() => {
     if (preselectedServiceId) {
       setSelectedServiceId(preselectedServiceId);
     }
   }, [preselectedServiceId]);
+
+  useEffect(() => {
+    if (currentServiceObj.pricingTiers && currentServiceObj.pricingTiers.length > 0) {
+      const defaultTier =
+        currentServiceObj.pricingTiers.find((t) => t.highlight) || currentServiceObj.pricingTiers[0];
+      setSelectedPackage(defaultTier);
+    } else {
+      setSelectedPackage({
+        name: currentServiceObj.title,
+        description: currentServiceObj.shortDescription,
+        price: `${currentServiceObj.priceFormatted} USD`,
+      });
+    }
+
+    const matchingSpec = SPECIALISTS_ACCOUNTS.find(
+      (sp) => sp.relatedServiceId === selectedServiceId
+    );
+    if (matchingSpec) {
+      setSelectedSpecialistId(matchingSpec.id);
+    }
+  }, [selectedServiceId]);
 
   useEffect(() => {
     if (selectedDate) {
@@ -171,7 +206,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     }
 
     if (!privacyConsent) {
-      errors.privacy = 'Debes aceptar los términos de confidencialidad y protección de datos médicos.';
+      errors.privacy = 'Debes aceptar los términos de confidencialidad y política de cancelación.';
     }
 
     setFormErrors(errors);
@@ -205,13 +240,19 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
 
     try {
       const selectedService = SERVICES_DATA.find((s) => s.id === selectedServiceId);
+      const chosenSpecialist = SPECIALISTS_ACCOUNTS.find((s) => s.id === selectedSpecialistId);
       const secureCode = generateSecureCode();
 
       const newAppointment: ConfirmedAppointment = {
         id: `app_${Date.now()}_${secureCode.replace(/[^a-zA-Z0-9]/g, '')}`,
         code: secureCode,
         serviceId: sanitizeString(selectedServiceId),
-        servicePrice: selectedService ? `${selectedService.priceFormatted} USD` : undefined,
+        servicePrice: selectedPackage.price || (selectedService ? `${selectedService.priceFormatted} USD` : undefined),
+        selectedPackageName: sanitizeString(selectedPackage.name),
+        selectedPackagePrice: sanitizeString(selectedPackage.price),
+        selectedPackageDescription: selectedPackage.description ? sanitizeString(selectedPackage.description) : undefined,
+        specialistId: chosenSpecialist ? chosenSpecialist.id : undefined,
+        specialistName: chosenSpecialist ? chosenSpecialist.name : 'Lic. Isaac Jewsiejew',
         nombre: sanitizeString(nombre, 60),
         apellido: sanitizeString(apellido, 60),
         telefono: sanitizeString(telefono, 30),
@@ -421,6 +462,113 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Specialist Selector Subsection */}
+              <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Especialista Clínico Responsable</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Atención personalizada 1 a 1
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto p-1">
+                  {SPECIALISTS_ACCOUNTS.map((spec) => {
+                    const isSel = selectedSpecialistId === spec.id;
+                    return (
+                      <button
+                        key={spec.id}
+                        type="button"
+                        onClick={() => setSelectedSpecialistId(spec.id)}
+                        className={`p-2.5 rounded-xl border text-left text-xs flex items-center gap-2.5 transition-all ${
+                          isSel
+                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 font-bold ring-2 ring-amber-500/30'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-slate-50 dark:bg-slate-900/40'
+                        }`}
+                      >
+                        <img
+                          src={spec.avatarUrl}
+                          alt={spec.name}
+                          className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-300 dark:border-slate-700"
+                        />
+                        <div className="truncate flex-1">
+                          <span className="block truncate font-bold text-slate-900 dark:text-white">
+                            {spec.name}
+                          </span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                            {spec.role}
+                          </span>
+                        </div>
+                        {isSel && <Check className="w-4 h-4 text-amber-600 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Package / Pricing Tiers Subsection */}
+              <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Selecciona el Paquete o Modalidad de Atención</span>
+                  </h4>
+                  <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
+                    Tarifas transparentes
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {(currentServiceObj.pricingTiers || [
+                    { name: 'Sesión Estándar', price: `${currentServiceObj.priceFormatted} USD`, description: 'Evaluación y tratamiento' }
+                  ]).map((tier, idx) => {
+                    const isSel = selectedPackage.name === tier.name;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedPackage(tier)}
+                        className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                          isSel
+                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-500/30 shadow-sm'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-slate-50 dark:bg-slate-900/40'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {tier.name}
+                            </span>
+                            <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">
+                              {tier.price}
+                            </span>
+                          </div>
+                          {tier.description && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
+                              {tier.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
+                          <span className="text-[10px] text-emerald-600 font-semibold">
+                            {tier.highlight ? '★ Recomendado' : 'Disponible'}
+                          </span>
+                          <div
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                              isSel ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300'
+                            }`}
+                          >
+                            {isSel && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -757,11 +905,11 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <span>Reserva Segura con Validación Criptográfica</span>
                     <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 rounded-full">
-                      {selectedServiceObj.priceFormatted} USD
+                      {selectedPackage.price || `${selectedServiceObj.priceFormatted} USD`}
                     </span>
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {selectedServiceObj.title} • {selectedDate} ({selectedTime || 'Selecciona hora'})
+                    {selectedServiceObj.title} • {selectedPackage.name} • {selectedDate} ({selectedTime || 'Selecciona hora'})
                   </p>
                 </div>
               </div>

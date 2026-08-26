@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   Search,
   KeyRound,
-  Lock,
   Code2,
 } from 'lucide-react';
 import { CLINIC_INFO } from '../data/featuresData';
@@ -49,13 +48,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navLinks = [
     { label: 'Inicio', href: '#inicio' },
-    { label: 'Sobre Nosotros', href: '#sobre-nosotros' },
+    { label: 'Nosotros', href: '#sobre-nosotros' },
     { label: 'Servicios', href: '#servicios' },
     { label: 'Equipo', href: '#equipo' },
     { label: 'Especialidades', href: '#especialidades' },
-    { label: '¿Por qué Nosotros?', href: '#por-que-nosotros' },
-    { label: 'Agendar Cita', href: '#agendar-cita' },
-    { label: 'Testimonios', href: '#testimonios' },
     { label: 'Contacto', href: '#contacto' },
   ];
 
@@ -64,38 +60,38 @@ export const Navbar: React.FC<NavbarProps> = ({
       id="main-navbar"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white/95 dark:bg-[#0f141c]/95 backdrop-blur-md shadow-md py-2.5 border-b border-slate-200/60 dark:border-slate-800/80'
-          : 'bg-transparent py-4'
+          ? 'bg-white/95 dark:bg-[#0f141c]/95 backdrop-blur-md shadow-md py-2 border-b border-slate-200/60 dark:border-slate-800/80'
+          : 'bg-white/85 dark:bg-[#0f141c]/85 backdrop-blur-sm py-3 border-b border-slate-200/40 dark:border-slate-800/50'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           {/* Brand Logo */}
           <a
             href="#inicio"
             id="brand-logo-link"
             className="flex items-center gap-2.5 group focus:outline-none shrink-0"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform duration-200">
-              <Activity className="w-6 h-6 stroke-[2.5]" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform duration-200">
+              <Activity className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-bold tracking-widest text-slate-900 dark:text-white uppercase font-heading">
+              <span className="text-lg sm:text-xl font-bold tracking-widest text-slate-900 dark:text-white uppercase font-heading leading-none">
                 EQUILIBRA
               </span>
-              <span className="text-[10px] tracking-wider text-amber-700 dark:text-amber-400 font-semibold uppercase -mt-1">
+              <span className="text-[9px] sm:text-[10px] tracking-wider text-amber-700 dark:text-amber-400 font-semibold uppercase mt-0.5">
                 Fisioterapia & Bienestar
               </span>
             </div>
           </a>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5">
+          {/* Desktop Clean Navigation Links */}
+          <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
             {navLinks.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
-                className="px-2.5 py-1.5 text-xs xl:text-sm font-medium text-slate-700 hover:text-amber-700 dark:text-slate-200 dark:hover:text-amber-400 rounded-lg hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors"
+                className="px-3 py-1.5 text-xs xl:text-sm font-semibold text-slate-700 hover:text-amber-700 dark:text-slate-200 dark:hover:text-amber-400 rounded-lg hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors whitespace-nowrap"
               >
                 {link.label}
               </a>
@@ -103,29 +99,30 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden md:flex items-center gap-2 lg:gap-3">
+          <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Patient Portal / Search appointment */}
             {onOpenPatientPortal && (
               <button
                 type="button"
                 onClick={onOpenPatientPortal}
-                title="Consultar o validar tu cita agendada"
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full transition-all border border-slate-200 dark:border-slate-700"
+                title="Consultar, validar o reprogramar tu cita"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-amber-700 dark:text-slate-200 dark:hover:text-amber-400 bg-slate-100/90 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 rounded-full transition-all border border-slate-200 dark:border-slate-700 shadow-sm whitespace-nowrap"
               >
-                <Search className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span className="hidden xl:inline">Validar Cita</span>
+                <Search className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Validar Cita</span>
               </button>
             )}
 
-            {/* Specialist Access */}
+            {/* Specialist & Admin Protected Access */}
             {onOpenSpecialistAccess && (
               <button
                 type="button"
                 onClick={onOpenSpecialistAccess}
-                title="Acceso protegido para especialistas clínicos"
-                className="p-2 text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors border border-slate-200 dark:border-slate-700"
+                title="Acceso exclusivo para Especialistas & Dirección Médica"
+                className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors border border-slate-200 dark:border-slate-700"
+                aria-label="Acceso Especialistas y Administrador"
               >
-                <KeyRound className="w-4 h-4" />
+                <KeyRound className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
               </button>
             )}
 
@@ -136,6 +133,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={onOpenPrivacyModal}
                 title="Políticas de Privacidad, Cifrado y Auditoría ARCO"
                 className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-full transition-colors border border-emerald-200 dark:border-emerald-800/50"
+                aria-label="Privacidad y Seguridad"
               >
                 <ShieldCheck className="w-4 h-4" />
               </button>
@@ -147,7 +145,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={onOpenDeveloperSupport}
                 title="Contacto con el desarrollador & Soporte técnico web"
-                className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-full transition-colors border border-indigo-200 dark:border-indigo-800/50"
+                className="hidden xl:flex p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-full transition-colors border border-indigo-200 dark:border-indigo-800/50"
+                aria-label="Soporte Técnico"
               >
                 <Code2 className="w-4 h-4" />
               </button>
@@ -171,9 +170,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="header-booking-btn"
               onClick={() => onOpenBooking()}
-              className="flex items-center gap-2 px-4.5 py-2.5 text-xs xl:text-sm font-bold text-slate-950 bg-amber-400 hover:bg-amber-500 active:scale-95 rounded-full shadow-md shadow-amber-400/20 hover:shadow-amber-500/30 transition-all"
+              className="flex items-center gap-1.5 px-3.5 xl:px-4 py-2 text-xs xl:text-sm font-bold text-slate-950 bg-amber-400 hover:bg-amber-500 active:scale-95 rounded-full shadow-md shadow-amber-400/20 hover:shadow-amber-500/30 transition-all whitespace-nowrap"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5 text-slate-950" />
               <span>Reserva tu cita</span>
             </button>
           </div>
@@ -237,30 +236,30 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 )}
 
-                {onOpenPrivacyModal && (
+                {onOpenSpecialistAccess && (
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      onOpenPrivacyModal();
+                      onOpenSpecialistAccess();
                     }}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-900 dark:text-emerald-300"
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs font-bold text-indigo-800 dark:text-indigo-300"
                   >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Privacidad ARCO</span>
+                    <KeyRound className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Portal Médico</span>
                   </button>
                 )}
               </div>
 
-              {onOpenSpecialistAccess && (
+              {onOpenPrivacyModal && (
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    onOpenSpecialistAccess();
+                    onOpenPrivacyModal();
                   }}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-900 dark:text-emerald-300"
                 >
-                  <KeyRound className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Portal Especialistas (Acceso PIN)</span>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Privacidad & Cifrado ARCO</span>
                 </button>
               )}
 
@@ -270,10 +269,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setMobileMenuOpen(false);
                     onOpenDeveloperSupport();
                   }}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs font-bold text-indigo-800 dark:text-indigo-300"
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300"
                 >
-                  <Code2 className="w-3.5 h-3.5" />
-                  <span>Contacto con Desarrollador & Soporte</span>
+                  <Code2 className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Contacto Desarrollador</span>
                 </button>
               )}
 

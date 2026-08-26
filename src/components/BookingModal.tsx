@@ -18,10 +18,15 @@ import {
   ShieldCheck,
   Lock,
   RefreshCw,
+  Info,
+  Package,
+  Layers,
+  Award,
 } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
-import { ConfirmedAppointment } from '../types';
+import { SPECIALISTS_ACCOUNTS } from '../data/specialistsAuthData';
+import { ConfirmedAppointment, ServicePricingTier } from '../types';
 import { BookingCalendar } from './BookingCalendar';
 import {
   saveAppointmentToDatabase,
@@ -67,10 +72,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState<string>(
     initialServiceId || 'fisioterapia'
   );
+  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string>('isaac-jewsiejew');
+  const [selectedPackage, setSelectedPackage] = useState<ServicePricingTier>({
+    name: 'Sesión de fisioterapia',
+    description: 'Evaluación + tratamiento personalizado',
+    price: '35€',
+    highlight: true,
+  });
+
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [selectedTime, setSelectedTime] = useState<string>('09:00 AM - 10:00 AM');
 
-  // Fields
+  // Form Fields
   const [nombre, setNombre] = useState<string>('');
   const [apellido, setApellido] = useState<string>('');
   const [telefono, setTelefono] = useState<string>('');
@@ -91,6 +104,28 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setSelectedServiceId(initialServiceId);
     }
   }, [initialServiceId]);
+
+  const currentService = SERVICES_DATA.find((s) => s.id === selectedServiceId) || SERVICES_DATA[0];
+
+  // Update default package when service changes
+  useEffect(() => {
+    if (currentService.pricingTiers && currentService.pricingTiers.length > 0) {
+      const defaultTier = currentService.pricingTiers.find((t) => t.highlight) || currentService.pricingTiers[0];
+      setSelectedPackage(defaultTier);
+    } else {
+      setSelectedPackage({
+        name: currentService.title,
+        description: currentService.shortDescription,
+        price: `${currentService.priceFormatted} USD`,
+      });
+    }
+
+    // Match specialist
+    const matchingSpec = SPECIALISTS_ACCOUNTS.find((sp) => sp.relatedServiceId === selectedServiceId);
+    if (matchingSpec) {
+      setSelectedSpecialistId(matchingSpec.id);
+    }
+  }, [selectedServiceId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -139,418 +174,505 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return Object.keys(errors).length === 0;
   };
 
-  const handleNext = async () => {
+  const handleFinalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setSecurityError(null);
 
-    if (step === 1) {
-      setStep(2);
-    } else if (step === 2) {
-      // 1. Anti-bot honeypot check
-      const humanCheck = verifyHumanInteraction(botTrap, formRenderTimestampRef.current);
-      if (!humanCheck.isHuman) {
-        setSecurityError(humanCheck.reason || 'Acción bloqueada por el escudo de seguridad.');
-        return;
-      }
+    // Bot detection
+    const humanCheck = verifyHumanInteraction(botTrap, formRenderTimestampRef.current);
+    if (!humanCheck.isHuman) {
+      setSecurityError(humanCheck.reason || 'Envío bloqueado por el escudo de seguridad.');
+      return;
+    }
 
-      // 2. Rate limit check
-      const rateCheck = checkRateLimit('modal_booking', 4, 10 * 60 * 1000);
-      if (!rateCheck.allowed) {
-        setSecurityError(rateCheck.message || 'Límite de solicitudes alcanzado.');
-        return;
-      }
+    // Rate limiting
+    const rateCheck = checkRateLimit('booking_modal', 4, 10 * 60 * 1000);
+    if (!rateCheck.allowed) {
+      setSecurityError(rateCheck.message || 'Límite de envíos alcanzado temporalmente.');
+      return;
+    }
 
-      if (validateStep2()) {
-        setIsSubmitting(true);
-        try {
-          const secureCode = generateSecureCode();
-          setBookingCode(secureCode);
+    if (!validateStep2()) {
+      return;
+    }
 
-          const newApp: ConfirmedAppointment = {
-            id: `app_${Date.now()}_${secureCode.replace(/[^a-zA-Z0-9]/g, '')}`,
-            code: secureCode,
-            serviceId: sanitizeString(selectedServiceId),
-            servicePrice: selectedServiceObj ? `${selectedServiceObj.priceFormatted} USD` : undefined,
-            nombre: sanitizeString(nombre, 60),
-            apellido: sanitizeString(apellido, 60),
-            telefono: sanitizeString(telefono, 30),
-            email: sanitizeString(email, 100).toLowerCase(),
-            fecha: sanitizeString(selectedDate),
-            hora: sanitizeString(selectedTime),
-            motivoConsulta: sanitizeString(motivoConsulta, 600),
-            primeraVisita,
-            createdAt: new Date().toISOString(),
-            status: 'confirmada',
-          };
+    setIsSubmitting(true);
 
-          await saveAppointmentToDatabase(newApp);
-          setCreatedAppointment(newApp);
-          setIsSubmitting(false);
-          setStep(3);
-        } catch {
-          setIsSubmitting(false);
-          setSecurityError('Error al registrar la cita. Por favor intenta de nuevo.');
-        }
-      }
+    try {
+      const secureCode = generateSecureCode();
+      const chosenSpecialist = SPECIALISTS_ACCOUNTS.find((sp) => sp.id === selectedSpecialistId);
+
+      const newAppointment: ConfirmedAppointment = {
+        id: `app_${Date.now()}_${secureCode.replace(/[^a-zA-Z0-9]/g, '')}`,
+        code: secureCode,
+        serviceId: sanitizeString(selectedServiceId),
+        servicePrice: selectedPackage.price || `${currentService.priceFormatted} USD`,
+        selectedPackageName: sanitizeString(selectedPackage.name),
+        selectedPackagePrice: sanitizeString(selectedPackage.price),
+        selectedPackageDescription: selectedPackage.description ? sanitizeString(selectedPackage.description) : undefined,
+        specialistId: chosenSpecialist ? chosenSpecialist.id : undefined,
+        specialistName: chosenSpecialist ? chosenSpecialist.name : 'Lic. Isaac Jewsiejew',
+        nombre: sanitizeString(nombre, 60),
+        apellido: sanitizeString(apellido, 60),
+        telefono: sanitizeString(telefono, 30),
+        email: sanitizeString(email, 100).toLowerCase(),
+        fecha: sanitizeString(selectedDate),
+        hora: sanitizeString(selectedTime),
+        motivoConsulta: sanitizeString(motivoConsulta, 600),
+        primeraVisita,
+        createdAt: new Date().toISOString(),
+        status: 'confirmada',
+      };
+
+      await saveAppointmentToDatabase(newAppointment);
+      setBookingCode(secureCode);
+      setCreatedAppointment(newAppointment);
+      setIsSubmitting(false);
+      setStep(3);
+    } catch (err) {
+      console.error('Error saving appointment:', err);
+      setIsSubmitting(false);
+      setSecurityError('Error al procesar la cita. Por favor intenta nuevamente.');
     }
   };
 
-  const selectedServiceObj =
-    SERVICES_DATA.find((s) => s.id === selectedServiceId) || SERVICES_DATA[0];
+  const handleReset = () => {
+    formRenderTimestampRef.current = Date.now();
+    setStep(1);
+    setNombre('');
+    setApellido('');
+    setTelefono('');
+    setEmail('');
+    setMotivoConsulta('');
+    setBotTrap('');
+    setBookingCode('');
+    setFormErrors({});
+    setSecurityError(null);
+    setCreatedAppointment(null);
+  };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/75 backdrop-blur-sm"
-        />
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-white dark:bg-[#121824] rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 my-8"
+      >
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 p-5 sm:p-6 text-white relative">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.25 }}
-          className="relative bg-white dark:bg-[#151c28] rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 z-10 p-6 sm:p-8"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-6">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs font-bold uppercase tracking-widest bg-white/20 px-2.5 py-0.5 rounded-full">
+              Paso {step} de 3
+            </span>
+          </div>
+
+          <h2 className="text-xl sm:text-2xl font-bold font-heading">
+            {step === 1 && 'Selecciona Servicio, Especialista y Paquete'}
+            {step === 2 && 'Elige Fecha, Horario y Datos Clínicos'}
+            {step === 3 && '¡Cita Confirmada con Éxito!'}
+          </h2>
+          <p className="text-xs sm:text-sm text-amber-100 mt-1">
+            {step === 1 && 'Elige el plan terapéutico adaptado a tus necesidades clínicas.'}
+            {step === 2 && 'Horarios en tiempo real y protección estricta de datos de salud.'}
+            {step === 3 && 'Tu comprobante con código de acceso criptográfico ha sido generado.'}
+          </p>
+
+          {/* Cancellation Notice Pill */}
+          <div className="mt-3 p-2.5 rounded-xl bg-black/20 border border-white/20 flex items-center gap-2 text-[11px] text-amber-100">
+            <Info className="w-4 h-4 text-amber-300 shrink-0" />
+            <span>
+              <strong>Aviso de Cancelación:</strong> 1ra cancelación 100% gratuita. A partir de la 2da cancelación aplica recargo del 20% del servicio.
+            </span>
+          </div>
+        </div>
+
+        {/* Security / Error alert */}
+        {securityError && (
+          <div className="m-5 p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+            <p>{securityError}</p>
+          </div>
+        )}
+
+        {/* Step 1: Service, Specialist & Package Selection */}
+        {step === 1 && (
+          <div className="p-5 sm:p-7 space-y-6">
+            {/* Service selector */}
             <div>
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Reserva Médica Protegida SSL 256-Bit</span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-heading mt-0.5">
-                {step === 3 ? '¡Cita Confirmada con Éxito!' : 'Agenda tu Consulta en EQUILIBRA'}
-              </h3>
-            </div>
-            <button
-              onClick={onClose}
-              aria-label="Cerrar modal"
-              className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 flex items-center justify-center transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Stepper Indicator */}
-          {step < 3 && (
-            <div className="flex items-center gap-2 mb-6">
-              <div
-                className={`flex-1 h-1.5 rounded-full ${
-                  step >= 1 ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-700'
-                }`}
-              />
-              <div
-                className={`flex-1 h-1.5 rounded-full ${
-                  step >= 2 ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-700'
-                }`}
-              />
-            </div>
-          )}
-
-          {securityError && (
-            <div className="mb-4 p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-              <span>{securityError}</span>
-            </div>
-          )}
-
-          {/* Hidden Honeypot */}
-          <div style={{ display: 'none', position: 'absolute', left: '-9999px' }} aria-hidden="true">
-            <input
-              type="text"
-              name="modal_bot_honeypot"
-              tabIndex={-1}
-              value={botTrap}
-              onChange={(e) => setBotTrap(e.target.value)}
-            />
-          </div>
-
-          {/* STEP 1: Choose Service */}
-          {step === 1 && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                  1. Selecciona el servicio o especialidad
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
-                  {SERVICES_DATA.map((service) => (
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+                1. Especialidad o Servicio Clínico:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-48 overflow-y-auto p-1">
+                {SERVICES_DATA.map((srv) => {
+                  const isSel = selectedServiceId === srv.id;
+                  return (
                     <button
-                      key={service.id}
+                      key={srv.id}
                       type="button"
-                      onClick={() => setSelectedServiceId(service.id)}
-                      className={`p-3 rounded-2xl text-left border transition-all text-xs sm:text-sm font-semibold flex items-center justify-between ${
-                        selectedServiceId === service.id
-                          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500 text-amber-900 dark:text-amber-300 font-bold shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      onClick={() => setSelectedServiceId(srv.id)}
+                      className={`p-3 rounded-xl border text-left text-xs transition-all ${
+                        isSel
+                          ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 font-bold ring-2 ring-amber-500/30'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50 dark:bg-slate-900/50'
                       }`}
                     >
-                      <div className="flex flex-col">
-                        <span>{service.title}</span>
-                        <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400">
-                          {service.priceFormatted} USD • {service.duration}
+                      <span className="block truncate text-slate-900 dark:text-white font-semibold">
+                        {srv.title}
+                      </span>
+                      <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold block mt-1">
+                        Desde {srv.priceFormatted} USD
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Specialist selector */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+                2. Especialista Asignado:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-44 overflow-y-auto p-1">
+                {SPECIALISTS_ACCOUNTS.map((spec) => {
+                  const isSel = selectedSpecialistId === spec.id;
+                  return (
+                    <button
+                      key={spec.id}
+                      type="button"
+                      onClick={() => setSelectedSpecialistId(spec.id)}
+                      className={`p-2.5 rounded-xl border text-left text-xs flex items-center gap-3 transition-all ${
+                        isSel
+                          ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 font-bold ring-2 ring-amber-500/30'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-slate-50 dark:bg-slate-900/50'
+                      }`}
+                    >
+                      <img
+                        src={spec.avatarUrl}
+                        alt={spec.name}
+                        className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-300 dark:border-slate-700"
+                      />
+                      <div className="truncate">
+                        <span className="block truncate font-bold text-slate-900 dark:text-white">
+                          {spec.name}
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">
+                          {spec.role}
                         </span>
                       </div>
-                      {selectedServiceId === service.id && (
-                        <Check className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                      )}
+                      {isSel && <Check className="w-4 h-4 text-amber-600 ml-auto shrink-0" />}
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action */}
-              <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="px-6 py-2.5 rounded-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-md transition-all"
-                >
-                  <span>Continuar</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                  );
+                })}
               </div>
             </div>
-          )}
 
-          {/* STEP 2: Date, Time & Sanitized Patient Data */}
-          {step === 2 && (
-            <div className="space-y-5">
+            {/* Packages / Pricing Tiers selector */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+                3. Paquete o Modalidad de Atención:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(currentService.pricingTiers || [
+                  { name: 'Sesión Estándar', price: `${currentService.priceFormatted} USD`, description: 'Tratamiento individual' }
+                ]).map((tier, idx) => {
+                  const isSel = selectedPackage.name === tier.name;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedPackage(tier)}
+                      className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                        isSel
+                          ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-500/30 shadow-sm'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-slate-50 dark:bg-slate-900/50'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                            {tier.name}
+                          </span>
+                          <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">
+                            {tier.price}
+                          </span>
+                        </div>
+                        {tier.description && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
+                            {tier.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
+                        <span className="text-[10px] text-emerald-600 font-semibold">
+                          {tier.highlight ? '★ Recomendado' : 'Disponible'}
+                        </span>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSel ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300'}`}>
+                          {isSel && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-600/20 transition-all"
+              >
+                <span>Continuar a Calendario</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Date, Time & Patient Information */}
+        {step === 2 && (
+          <form onSubmit={handleFinalSubmit} className="p-5 sm:p-7 space-y-6">
+            {/* Honeypot */}
+            <div style={{ display: 'none', position: 'absolute', left: '-9999px' }} aria-hidden="true">
+              <label htmlFor="modal_botTrap">Trap</label>
+              <input
+                type="text"
+                id="modal_botTrap"
+                tabIndex={-1}
+                value={botTrap}
+                onChange={(e) => setBotTrap(e.target.value)}
+              />
+            </div>
+
+            {/* Selected Summary Pill */}
+            <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-center justify-between text-xs">
               <div>
-                <BookingCalendar
-                  selectedDate={selectedDate}
-                  selectedTime={selectedTime}
-                  onSelectDate={(d) => {
-                    setSelectedDate(d);
-                    const e = { ...formErrors };
-                    delete e.fecha;
-                    setFormErrors(e);
-                  }}
-                  onSelectTime={(t) => {
-                    setSelectedTime(t);
-                    const e = { ...formErrors };
-                    delete e.hora;
-                    setFormErrors(e);
-                  }}
-                  serviceId={selectedServiceId}
-                  appointments={getSavedAppointments()}
+                <span className="font-bold text-slate-900 dark:text-white block">
+                  {currentService.title} • {selectedPackage.name}
+                </span>
+                <span className="text-slate-500">
+                  Especialista: {SPECIALISTS_ACCOUNTS.find((s) => s.id === selectedSpecialistId)?.name || 'Lic. Isaac Jewsiejew'}
+                </span>
+              </div>
+              <span className="font-extrabold text-sm text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900 px-3 py-1 rounded-xl border border-amber-200">
+                {selectedPackage.price}
+              </span>
+            </div>
+
+            {/* Calendar */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+                Selecciona Fecha y Horario:
+              </label>
+              <BookingCalendar
+                selectedDate={selectedDate}
+                selectedTime={selectedTime}
+                onSelectDate={(d) => setSelectedDate(d)}
+                onSelectTime={(t) => setSelectedTime(t)}
+                serviceId={selectedServiceId}
+              />
+              {formErrors.fecha && <p className="text-xs text-red-500 mt-1">{formErrors.fecha}</p>}
+              {formErrors.hora && <p className="text-xs text-red-500 mt-1">{formErrors.hora}</p>}
+            </div>
+
+            {/* Patient Form Fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Nombre *
+                </label>
+                <input
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Ej. Juan"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs sm:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 />
-                {formErrors.fecha && (
-                  <p className="text-xs text-rose-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {formErrors.fecha}
-                  </p>
-                )}
-                {formErrors.hora && (
-                  <p className="text-xs text-rose-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {formErrors.hora}
-                  </p>
-                )}
-              </div>
-
-              {/* Patient Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={60}
-                    value={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
-                    placeholder="Tu nombre"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
-                  {formErrors.nombre && (
-                    <p className="text-[11px] text-rose-500 mt-0.5">{formErrors.nombre}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Apellido *
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={60}
-                    value={apellido}
-                    onChange={(e) => setApellido(e.target.value)}
-                    placeholder="Tu apellido"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
-                  {formErrors.apellido && (
-                    <p className="text-[11px] text-rose-500 mt-0.5">{formErrors.apellido}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Teléfono *
-                  </label>
-                  <input
-                    type="tel"
-                    maxLength={25}
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
-                    placeholder="+58 412 1234567"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
-                  {formErrors.telefono && (
-                    <p className="text-[11px] text-rose-500 mt-0.5">{formErrors.telefono}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Correo *
-                  </label>
-                  <input
-                    type="email"
-                    maxLength={100}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="paciente@correo.com"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
-                  {formErrors.email && (
-                    <p className="text-[11px] text-rose-500 mt-0.5">{formErrors.email}</p>
-                  )}
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Motivo de consulta (Opcional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    maxLength={600}
-                    value={motivoConsulta}
-                    onChange={(e) => setMotivoConsulta(e.target.value)}
-                    placeholder="Molestias, lesiones o metas..."
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 p-3 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40">
-                  <label className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={privacyConsent}
-                      onChange={(e) => setPrivacyConsent(e.target.checked)}
-                      className="rounded text-amber-600 focus:ring-amber-500 h-4 w-4"
-                    />
-                    <span>Acepto la confidencialidad y resguardo médico de mis datos.</span>
-                  </label>
-                  {formErrors.privacy && (
-                    <p className="text-[11px] text-rose-500 mt-1">{formErrors.privacy}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Navigation Actions */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="px-4 py-2 rounded-full text-slate-600 dark:text-slate-400 hover:text-slate-900 text-xs font-semibold"
-                >
-                  ← Volver
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={handleNext}
-                  className="px-6 py-2.5 rounded-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-md transition-all disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Procesando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Confirmar Cita</span>
-                      <Check className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: Confirmed Voucher */}
-          {step === 3 && createdAppointment && (
-            <div className="space-y-6 text-center">
-              <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/60 rounded-full flex items-center justify-center mx-auto text-emerald-600 dark:text-emerald-400">
-                <CheckCircle className="w-8 h-8" />
+                {formErrors.nombre && <p className="text-[11px] text-red-500 mt-1">{formErrors.nombre}</p>}
               </div>
 
               <div>
-                <h4 className="text-xl font-bold text-slate-900 dark:text-white font-heading">
-                  ¡Reserva Registrada Exitosamente!
-                </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                  Guarda tu código para cualquier gestión o consulta en recepción.
-                </p>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Apellido *
+                </label>
+                <input
+                  type="text"
+                  value={apellido}
+                  onChange={(e) => setApellido(e.target.value)}
+                  placeholder="Ej. Pérez"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs sm:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+                {formErrors.apellido && <p className="text-[11px] text-red-500 mt-1">{formErrors.apellido}</p>}
               </div>
 
-              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40">
-                <span className="text-xs text-amber-800 dark:text-amber-300 block font-semibold">
-                  Código de Identificación:
-                </span>
-                <span className="text-2xl font-mono font-extrabold text-amber-950 dark:text-amber-200">
-                  {createdAppointment.code}
-                </span>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Teléfono *
+                </label>
+                <input
+                  type="tel"
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
+                  placeholder="Ej. +58 412 1234567"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs sm:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+                {formErrors.telefono && <p className="text-[11px] text-red-500 mt-1">{formErrors.telefono}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-left text-xs bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <div>
-                  <span className="text-slate-400 block">Servicio:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{selectedServiceObj.title}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Fecha y Hora:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {createdAppointment.fecha} • {createdAppointment.hora}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Correo Electrónico *
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Ej. paciente@correo.com"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs sm:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+                {formErrors.email && <p className="text-[11px] text-red-500 mt-1">{formErrors.email}</p>}
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Motivo de Consulta (Opcional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={motivoConsulta}
+                  onChange={(e) => setMotivoConsulta(e.target.value)}
+                  placeholder="Describe molestias, dolor o antecedentes médicos..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"
+                />
+              </div>
+
+              {/* Policy Consent */}
+              <div className="sm:col-span-2 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800">
+                <label className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={privacyConsent}
+                    onChange={(e) => setPrivacyConsent(e.target.checked)}
+                    className="mt-0.5 rounded text-amber-600 focus:ring-amber-500"
+                  />
+                  <span>
+                    Acepto los términos de confidencialidad y la <strong>política de cancelación</strong> (1ra cancelación gratuita, a partir de la 2da aplica 20% de penalización).
                   </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    generateIcsCalendar(
-                      createdAppointment,
-                      selectedServiceObj.title,
-                      CLINIC_INFO.address.fullAddress,
-                      CLINIC_INFO.phoneDisplay
-                    )
-                  }
-                  className="flex-1 py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center justify-center gap-2"
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span>Descargar Calendario (.ICS)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="py-3 px-6 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-bold text-xs"
-                >
-                  Cerrar
-                </button>
+                </label>
+                {formErrors.privacy && <p className="text-[11px] text-red-500 mt-1">{formErrors.privacy}</p>}
               </div>
             </div>
-          )}
-        </motion.div>
-      </div>
-    </AnimatePresence>
+
+            {/* Buttons */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              >
+                ← Volver a Paquetes
+              </button>
+
+              <button
+                type="submit"
+                disabled={isSubmitting || !selectedTime}
+                className="px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-600/25 transition-all disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Guardando Cita...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Confirmar y Guardar Cita</span>
+                    <CheckCircle className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 3: Confirmation Voucher */}
+        {step === 3 && createdAppointment && (
+          <div className="p-6 sm:p-8 space-y-6 text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle className="w-9 h-9" />
+            </div>
+
+            <div>
+              <span className="text-xs uppercase font-extrabold tracking-widest text-emerald-600 block mb-1">
+                Comprobante Clínico Verificado
+              </span>
+              <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                ¡Tu Cita ha sido Agendada!
+              </h3>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-left space-y-2">
+              <div className="flex justify-between items-center pb-2 border-b border-amber-200/60 dark:border-amber-800">
+                <span className="text-xs text-amber-800 dark:text-amber-300 font-semibold">Código de Cita:</span>
+                <span className="font-mono font-bold text-lg text-amber-950 dark:text-amber-200">{createdAppointment.code}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                <div>
+                  <span className="text-slate-500 block">Paciente:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{createdAppointment.nombre} {createdAppointment.apellido}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Especialista:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{createdAppointment.specialistName || 'Lic. Isaac Jewsiejew'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Fecha y Hora:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{createdAppointment.fecha} ({createdAppointment.hora})</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Paquete / Precio:</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{createdAppointment.selectedPackageName} ({createdAppointment.servicePrice})</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() =>
+                  generateIcsCalendar(
+                    createdAppointment,
+                    createdAppointment.selectedPackageName || 'Consulta Fisioterapia',
+                    CLINIC_INFO.address.fullAddress,
+                    CLINIC_INFO.phoneDisplay
+                  )
+                }
+                className="flex-1 py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md"
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Descargar Recordatorio (.ICS)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="py-3 px-6 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs hover:bg-slate-200"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </div>
   );
 };
