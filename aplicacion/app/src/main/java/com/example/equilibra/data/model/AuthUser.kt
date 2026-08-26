@@ -40,7 +40,7 @@ object PredefinedUsers {
         role = UserRole.SUPERADMIN,
         specialty = "Superadministrador General & Dirección Clínica",
         email = "admin@equilibrave.com",
-        pin = "1234",
+        pin = "8421",
         avatarUrl = ""
     )
 
@@ -53,7 +53,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Fisioterapeuta Deportivo",
             email = "isaac.jewsiejew@equilibrave.com",
-            pin = "1234"
+            pin = "3957"
         ),
         AuthUser(
             id = "marivid-requena",
@@ -62,7 +62,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Fisioterapeuta Pediátrica",
             email = "marivid.requena@equilibrave.com",
-            pin = "1234"
+            pin = "1208"
         ),
         AuthUser(
             id = "laury-torrealba",
@@ -71,7 +71,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Fisioterapeuta Geriátrica",
             email = "laury.torrealba@equilibrave.com",
-            pin = "1234"
+            pin = "7462"
         ),
         AuthUser(
             id = "stephani-salina",
@@ -80,7 +80,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Nutricionista Clínica & Deportiva",
             email = "stephani.salina@equilibrave.com",
-            pin = "1234"
+            pin = "5531"
         ),
         AuthUser(
             id = "ruben-torrealba",
@@ -89,7 +89,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Médico Traumatólogo",
             email = "ruben.torrealba@equilibrave.com",
-            pin = "1234"
+            pin = "2894"
         ),
         AuthUser(
             id = "cristina-flores",
@@ -98,7 +98,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Psicóloga Clínica",
             email = "cristina.flores@equilibrave.com",
-            pin = "1234"
+            pin = "6109"
         ),
         AuthUser(
             id = "indira-acevedo",
@@ -107,7 +107,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Entrenadora de Boxeo Técnico",
             email = "indira.acevedo@equilibrave.com",
-            pin = "1234"
+            pin = "4376"
         ),
         AuthUser(
             id = "gabriela-rodriguez",
@@ -116,7 +116,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Fisioterapeuta",
             email = "gabriela.rodriguez@equilibrave.com",
-            pin = "1234"
+            pin = "9214"
         ),
         AuthUser(
             id = "kareinys-martinez",
@@ -125,7 +125,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Fisioterapeuta",
             email = "kareinys.martinez@equilibrave.com",
-            pin = "1234"
+            pin = "3085"
         ),
         AuthUser(
             id = "rebecca-triana",
@@ -134,7 +134,7 @@ object PredefinedUsers {
             role = UserRole.SPECIALIST,
             specialty = "Asistente de Fisioterapia",
             email = "rebecca.triana@equilibrave.com",
-            pin = "1234"
+            pin = "1742"
         )
     )
 }

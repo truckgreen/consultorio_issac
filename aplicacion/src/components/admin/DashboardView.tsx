@@ -18,7 +18,7 @@ import {
   UserCheck,
   Calendar
 } from 'lucide-react';
-import { Appointment, ContactMessage, ServiceItem } from '../../types';
+import { Appointment, ContactMessage, ServiceItem, AuthUser } from '../../types';
 import { SERVICES, TEAM_MEMBERS } from '../../data/equilibraData';
 
 interface DashboardViewProps {
@@ -29,6 +29,7 @@ interface DashboardViewProps {
   onSelectAppointmentForEdit: (appointment: Appointment) => void;
   onQuickUpdateStatus: (id: string, newStatus: any) => void;
   onExportCsv: () => void;
+  currentUser: AuthUser;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -39,6 +40,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSelectAppointmentForEdit,
   onQuickUpdateStatus,
   onExportCsv,
+  currentUser,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -92,28 +94,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>Centro Clínico Operativo • Sabana Grande</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Panel de Control EQUILIBRA
+            Panel de {currentUser.role === 'SUPERADMIN' ? 'Control' : 'Especialista'} EQUILIBRA
           </h1>
           <p className="text-xs sm:text-sm text-amber-100 max-w-xl">
-            Gestión en tiempo real de citas, especialistas, pacientes y consultas en Caracas.
+            {currentUser.role === 'SUPERADMIN'
+              ? 'Gestión en tiempo real de citas, especialistas, pacientes y consultas en Caracas.'
+              : `Bienvenido/a, ${currentUser.name}. Visualizando tu agenda y pacientes asignados.`
+            }
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 relative z-10">
+          {currentUser.role === 'SUPERADMIN' && (
+            <button
+              onClick={onExportCsv}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950/40 hover:bg-slate-950/60 text-white text-xs sm:text-sm font-semibold backdrop-blur-sm border border-white/20 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              <span>Exportar CSV</span>
+            </button>
+          )}
+
           <button
             onClick={onOpenNewAppointmentModal}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-amber-600 hover:bg-amber-50 active:scale-95 text-xs sm:text-sm font-bold shadow-lg transition-all"
           >
             <Plus className="w-4 h-4" />
-            <span>Agendar Cita Manual</span>
-          </button>
-          
-          <button
-            onClick={onExportCsv}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950/40 hover:bg-slate-950/60 text-white text-xs sm:text-sm font-semibold backdrop-blur-sm border border-white/20 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            <span>Exportar CSV</span>
+            <span>Agendar Cita</span>
           </button>
         </div>
 

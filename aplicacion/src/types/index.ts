@@ -183,3 +183,17 @@ export interface SupabaseConfig {
   source: 'env' | 'custom' | 'demo';
 }
 
+export type UserRole = 'SUPERADMIN' | 'SPECIALIST';
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  name: string;
+  role: UserRole;
+  specialty: string;
+  email: string;
+  pin: string;
+  avatarUrl?: string;
+  phone?: string;
+}
+

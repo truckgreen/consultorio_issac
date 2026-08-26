@@ -16,9 +16,10 @@ import {
   ExternalLink,
   ShieldCheck,
   Menu,
-  X
+  X,
+  Logout
 } from 'lucide-react';
-import { SupabaseConfig, AdminNotification } from '../../types';
+import { SupabaseConfig, AdminNotification, AuthUser } from '../../types';
 import { CLINIC_INFO } from '../../data/equilibraData';
 
 interface AdminHeaderProps {
@@ -31,6 +32,8 @@ interface AdminHeaderProps {
   onMarkNotificationAsRead: (id: string) => void;
   onNavigateToTab: (tabId: string) => void;
   activeTab: string;
+  currentUser: AuthUser;
+  onLogout: () => void;
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
@@ -42,6 +45,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   notifications,
   onMarkNotificationAsRead,
   onNavigateToTab,
+  currentUser,
+  onLogout
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -73,13 +78,18 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                 <span className="font-black text-lg sm:text-xl tracking-tight text-slate-950 dark:text-white">
                   EQUILIBRA
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 font-bold text-[10px] uppercase tracking-wider border border-amber-200 dark:border-amber-900/60">
-                  Panel Admin
-                </span>
+                {currentUser.role === 'SUPERADMIN' ? (
+                  <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 font-bold text-[10px] uppercase tracking-wider border border-rose-200 dark:border-rose-900/60">
+                    ADMIN
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-teal-300 font-bold text-[10px] uppercase tracking-wider border border-teal-200 dark:border-teal-900/60">
+                    {currentUser.username.toUpperCase()}
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-1.5 truncate">
-                <MapPin className="w-3 h-3 text-amber-500 shrink-0" />
-                <span>Sabana Grande, Torre Financiera, Piso 4, Ofic 46</span>
+                {currentUser.role === 'SUPERADMIN' ? 'Dirección Médica & General' : currentUser.specialty}
               </p>
             </div>
           </div>
@@ -172,6 +182,15 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               title={isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}
             >
               {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
+            </button>
+
+            {/* Logout Button */}
+            <button
+              onClick={onLogout}
+              className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+              title="Cerrar Sesión"
+            >
+              <LogIn className="w-5 h-5 rotate-180" />
             </button>
 
             {/* Primary Action Button: + Nueva Cita */}

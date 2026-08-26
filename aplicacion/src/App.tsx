@@ -78,7 +78,10 @@ export function App() {
 
   // 3. Database & App Data State
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getCurrentSupabaseConfig());
-  const [authSession, setAuthSession] = useState<Session | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    const saved = localStorage.getItem('equilibra_user_session');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [authChecked, setAuthChecked] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<PatientRecord[]>([]);
@@ -110,22 +113,18 @@ export function App() {
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
   useEffect(() => {
-    const client = getSupabaseClient();
-    if (!client) {
-      setAuthChecked(true);
-      return;
-    }
-
-    client.auth.getSession().then(({ data }) => {
-      setAuthSession(data.session);
-      setAuthChecked(true);
-    });
-
-    const { data: listener } = client.auth.onAuthStateChange((_event, session) => {
-      setAuthSession(session);
-    });
-    return () => listener.subscription.unsubscribe();
+    setAuthChecked(true);
   }, []);
+
+  const handleLogin = (user: AuthUser) => {
+    setCurrentUser(user);
+    localStorage.setItem('equilibra_user_session', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('equilibra_user_session');
+  };
 
   // Apply dark mode class to HTML root
   useEffect(() => {
@@ -401,10 +400,31 @@ export function App() {
 
   // Counts for navigation badges
   const todayStr = new Date().toISOString().split('T')[0];
+
+  // Filter data for badges and views based on logged-in user
+  const filteredAppointments = appointments.filter(app => {
+    if (!currentUser || currentUser.role === 'SUPERADMIN') return true;
+    return app.specialist_name === currentUser.name;
+  });
+
+  const filteredPatients = patients.filter(pat => {
+    if (!currentUser || currentUser.role === 'SUPERADMIN') return true;
+    const myPatientNames = appointments
+      .filter(a => a.specialist_name === currentUser.name)
+      .map(a => `${a.nombre.trim().toLowerCase()} ${a.apellido.trim().toLowerCase()}`)
+    const fullName = `${pat.nombre.trim().toLowerCase()} ${pat.apellido.trim().toLowerCase()}`;
+    return myPatientNames.includes(fullName);
+  });
+
+  const filteredNotifications = notifications.filter(n => {
+    if (!currentUser || currentUser.role === 'SUPERADMIN') return true;
+    return n.message.includes(currentUser.name) || n.type !== 'appointment';
+  });
+
   const counts = {
-    appointmentsToday: appointments.filter(a => a.fecha === todayStr).length,
-    appointmentsTotal: appointments.length,
-    patientsTotal: patients.length,
+    appointmentsToday: filteredAppointments.filter(a => a.fecha === todayStr).length,
+    appointmentsTotal: filteredAppointments.length,
+    patientsTotal: filteredPatients.length,
     unreadMessages: messages.filter(m => m.status === 'NUEVO').length
   };
 
@@ -412,9 +432,8 @@ export function App() {
     return <div className="min-h-screen bg-slate-950" />;
   }
 
-  const supabaseClient = getSupabaseClient();
-  if (!authSession && supabaseClient) {
-    return <SpecialistAuth client={supabaseClient} />;
+  if (!currentUser) {
+    return <SpecialistAuth onLoginSuccess={handleLogin} />;
   }
 
   return (
@@ -427,13 +446,15 @@ export function App() {
         supabaseConfig={supabaseConfig}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         onOpenNewAppointmentModal={() => {
-          setDefaultStaffForNewApp(undefined);
+          setDefaultStaffForNewApp(currentUser.role === 'SPECIALIST' ? currentUser.name : undefined);
           setIsNewAppointmentOpen(true);
         }}
-        notifications={notifications}
+        notifications={filteredNotifications}
         onMarkNotificationAsRead={handleMarkNotificationAsRead}
         onNavigateToTab={(tabId) => setActiveTab(tabId as AdminTab)}
         activeTab={activeTab}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* 2. Main Admin Workspace */}
@@ -445,30 +466,32 @@ export function App() {
             activeTab={activeTab}
             onSelectTab={(tab) => setActiveTab(tab)}
             counts={counts}
+            currentUser={currentUser}
           />
 
           {/* Dynamic Content View */}
           <main className="flex-1 min-w-0 w-full">
             {activeTab === 'dashboard' && (
               <DashboardView
-                appointments={appointments}
+                appointments={filteredAppointments}
                 messages={messages}
                 onOpenNewAppointmentModal={() => {
-                  setDefaultStaffForNewApp(undefined);
+                  setDefaultStaffForNewApp(currentUser.role === 'SPECIALIST' ? currentUser.name : undefined);
                   setIsNewAppointmentOpen(true);
                 }}
                 onNavigateToTab={(tab) => setActiveTab(tab)}
                 onSelectAppointmentForEdit={(app) => setEditingAppointment(app)}
                 onQuickUpdateStatus={handleQuickStatusChange}
                 onExportCsv={handleExportCsv}
+                currentUser={currentUser}
               />
             )}
 
             {activeTab === 'citas' && (
               <AppointmentsManagerView
-                appointments={appointments}
+                appointments={filteredAppointments}
                 onOpenNewAppointmentModal={() => {
-                  setDefaultStaffForNewApp(undefined);
+                  setDefaultStaffForNewApp(currentUser.role === 'SPECIALIST' ? currentUser.name : undefined);
                   setIsNewAppointmentOpen(true);
                 }}
                 onSelectAppointmentForEdit={(app) => setEditingAppointment(app)}
@@ -480,13 +503,13 @@ export function App() {
 
             {activeTab === 'pacientes' && (
               <PatientsDirectoryView
-                patients={patients}
-                appointments={appointments}
+                patients={filteredPatients}
+                appointments={filteredAppointments}
                 onSelectPatientFile={(patient, patientApps) => {
                   setSelectedPatientFile({ patient, appointments: patientApps });
                 }}
                 onOpenNewAppointmentModal={() => {
-                  setDefaultStaffForNewApp(undefined);
+                  setDefaultStaffForNewApp(currentUser.role === 'SPECIALIST' ? currentUser.name : undefined);
                   setIsNewAppointmentOpen(true);
                 }}
                 onOpenCreatePatient={() => setIsCreatePatientOpen(true)}
@@ -540,7 +563,7 @@ export function App() {
         onSelectTab={(tab) => setActiveTab(tab)}
         onOpenMoreMenu={() => setIsMobileMenuOpen(true)}
         onOpenNewAppointment={() => {
-          setDefaultStaffForNewApp(undefined);
+          setDefaultStaffForNewApp(currentUser.role === 'SPECIALIST' ? currentUser.name : undefined);
           setIsNewAppointmentOpen(true);
         }}
         counts={counts}
@@ -560,6 +583,8 @@ export function App() {
         onExportJsonBackup={handleExportJsonBackup}
         onLoadDemoData={handleLoadDemoData}
         unreadMessagesCount={counts.unreadMessages}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* 5. Global Admin Modals */}

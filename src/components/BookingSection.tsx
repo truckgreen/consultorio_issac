@@ -402,7 +402,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
               </div>
 
               {/* Service Cards Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {SERVICES_DATA.map((service) => {
                   const isSelected = selectedServiceId === service.id;
                   return (
@@ -411,14 +411,14 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                       type="button"
                       id={`service-select-${service.id}`}
                       onClick={() => setSelectedServiceId(service.id)}
-                      className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                      className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between min-h-[140px] sm:min-h-[150px] ${
                         isSelected
-                          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 dark:border-amber-500 ring-2 ring-amber-500/40 shadow-sm'
+                          ? 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-500 dark:border-amber-500 ring-2 ring-amber-500/40 shadow-sm'
                           : 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                       }`}
                     >
                       <div>
-                        <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
                           <span
                             className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
                               isSelected
@@ -432,10 +432,10 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                             {service.priceFormatted} USD
                           </span>
                         </div>
-                        <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base leading-snug">
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base leading-snug line-clamp-2">
                           {service.title}
                         </h4>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mt-1">
+                        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed">
                           {service.shortDescription}
                         </p>
                         {service.packageOption && (
@@ -476,7 +476,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto p-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto p-1 pr-1.5 scrollbar-thin">
                   {SPECIALISTS_ACCOUNTS.map((spec) => {
                     const isSel = selectedSpecialistId === spec.id;
                     return (
@@ -484,26 +484,26 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                         key={spec.id}
                         type="button"
                         onClick={() => setSelectedSpecialistId(spec.id)}
-                        className={`p-2.5 rounded-xl border text-left text-xs flex items-center gap-2.5 transition-all ${
+                        className={`p-2.5 sm:p-3 rounded-xl border text-left text-xs flex items-center gap-2.5 transition-all min-w-0 ${
                           isSel
-                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 font-bold ring-2 ring-amber-500/30'
-                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-slate-50 dark:bg-slate-900/40'
+                            ? 'border-amber-500 bg-amber-50/90 dark:bg-amber-950/40 font-bold ring-2 ring-amber-500/30 shadow-sm'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-slate-50/70 dark:bg-slate-900/40'
                         }`}
                       >
                         <img
                           src={spec.avatarUrl}
                           alt={spec.name}
-                          className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-300 dark:border-slate-700"
+                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover shrink-0 border border-slate-300 dark:border-slate-700 aspect-square shadow-sm"
                         />
-                        <div className="truncate flex-1">
-                          <span className="block truncate font-bold text-slate-900 dark:text-white">
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate font-bold text-slate-900 dark:text-white leading-tight">
                             {spec.name}
                           </span>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate mt-0.5">
                             {spec.role}
                           </span>
                         </div>
-                        {isSel && <Check className="w-4 h-4 text-amber-600 shrink-0" />}
+                        {isSel && <Check className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />}
                       </button>
                     );
                   })}
@@ -522,7 +522,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {(currentServiceObj.pricingTiers || [
                     { name: 'Sesión Estándar', price: `${currentServiceObj.priceFormatted} USD`, description: 'Evaluación y tratamiento' }
                   ]).map((tier, idx) => {
@@ -532,34 +532,34 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                         key={idx}
                         type="button"
                         onClick={() => setSelectedPackage(tier)}
-                        className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                        className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between min-h-[110px] ${
                           isSel
-                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-500/30 shadow-sm'
-                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-slate-50 dark:bg-slate-900/40'
+                            ? 'border-amber-500 bg-amber-50/90 dark:bg-amber-950/40 ring-2 ring-amber-500/30 shadow-sm'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-slate-50/70 dark:bg-slate-900/40'
                         }`}
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                          <div className="flex flex-wrap items-baseline justify-between gap-1.5 mb-1">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white leading-snug line-clamp-2">
                               {tier.name}
                             </span>
-                            <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">
+                            <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400 shrink-0">
                               {tier.price}
                             </span>
                           </div>
                           {tier.description && (
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mt-0.5">
                               {tier.description}
                             </p>
                           )}
                         </div>
                         <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
-                          <span className="text-[10px] text-emerald-600 font-semibold">
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
                             {tier.highlight ? '★ Recomendado' : 'Disponible'}
                           </span>
                           <div
                             className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                              isSel ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300'
+                              isSel ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300 dark:border-slate-600'
                             }`}
                           >
                             {isSel && <Check className="w-3 h-3 stroke-[3]" />}

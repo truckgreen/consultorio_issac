@@ -40,8 +40,8 @@ fun LoginScreen(
     onLoginSuccess: (AuthUser) -> Unit,
     onBackToPatientApp: () -> Unit
 ) {
-    var selectedUser by remember { mutableStateOf<AuthUser?>(PredefinedUsers.SUPERADMIN) }
-    var pinText by remember { mutableStateOf("1234") }
+    var selectedUser by remember { mutableStateOf<AuthUser?>(null) }
+    var pinText by remember { mutableStateOf("") }
     var pinVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var activeFilter by remember { mutableStateOf("TODOS") } // TODOS, ADMIN, ESPECIALISTAS
@@ -133,7 +133,7 @@ fun LoginScreen(
                                 modifier = Modifier.size(14.dp)
                             )
                             Text(
-                                text = "Acceso Protegido por Rol • PIN por defecto: 1234",
+                                text = "Acceso Protegido por Rol",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = AmberLight
                             )

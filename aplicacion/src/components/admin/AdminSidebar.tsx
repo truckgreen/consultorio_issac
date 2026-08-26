@@ -12,6 +12,7 @@ import {
   TrendingUp,
   MapPin
 } from 'lucide-react';
+import { AuthUser } from '../../types';
 
 export type AdminTab = 'dashboard' | 'citas' | 'pacientes' | 'especialistas' | 'servicios' | 'mensajes' | 'configuracion';
 
@@ -24,12 +25,14 @@ interface AdminSidebarProps {
     patientsTotal: number;
     unreadMessages: number;
   };
+  currentUser: AuthUser;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   activeTab,
   onSelectTab,
   counts,
+  currentUser,
 }) => {
   const menuItems: {
     id: AdminTab;
@@ -87,11 +90,15 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     },
     {
       id: 'configuracion',
-      label: 'Configuración & BD',
-      description: 'Supabase y datos de la sede',
+      label: currentUser.role === 'SUPERADMIN' ? 'Configuración & BD' : 'Mi Perfil',
+      description: currentUser.role === 'SUPERADMIN' ? 'Supabase y datos de la sede' : 'Ajustes de cuenta',
       icon: Settings,
     }
-  ];
+  ].filter(item => {
+    if (currentUser.role === 'SUPERADMIN') return true;
+    // Specialists only see Dashboard, Citas, Pacientes, and Profil Settings
+    return ['dashboard', 'citas', 'pacientes', 'configuracion'].includes(item.id);
+  });
 
   return (
     <aside className="hidden lg:block w-72 shrink-0 space-y-4">

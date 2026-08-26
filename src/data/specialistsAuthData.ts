@@ -6,7 +6,7 @@ export const ADMIN_ACCOUNT: AdminUser = {
   name: 'Dirección Médica & Administración General',
   role: 'administrador_general',
   email: 'admin@equilibrafisioterapia.com',
-  easyPin: '9999', // Clave fácil: 9999
+  easyPin: '8421',
   biometricRegistered: true,
 };
 
@@ -20,7 +20,7 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
     specialty: 'Rehabilitación y readaptación física en deportistas',
     category: 'fisioterapia',
     email: 'isaac@equilibrafisioterapia.com',
-    easyPin: '1001', // Clave fácil: 1001
+    easyPin: '3957',
     avatarUrl: APP_IMAGES.team.isaacJewsiejew.src,
     relatedServiceId: 'fisioterapia-deportiva',
     biometricRegistered: true,
@@ -32,7 +32,7 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
     specialty: 'Desarrollo psicomotor infantil y estimulación temprana',
     category: 'fisioterapia',
     email: 'marivid@equilibrafisioterapia.com',
-    easyPin: '1002', // Clave fácil: 1002
+    easyPin: '1208',
     avatarUrl: APP_IMAGES.team.marividRequena.src,
     relatedServiceId: 'fisioterapia-pediatrica',
     biometricRegistered: true,
@@ -44,7 +44,7 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
     specialty: 'Salud funcional y prevención de caídas en el adulto mayor',
     category: 'fisioterapia',
     email: 'laury@equilibrafisioterapia.com',
-    easyPin: '1003', // Clave fácil: 1003
+    easyPin: '7462',
     avatarUrl: APP_IMAGES.team.lauryTorrealba.src,
     relatedServiceId: 'fisioterapia-geriatrica',
     biometricRegistered: true,
@@ -56,7 +56,7 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
     specialty: 'Nutrición clínica, recomposición corporal y metabolismo',
     category: 'nutricion',
     email: 'stephani@equilibrafisioterapia.com',
-    easyPin: '1004', // Clave fácil: 1004
+    easyPin: '5531',
     avatarUrl: APP_IMAGES.team.stephaniSalina.src,
     relatedServiceId: 'nutricion',
     biometricRegistered: true,
@@ -68,7 +68,7 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
     specialty: 'Diagnóstico ortopédico, ecografía musculoesquelética y PRP',
     category: 'medicina',
     email: 'ruben@equilibrafisioterapia.com',
-    easyPin: '1005', // Clave fácil: 1005
+    easyPin: '2894',
     avatarUrl: APP_IMAGES.team.rubenTorrealba.src,
     relatedServiceId: 'traumatologia',
     biometricRegistered: true,
@@ -80,7 +80,7 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
     specialty: 'Manejo del dolor crónico, estrés y psicoterapia individual',
     category: 'psicologia',
     email: 'cristina@equilibrafisioterapia.com',
-    easyPin: '1006', // Clave fácil: 1006
+    easyPin: '6109',
     avatarUrl: APP_IMAGES.team.cristinaFlores.src,
     relatedServiceId: 'psicologia',
     biometricRegistered: true,
@@ -92,7 +92,7 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
     specialty: 'Boxeo técnico, reflejos y descarga activa de tensiones',
     category: 'entrenamiento',
     email: 'indira@equilibrafisioterapia.com',
-    easyPin: '1007', // Clave fácil: 1007
+    easyPin: '4376',
     avatarUrl: APP_IMAGES.team.indiraAcevedo.src,
     relatedServiceId: 'boxeo',
     biometricRegistered: true,
@@ -104,7 +104,7 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
     specialty: 'Rehabilitación neuromuscular y terapia manual ortopédica',
     category: 'fisioterapia',
     email: 'gabriela@equilibrafisioterapia.com',
-    easyPin: '1008', // Clave fácil: 1008
+    easyPin: '9214',
     avatarUrl: APP_IMAGES.team.gabrielaRodriguez.src,
     relatedServiceId: 'fisioterapia',
     biometricRegistered: true,
@@ -116,8 +116,20 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
     specialty: 'Fisioterapia de columna y rehabilitación miofascial',
     category: 'fisioterapia',
     email: 'kareinys@equilibrafisioterapia.com',
-    easyPin: '1009', // Clave fácil: 1009
+    easyPin: '3085',
     avatarUrl: APP_IMAGES.team.kareinysMartinez.src,
+    relatedServiceId: 'fisioterapia',
+    biometricRegistered: true,
+  },
+  {
+    id: 'rebecca-triana',
+    name: 'Rebecca Triana',
+    role: 'Asistente de Fisioterapia',
+    specialty: 'Atención al paciente, apoyo clínico y logística terapéutica',
+    category: 'asistente',
+    email: 'rebecca@equilibrafisioterapia.com',
+    easyPin: '1742',
+    avatarUrl: APP_IMAGES.team.rebeccaTriana.src,
     relatedServiceId: 'fisioterapia',
     biometricRegistered: true,
   },
@@ -131,7 +143,7 @@ export function verifyUserPin(
 
   // 1. Check Admin
   if (userId === ADMIN_ACCOUNT.id || userId === 'admin') {
-    if (cleanPin === ADMIN_ACCOUNT.easyPin || cleanPin === '9999' || cleanPin === 'admin2026') {
+    if (cleanPin === ADMIN_ACCOUNT.easyPin) {
       return { success: true, user: ADMIN_ACCOUNT, message: 'Acceso administrativo autorizado.' };
     }
     return { success: false, message: 'PIN de administrador incorrecto.' };
@@ -143,7 +155,7 @@ export function verifyUserPin(
     return { success: false, message: 'Especialista no encontrado.' };
   }
 
-  if (cleanPin === specialist.easyPin || cleanPin === '1234' || cleanPin === '2026') {
+  if (cleanPin === specialist.easyPin) {
     return { success: true, user: specialist, message: `Bienvenido/a, ${specialist.name}` };
   }
 

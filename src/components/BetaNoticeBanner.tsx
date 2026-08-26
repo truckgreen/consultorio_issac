@@ -90,37 +90,37 @@ export const BetaNoticeBanner: React.FC = () => {
         {isPopupOpen && (
           <div
             id="beta-announcement-popup"
-            className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/75 backdrop-blur-md overflow-y-auto"
+            className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto"
             onClick={handleClosePopup}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              initial={{ opacity: 0, scale: 0.94, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 20 }}
+              exit={{ opacity: 0, scale: 0.94, y: 15 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-lg bg-white dark:bg-[#121824] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-auto"
+              className="relative w-full max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col bg-white dark:bg-[#121824] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-auto"
             >
               {/* Header with warm gradient */}
-              <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 p-5 sm:p-6 text-slate-950 relative overflow-hidden">
+              <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 p-4 sm:p-6 text-slate-950 relative overflow-hidden shrink-0">
                 {/* Decorative background pattern */}
                 <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:12px_12px] pointer-events-none" />
 
                 <div className="flex items-start justify-between relative z-10 gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-950 text-amber-400 flex items-center justify-center shadow-lg shrink-0">
-                      <Megaphone className="w-6 h-6 animate-pulse" />
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-950 text-amber-400 flex items-center justify-center shadow-lg shrink-0">
+                      <Megaphone className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="px-2.5 py-0.5 rounded-full bg-slate-950 text-amber-300 text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-0.5 sm:mb-1">
+                        <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-slate-950 text-amber-300 text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
                           COMUNICADO OFICIAL
                         </span>
-                        <span className="px-2 py-0.5 rounded-full bg-white/30 text-slate-950 text-[10px] font-bold uppercase">
+                        <span className="px-2 py-0.5 rounded-full bg-white/30 text-slate-950 text-[9px] sm:text-[10px] font-bold uppercase">
                           Beta Activa
                         </span>
                       </div>
-                      <h2 className="font-extrabold font-heading text-lg sm:text-xl text-slate-950 leading-tight">
+                      <h2 className="font-extrabold font-heading text-base sm:text-xl text-slate-950 leading-tight truncate">
                         Fase de Pruebas & Calidad
                       </h2>
                     </div>
@@ -129,19 +129,19 @@ export const BetaNoticeBanner: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleClosePopup}
-                    className="p-2 rounded-xl bg-slate-950/10 hover:bg-slate-950/20 text-slate-950 transition-colors shrink-0"
+                    className="p-1.5 sm:p-2 rounded-xl bg-slate-950/15 hover:bg-slate-950/25 text-slate-950 transition-colors shrink-0"
                     aria-label="Cerrar anuncio"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
 
                 {/* Subheader tab selector if user wants to report */}
-                <div className="flex gap-2 mt-4 pt-3 border-t border-slate-950/10 relative z-10">
+                <div className="flex gap-2 mt-3.5 sm:mt-4 pt-2.5 sm:pt-3 border-t border-slate-950/10 relative z-10">
                   <button
                     type="button"
                     onClick={() => setActiveTab('announcement')}
-                    className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-1.5 sm:py-2 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                       activeTab === 'announcement'
                         ? 'bg-slate-950 text-amber-400 shadow-md'
                         : 'bg-slate-950/15 text-slate-950 hover:bg-slate-950/25'
@@ -154,7 +154,7 @@ export const BetaNoticeBanner: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setActiveTab('report')}
-                    className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-1.5 sm:py-2 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                       activeTab === 'report'
                         ? 'bg-slate-950 text-amber-400 shadow-md'
                         : 'bg-slate-950/15 text-slate-950 hover:bg-slate-950/25'
@@ -168,68 +168,68 @@ export const BetaNoticeBanner: React.FC = () => {
 
               {/* Pop-up Body: Announcement Tab */}
               {activeTab === 'announcement' && (
-                <div className="p-5 sm:p-6 space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                  <div className="space-y-2">
-                    <p className="font-semibold text-slate-900 dark:text-white leading-relaxed">
+                <div className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-300 overflow-y-auto flex-1 overscroll-contain">
+                  <div className="space-y-1.5">
+                    <p className="font-bold text-slate-900 dark:text-white leading-snug">
                       ¡Bienvenido a <strong>EQUILIBRA Fisioterapia & Bienestar Integral</strong>!
                     </p>
-                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs sm:text-sm">
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs sm:text-[13px]">
                       Actualmente nos encontramos en <strong>fase de pruebas y optimización digital</strong> para garantizar la máxima precisión clínica, seguridad y comodidad en tu experiencia.
                     </p>
                   </div>
 
                   {/* Highlights Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                    <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 flex items-start gap-2.5">
-                      <CalendarCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white text-xs">Citas en Tiempo Real</p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">Agendamiento interactivo inmediato</p>
+                    <div className="p-3 sm:p-3.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 flex items-start gap-2.5 sm:gap-3 transition-colors">
+                      <CalendarCheck className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-900 dark:text-white text-xs sm:text-xs+ leading-snug">Citas en Tiempo Real</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">Agendamiento interactivo inmediato</p>
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/50 flex items-start gap-2.5">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white text-xs">Gestión y Validación</p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">Por correo, teléfono o código</p>
+                    <div className="p-3 sm:p-3.5 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/50 flex items-start gap-2.5 sm:gap-3 transition-colors">
+                      <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-900 dark:text-white text-xs sm:text-xs+ leading-snug">Gestión y Validación</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">Por correo, teléfono o código</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-start gap-2.5">
-                    <HeartHandshake className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <span>
+                  <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-start gap-2.5 sm:gap-3 leading-relaxed">
+                    <HeartHandshake className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <span className="min-w-0 flex-1">
                       Si experimentas algún detalle visual o función que desees reportar, puedes usar la pestaña <strong>Reportar Error</strong> o contactarnos directamente por WhatsApp.
                     </span>
                   </div>
 
                   {/* Session preference */}
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="flex items-center gap-2.5 pt-1 min-h-[32px]">
                     <input
                       type="checkbox"
                       id="dont-show-again"
                       checked={dontShowAgainSession}
                       onChange={(e) => setDontShowAgainSession(e.target.checked)}
-                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 cursor-pointer"
+                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 cursor-pointer shrink-0"
                     />
                     <label
                       htmlFor="dont-show-again"
-                      className="text-xs text-slate-500 dark:text-slate-400 cursor-pointer select-none"
+                      className="text-xs text-slate-500 dark:text-slate-400 cursor-pointer select-none leading-tight"
                     >
                       No volver a mostrar este aviso durante esta sesión
                     </label>
                   </div>
 
                   {/* Footer Actions */}
-                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
                     <a
                       href={`https://wa.me/584126388484?text=${encodeURIComponent(
                         'Hola equipo EQUILIBRA, estoy visitando la web y tengo una consulta o sugerencia durante la fase beta.'
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                      className="w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
                     >
                       <Phone className="w-4 h-4" />
                       <span>WhatsApp Oficial</span>
@@ -238,7 +238,7 @@ export const BetaNoticeBanner: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleClosePopup}
-                      className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all"
+                      className="w-full sm:w-auto px-6 py-2.5 sm:py-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all"
                     >
                       <span>¡Entendido, Continuar!</span>
                       <ChevronRight className="w-4 h-4" />
@@ -249,7 +249,7 @@ export const BetaNoticeBanner: React.FC = () => {
 
               {/* Pop-up Body: Report Tab */}
               {activeTab === 'report' && (
-                <div className="p-5 sm:p-6 space-y-4">
+                <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain">
                   {isSubmitted ? (
                     <div className="p-6 text-center space-y-3">
                       <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center mx-auto">
@@ -274,7 +274,7 @@ export const BetaNoticeBanner: React.FC = () => {
                           value={errorDescription}
                           onChange={(e) => setErrorDescription(e.target.value)}
                           placeholder="Describe qué ocurrió, en qué botón o sección falló..."
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs sm:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm sm:text-xs md:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none transition-all"
                         />
                       </div>
 
@@ -287,22 +287,22 @@ export const BetaNoticeBanner: React.FC = () => {
                           value={reporterContact}
                           onChange={(e) => setReporterContact(e.target.value)}
                           placeholder="Ej. 04126388484 o tu@correo.com"
-                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs sm:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm sm:text-xs md:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition-all"
                         />
                       </div>
 
-                      <div className="pt-2 flex items-center justify-between gap-2.5">
+                      <div className="pt-2 flex items-center justify-between gap-2.5 shrink-0">
                         <button
                           type="button"
                           onClick={() => setActiveTab('announcement')}
-                          className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                          className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                         >
                           Volver
                         </button>
 
                         <button
                           type="submit"
-                          className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95"
+                          className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-all"
                         >
                           <Send className="w-3.5 h-3.5" />
                           <span>Enviar Reporte</span>

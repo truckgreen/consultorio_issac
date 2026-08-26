@@ -32,7 +32,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     val allPatients: StateFlow<List<PatientEntity>>
 
     // Auth & Specialist Management
-    private val _currentUser = MutableStateFlow<AuthUser?>(PredefinedUsers.SUPERADMIN)
+    private val _currentUser = MutableStateFlow<AuthUser?>(null)
     val currentUser: StateFlow<AuthUser?> = _currentUser.asStateFlow()
 
     private val _onlyMySpecialistAppointments = MutableStateFlow(false)

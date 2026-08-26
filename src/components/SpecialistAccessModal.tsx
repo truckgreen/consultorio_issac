@@ -315,11 +315,11 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     {authenticatedUser ? authenticatedUser.role.toUpperCase() : 'SEGURO'}
                   </span>
                 </div>
-                <p className="text-xs text-slate-300">
-                  {authenticatedUser
-                    ? `${authenticatedUser.email} • Sesión encriptada`
-                    : 'Selecciona tu cuenta e ingresa tu PIN de 4 dígitos o usa tu huella dactilar.'}
-                </p>
+                  <p className="text-xs text-slate-300">
+                    {authenticatedUser
+                      ? `${authenticatedUser.email} • Sesión encriptada`
+                      : 'Selecciona tu perfil e ingresa tu clave PIN de seguridad o biometría.'}
+                  </p>
               </div>
             </div>
 
@@ -367,7 +367,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     }`}
                   >
                     <Users className="w-4 h-4 text-amber-500" />
-                    <span>Especialistas (5)</span>
+                    <span>Especialistas ({SPECIALISTS_ACCOUNTS.length})</span>
                   </button>
 
                   <button
@@ -414,7 +414,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                                 {spec.name}
                               </span>
                               <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">
-                                {spec.role} (PIN sugerido: {spec.easyPin})
+                                {spec.role}
                               </span>
                             </div>
                             {isSel && <Check className="w-4 h-4 text-amber-600 shrink-0" />}
@@ -436,7 +436,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                         {ADMIN_ACCOUNT.name}
                       </h4>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {ADMIN_ACCOUNT.email} • PIN por defecto: {ADMIN_ACCOUNT.easyPin}
+                        {ADMIN_ACCOUNT.email} • Acceso Seguro
                       </p>
                     </div>
                   </div>
