@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion } from 'motion/react';
 import { ChevronDown, ArrowRight, Calendar, ShieldCheck, Sparkles, MapPin } from 'lucide-react';
 import { CLINIC_INFO } from '../data/featuresData';

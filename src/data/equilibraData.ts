@@ -45,8 +45,8 @@ export const SERVICES: ServiceItem[] = [
     title: "Fisioterapia",
     category: "fisioterapia",
     shortDescription: "Evaluación biomecánica y terapia manual personalizada para el alivio del dolor y restauración de la movilidad.",
-    fullDescription: "Combinamos técnicas de terapia manual avanzada, electroterapia de última generación, punción seca y prescripción de ejercicio terapéutico guiado por evidencia científica. Nuestro objetivo primordial es identificar la causa raíz de tu disfunción muscular o articular, no solo mitigar los síntomas.",
-    imageUrl: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80",
+    fullDescription: "Combinamos técnicas de terapia manual avanzada. Nuestro objetivo es identificar la raíz de tu lesion y devolver al maximo tu funcionalidad.",
+    imageUrl: "/imagenes/fisioterapia.jpg",
     benefits: [
       "Alivio significativo del dolor crónico y agudo",
       "Restablecimiento de los arcos de movilidad articular",

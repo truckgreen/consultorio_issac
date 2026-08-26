@@ -6,7 +6,7 @@ export const SERVICES_DATA: ServiceItem[] = [
     title: 'Fisioterapia',
     category: 'fisioterapia',
     shortDescription: 'Evaluación biomecánica y terapia manual personalizada para el alivio del dolor y restauración de la movilidad.',
-    fullDescription: 'Combinamos técnicas de terapia manual avanzada, electroterapia de última generación, punción seca y prescripción de ejercicio terapéutico guiado por evidencia científica. Nuestro objetivo primordial es identificar la causa raíz de tu disfunción muscular o articular, no solo mitigar los síntomas.',
+    fullDescription: 'Combinamos técnicas de terapia manual avanzada, electroterapia, punción seca y prescripción de ejercicio terapéutico guiado por evidencia científica. Nuestro objetivo primordial es identificar la causa raíz de tu disfunción muscular o articular, no solo mitigar los síntomas.',
     imageKey: 'fisioterapia',
     benefits: [
       'Alivio significativo del dolor crónico y agudo',
@@ -16,9 +16,30 @@ export const SERVICES_DATA: ServiceItem[] = [
     ],
     duration: '50 - 60 min',
     price: 35,
-    priceFormatted: '$35',
-    packageOption: 'Pack 5 sesiones: $150 ($30 c/u)',
-    priceNote: 'Evaluación inicial + Terapia manual + Agentes físicos',
+    priceFormatted: '35€',
+    packageOption: 'Paquete 10 sesiones: 300€ (3x por semana)',
+    priceNote: 'Evaluación + Tratamiento personalizado',
+    pricingFlyerImage: '/imagenes/servicios/fisioterapia/precios_fisioterapia.jpg',
+    pricingTiers: [
+      {
+        name: 'Evaluación',
+        description: 'Evaluación física + informe de fisioterapia + primera sesión',
+        price: '45€',
+        highlight: false
+      },
+      {
+        name: 'Sesión de fisioterapia',
+        description: 'Evaluación + tratamiento',
+        price: '35€',
+        highlight: true
+      },
+      {
+        name: 'Paquete 10 sesiones',
+        description: 'Dividido en 3 sesiones por semana',
+        price: '300€',
+        highlight: false
+      }
+    ],
     targetAudience: ['Personas con dolores musculares o articulares', 'Cervicalgias y lumbalgias', 'Posturas laborales sedentarias'],
     methodology: 'Evaluación funcional inicial, aplicación de agentes físicos y terapia activa con seguimiento de métricas.'
   },
@@ -37,9 +58,29 @@ export const SERVICES_DATA: ServiceItem[] = [
     ],
     duration: '45 - 50 min',
     price: 35,
-    priceFormatted: '$35',
-    packageOption: 'Pack 4 sesiones: $120 ($30 c/u)',
+    priceFormatted: '35€',
+    packageOption: 'Pack 4 sesiones: 120€ (30€ c/u)',
     priceNote: 'Sesión personalizada de estimulación y motricidad lúdica',
+    pricingTiers: [
+      {
+        name: 'Evaluación Pediátrica',
+        description: 'Valoración neuromotora y del desarrollo psicomotriz infantil',
+        price: '45€',
+        highlight: false
+      },
+      {
+        name: 'Sesión Terapéutica',
+        description: 'Estimulación, reeducación postural y juego terapéutico',
+        price: '35€',
+        highlight: true
+      },
+      {
+        name: 'Pack 4 Sesiones',
+        description: 'Plan mensual de estimulación y seguimiento temprano',
+        price: '120€',
+        highlight: false
+      }
+    ],
     targetAudience: ['Lactantes con retraso motor leve', 'Niños y adolescentes con alteraciones posturales', 'Pequeños atletas'],
     methodology: 'Ejercicios neuromusculares adaptados por edad a través de dinámicas de juego terapéutico.'
   },

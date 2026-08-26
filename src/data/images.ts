@@ -30,8 +30,9 @@ export const APP_IMAGES = {
   // 9 Core Services (Matches the exact cards in the photo)
   services: {
     fisioterapia: {
-      src: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80",
-      alt: "Fisioterapia general y avanzada",
+      // Puedes reemplazar esta ruta por tu imagen local (ej: '/imagenes/fisioterapia.jpg') o una URL directa
+      src: "/imagenes/servicios/fisioterapia/fondo fisioterapia.jpg",
+      alt: "Fisioterapia y entrenamiento de fuerza en banco asistido",
     },
     fisioterapiaPediatrica: {
       src: "https://images.unsplash.com/photo-1588286840104-8957b019727f?auto=format&fit=crop&w=800&q=80",

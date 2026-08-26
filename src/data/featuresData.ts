@@ -11,20 +11,16 @@ export const CLINIC_INFO = {
     city: 'Caracas',
     zone: 'Sabana Grande',
     building: 'Centro Profesional del Este',
-    floor: 'Piso 4, Oficina 46',
-    fullAddress: 'Venezuela, Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 46'
+    floor: 'Piso 4, Oficina 48',
+    fullAddress: 'Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 48'
   },
-  phone: '+58.412.747.18.58',
-  phoneDisplay: '+58 424-2724617',
-  phoneRaw: '+584127471858',
+  phone: '0412-747-18-58',
+  phoneDisplay: '0412-747-18-58',
+  phoneRaw: '04127471858',
+  instagram: '@fisiojewsiejew',
   email: 'contacto@equilibrave.com',
   hours: [
-    { day: 'Lunes', time: '8:00am a 7:00pm' },
-    { day: 'Martes', time: '8:00am a 7:00pm' },
-    { day: 'Miércoles', time: '8:00am a 7:00pm' },
-    { day: 'Jueves', time: '8:00am a 7:00pm' },
-    { day: 'Viernes', time: '8:00am a 7:00pm' },
-    { day: 'Sábado', time: '8:00am a 2:00pm' }
+    { day: 'Lunes a Sábado', time: '8:00am a 5:00pm' }
   ]
 };
 

@@ -80,17 +80,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
     relatedServiceId: 'boxeo',
   },
   {
-    id: 'juan-alzualde',
-    name: 'Juan Alzualde',
-    role: 'Asistente de fisioterapia',
-    specialty: 'Soporte en terapia física, termoterapia, electroterapia y atención asistencial',
-    category: 'asistencia',
-    image: APP_IMAGES.team.juanAlzualde.src,
-    credentials: 'Técnico Asistente en Fisioterapia',
-    bio: 'Brinda apoyo cercano y profesional en la aplicación de agentes físicos, preparación del espacio terapéutico y acompañamiento en cada protocolo de recuperación.',
-    relatedServiceId: 'fisioterapia',
-  },
-  {
     id: 'rebecca-triana',
     name: 'Rebecca Triana',
     role: 'Asistente de fisioterapia',
