@@ -1,0 +1,509 @@
+import express from 'express';
+import path from 'path';
+import dotenv from 'dotenv';
+import { createServer as createViteServer } from 'vite';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// Load environment variables from .env file if present
+dotenv.config();
+
+const PORT = 3000;
+
+// Helper to get environment credentials across multiple common naming conventions
+function getEnvCredentials() {
+  const supabaseUrl =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    process.env.SUPABASE_PROJECT_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    '';
+
+  const supabaseKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_PUBLIC_KEY ||
+    process.env.VITE_SUPABASE_KEY ||
+    '';
+
+  const telegramToken =
+    process.env.TELEGRAM_BOT_TOKEN ||
+    process.env.VITE_TELEGRAM_BOT_TOKEN ||
+    process.env.BOT_TOKEN ||
+    process.env.TELEGRAM_TOKEN ||
+    process.env.VITE_BOT_TOKEN ||
+    '';
+
+  const telegramChatId =
+    process.env.TELEGRAM_CHAT_ID ||
+    process.env.VITE_TELEGRAM_CHAT_ID ||
+    process.env.CHAT_ID ||
+    process.env.TELEGRAM_GROUP_ID ||
+    process.env.VITE_CHAT_ID ||
+    '';
+
+  return {
+    supabaseUrl: supabaseUrl.trim(),
+    supabaseKey: supabaseKey.trim(),
+    telegramToken: telegramToken.trim(),
+    telegramChatId: telegramChatId.trim(),
+  };
+}
+
+let serverSupabaseClient: SupabaseClient | null = null;
+
+function getServerSupabaseClient(): SupabaseClient | null {
+  const { supabaseUrl, supabaseKey } = getEnvCredentials();
+  if (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) {
+    if (!serverSupabaseClient) {
+      try {
+        serverSupabaseClient = createClient(supabaseUrl, supabaseKey);
+      } catch (err) {
+        console.error('[Server Supabase] Client init error:', err);
+        return null;
+      }
+    }
+    return serverSupabaseClient;
+  }
+  return null;
+}
+
+// Telegram messaging function on server
+async function sendTelegramMessage(token: string, chatId: string, text: string) {
+  const cleanToken = token.trim();
+  const cleanChatId = chatId.trim();
+
+  if (!cleanToken || !cleanChatId) {
+    throw new Error('Telegram Bot Token o Chat ID no configurados.');
+  }
+
+  const url = `https://api.telegram.org/bot${cleanToken}/sendMessage`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: cleanChatId,
+      text,
+      parse_mode: 'Markdown',
+      disable_web_page_preview: true,
+    }),
+  });
+
+  const data = await response.json();
+  if (!data.ok) {
+    throw new Error(data.description || 'Error al enviar mensaje a Telegram');
+  }
+  return data;
+}
+
+async function startServer() {
+  const app = express();
+  app.use(express.json({ limit: '15mb' }));
+
+  // 1. Health check
+  app.get('/api/health', (req, res) => {
+    const env = getEnvCredentials();
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      supabaseConfigured: Boolean(env.supabaseUrl && env.supabaseKey),
+      telegramConfigured: Boolean(env.telegramToken && env.telegramChatId),
+    });
+  });
+
+  // 2. Public configuration endpoint
+  app.get('/api/config', (req, res) => {
+    const { supabaseUrl, supabaseKey, telegramToken, telegramChatId } = getEnvCredentials();
+    res.json({
+      supabase: {
+        url: supabaseUrl,
+        anonKey: supabaseKey,
+        isConfigured: Boolean(supabaseUrl && supabaseKey),
+      },
+      telegram: {
+        isConfigured: Boolean(telegramToken && telegramChatId),
+        chatId: telegramChatId,
+        hasToken: Boolean(telegramToken),
+      },
+    });
+  });
+
+  // 3. Telegram notification endpoint
+  app.post('/api/telegram/notify', async (req, res) => {
+    try {
+      const { appointment, customToken, customChatId } = req.body;
+      const env = getEnvCredentials();
+
+      const botToken = (customToken || env.telegramToken || '').trim();
+      const chatId = (customChatId || env.telegramChatId || '').trim();
+
+      if (!botToken || !chatId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Faltan credenciales de Telegram (Bot Token o Chat ID no configurados en Secrets ni en solicitud).',
+        });
+      }
+
+      if (!appointment) {
+        return res.status(400).json({
+          success: false,
+          error: 'Faltan datos de la cita médica.',
+        });
+      }
+
+      const serviceName =
+        appointment.service_title ||
+        appointment.serviceTitle ||
+        appointment.serviceId ||
+        'Fisioterapia y Rehabilitación';
+
+      const packageName =
+        appointment.selectedPackageName ||
+        appointment.selected_package_name ||
+        (appointment.primeraVisita || appointment.primera_visita
+          ? 'Evaluación Inicial & Diagnóstico'
+          : 'Sesión Clínica');
+
+      const price =
+        appointment.selectedPackagePrice ||
+        appointment.selected_package_price ||
+        appointment.servicePrice ||
+        appointment.service_price ||
+        'Tarifa oficial';
+
+      const specialist =
+        appointment.specialistName ||
+        appointment.specialist_name ||
+        'Lic. Isaac Jewsiejew';
+
+      const patientName = `${appointment.nombre || ''} ${appointment.apellido || ''}`.trim();
+      const phone = appointment.telefono || 'Sin teléfono';
+      const email = appointment.email || 'Sin email';
+      const date = appointment.fecha || 'Fecha por confirmar';
+      const time = appointment.hora || 'Horario por confirmar';
+      const code = appointment.code || 'EQUILIBRA';
+      const motivo = (appointment.motivoConsulta || appointment.motivo || 'Consulta general')
+        .replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&');
+
+      const telegramText =
+`🚨 *¡NUEVA CITA AGENDADA EN EQUILIBRA!* 🚨
+━━━━━━━━━━━━━━━━━━━━━━
+👤 *Paciente:* ${patientName}
+📞 *Teléfono:* \`${phone}\`
+📧 *Email:* \`${email}\`
+🏷️ *Reserva:* *${packageName}*
+🩺 *Área:* ${serviceName}
+💵 *Tarifa:* ${price}
+👨‍⚕️ *Especialista Asignado:* ${specialist}
+📅 *Fecha:* ${date}
+⏰ *Horario:* ${time}
+🔖 *Código de Cita:* \`${code}\`
+📍 *Sede:* Sabana Grande, Centro Profesional del Este
+📝 *Motivo / Síntomas:* _${motivo}_
+━━━━━━━━━━━━━━━━━━━━━━
+⏱️ _Registrada en tiempo real desde la Plataforma Web EQUILIBRA._`;
+
+      const result = await sendTelegramMessage(botToken, chatId, telegramText);
+      res.json({ success: true, result });
+    } catch (err: any) {
+      console.error('[API Telegram Notify] Error:', err);
+      res.status(500).json({
+        success: false,
+        error: err?.message || 'Error al enviar alerta a Telegram',
+      });
+    }
+  });
+
+  // 4. Telegram test endpoint
+  app.post('/api/telegram/test', async (req, res) => {
+    try {
+      const { token, chatId } = req.body;
+      const env = getEnvCredentials();
+
+      const botToken = (token || env.telegramToken || '').trim();
+      const targetChatId = (chatId || env.telegramChatId || '').trim();
+
+      if (!botToken || !targetChatId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Debes proporcionar o tener configurado el Bot Token y el Chat ID de Telegram.',
+        });
+      }
+
+      const testMessage =
+`✅ *¡CONEXIÓN DE TELEGRAM EXITOSA CON EQUILIBRA!*
+━━━━━━━━━━━━━━━━━━━━━━
+🤖 *Bot:* Activo y vinculado correctamente
+🏥 *Clínica:* EQUILIBRA Centro de Fisioterapia & Salud Integral
+⏰ *Fecha y Hora:* ${new Date().toLocaleString('es-VE')}
+━━━━━━━━━━━━━━━━━━━━━━
+_A partir de este momento recibirás en tiempo real todas las citas agendadas con datos completos del paciente, especialidad, tarifa y horarios._`;
+
+      const result = await sendTelegramMessage(botToken, targetChatId, testMessage);
+      res.json({ success: true, message: '¡Mensaje de prueba recibido exitosamente en Telegram!', result });
+    } catch (err: any) {
+      console.error('[API Telegram Test] Error:', err);
+      res.status(500).json({
+        success: false,
+        error: err?.message || 'Error al conectar con Telegram',
+      });
+    }
+  });
+
+  // 5. Appointments API (Save to Supabase & Auto-notify Telegram)
+  app.get('/api/appointments', async (req, res) => {
+    const supabaseClient = getServerSupabaseClient();
+    if (!supabaseClient) {
+      return res.json({ success: true, data: [], source: 'local' });
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from('appointments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return res.status(400).json({ success: false, error: error.message });
+      }
+      res.json({ success: true, data: data || [], source: 'supabase' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message });
+    }
+  });
+
+  app.post('/api/appointments', async (req, res) => {
+    const appointment = req.body;
+    if (!appointment || !appointment.id) {
+      return res.status(400).json({ success: false, error: 'Datos de cita inválidos' });
+    }
+
+    let supabaseSaved = false;
+    let supabaseError: string | null = null;
+
+    const supabaseClient = getServerSupabaseClient();
+    if (supabaseClient) {
+      try {
+        // Attempt full insert with flexible columns
+        const payload: Record<string, any> = {
+          id: appointment.id,
+          code: appointment.code || `EQ-${Date.now().toString(36).toUpperCase()}`,
+          service_id: appointment.service_id || appointment.serviceId || 'fisioterapia',
+          service_title: appointment.service_title || appointment.serviceTitle || 'Fisioterapia',
+          service_price: appointment.service_price || appointment.servicePrice || '35 USD',
+          amount: Number(appointment.amount) || 35,
+          fecha: appointment.fecha,
+          hora: appointment.hora,
+          nombre: appointment.nombre,
+          apellido: appointment.apellido,
+          telefono: appointment.telefono,
+          email: appointment.email,
+          motivo_consulta: appointment.motivoConsulta || appointment.motivo || '',
+          motivo: appointment.motivoConsulta || appointment.motivo || '',
+          primera_visita: appointment.primera_visita ?? appointment.primeraVisita ?? true,
+          status: (appointment.status || 'CONFIRMADA').toUpperCase(),
+          specialist_id: appointment.specialist_id || appointment.specialistId || 'isaac-jewsiejew',
+          specialist_name: appointment.specialist_name || appointment.specialistName || 'Lic. Isaac Jewsiejew',
+          notes: appointment.notes || 'Registro verificado por EQUILIBRA',
+          payment_status: appointment.payment_status || 'PENDIENTE',
+          created_at: appointment.created_at || appointment.createdAt || new Date().toISOString(),
+        };
+
+        if (appointment.selectedPackageName || appointment.selected_package_name) {
+          payload.selected_package_name = appointment.selectedPackageName || appointment.selected_package_name;
+        }
+        if (appointment.selectedPackagePrice || appointment.selected_package_price) {
+          payload.selected_package_price = appointment.selectedPackagePrice || appointment.selected_package_price;
+        }
+
+        const { data, error } = await supabaseClient.from('appointments').upsert([payload]).select();
+
+        if (error) {
+          console.warn('[Server Supabase Upsert] Warning with full payload:', error.message);
+          // Retry with standard minimal columns if schema has fewer columns
+          const minimalPayload = {
+            id: appointment.id,
+            code: payload.code,
+            service_id: payload.service_id,
+            service_title: payload.service_title,
+            fecha: payload.fecha,
+            hora: payload.hora,
+            nombre: payload.nombre,
+            apellido: payload.apellido,
+            telefono: payload.telefono,
+            email: payload.email,
+            status: payload.status,
+            amount: payload.amount,
+            specialist_name: payload.specialist_name,
+            created_at: payload.created_at,
+          };
+          const retryRes = await supabaseClient.from('appointments').upsert([minimalPayload]).select();
+          if (retryRes.error) {
+            supabaseError = retryRes.error.message;
+            console.error('[Server Supabase Upsert] Minimal retry also failed:', retryRes.error.message);
+          } else {
+            supabaseSaved = true;
+          }
+        } else {
+          supabaseSaved = true;
+        }
+      } catch (err: any) {
+        supabaseError = err?.message || 'Error con Supabase';
+        console.error('[Server Supabase] Exception saving appointment:', err);
+      }
+    }
+
+    // Always attempt Telegram notification automatically
+    const env = getEnvCredentials();
+    let telegramSent = false;
+    let telegramError: string | null = null;
+
+    if (env.telegramToken && env.telegramChatId) {
+      try {
+        const serviceName = appointment.service_title || appointment.serviceTitle || appointment.service_id || 'Fisioterapia';
+        const packageName = appointment.selectedPackageName || appointment.selected_package_name || (appointment.primeraVisita ? 'Evaluación Inicial' : 'Sesión Estándar');
+        const price = appointment.selectedPackagePrice || appointment.servicePrice || '35 USD';
+        const specialist = appointment.specialistName || appointment.specialist_name || 'Lic. Isaac Jewsiejew';
+        const patientName = `${appointment.nombre} ${appointment.apellido}`;
+        const motivo = (appointment.motivoConsulta || appointment.motivo || 'Sin especificar').replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&');
+
+        const telegramText =
+`🚨 *¡NUEVA CITA AGENDADA EN EQUILIBRA!* 🚨
+━━━━━━━━━━━━━━━━━━━━━━
+👤 *Paciente:* ${patientName}
+📞 *Teléfono:* \`${appointment.telefono}\`
+📧 *Email:* \`${appointment.email}\`
+🏷️ *Reserva:* *${packageName}*
+🩺 *Área:* ${serviceName}
+💵 *Tarifa:* ${price}
+👨‍⚕️ *Especialista Asignado:* ${specialist}
+📅 *Fecha:* ${appointment.fecha}
+⏰ *Horario:* ${appointment.hora}
+🔖 *Código de Cita:* \`${appointment.code}\`
+📍 *Sede:* Sabana Grande, Centro Profesional del Este
+📝 *Motivo / Síntomas:* _${motivo}_
+━━━━━━━━━━━━━━━━━━━━━━
+⏱️ _Registrada en tiempo real desde la Plataforma Web EQUILIBRA._`;
+
+        await sendTelegramMessage(env.telegramToken, env.telegramChatId, telegramText);
+        telegramSent = true;
+      } catch (tgErr: any) {
+        telegramError = tgErr?.message;
+        console.error('[Server Telegram Auto-Alert] Error:', tgErr);
+      }
+    }
+
+    res.json({
+      success: true,
+      supabaseSaved,
+      supabaseError,
+      telegramSent,
+      telegramError,
+      appointment,
+    });
+  });
+
+  // 6. Patients API
+  app.get('/api/patients', async (req, res) => {
+    const supabaseClient = getServerSupabaseClient();
+    if (!supabaseClient) {
+      return res.json({ success: true, data: [], source: 'local' });
+    }
+    try {
+      const { data, error } = await supabaseClient.from('patients').select('*').order('created_at', { ascending: false });
+      if (error) return res.status(400).json({ success: false, error: error.message });
+      res.json({ success: true, data: data || [] });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message });
+    }
+  });
+
+  app.post('/api/patients', async (req, res) => {
+    const patient = req.body;
+    if (!patient || !patient.id) {
+      return res.status(400).json({ success: false, error: 'Datos de paciente requeridos' });
+    }
+
+    const supabaseClient = getServerSupabaseClient();
+    if (!supabaseClient) {
+      return res.json({ success: true, data: patient, savedToDb: false });
+    }
+
+    try {
+      const { data, error } = await supabaseClient.from('patients').upsert([patient]).select();
+      if (error) {
+        return res.status(400).json({ success: false, error: error.message });
+      }
+      res.json({ success: true, data: data && data[0] ? data[0] : patient, savedToDb: true });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message });
+    }
+  });
+
+  // 7. Contact Messages API
+  app.post('/api/contact', async (req, res) => {
+    const msg = req.body;
+    const env = getEnvCredentials();
+
+    const supabaseClient = getServerSupabaseClient();
+    if (supabaseClient) {
+      try {
+        await supabaseClient.from('contact_messages').insert([
+          {
+            id: `msg_${Date.now()}`,
+            name: msg.name,
+            email: msg.email,
+            phone: msg.phone || '',
+            message: msg.message,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+      } catch (err) {
+        console.warn('[Contact Message] Supabase note:', err);
+      }
+    }
+
+    if (env.telegramToken && env.telegramChatId) {
+      try {
+        const text =
+`📬 *¡NUEVO MENSAJE DE CONTACTO EN EQUILIBRA!*
+━━━━━━━━━━━━━━━━━━━━━━
+👤 *Nombre:* ${msg.name}
+📧 *Email:* \`${msg.email}\`
+📞 *Teléfono:* \`${msg.phone || 'No especificado'}\`
+💬 *Mensaje:*
+_${(msg.message || '').replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}_
+━━━━━━━━━━━━━━━━━━━━━━`;
+        await sendTelegramMessage(env.telegramToken, env.telegramChatId, text);
+      } catch (tgErr) {
+        console.warn('[Contact Message] Telegram note:', tgErr);
+      }
+    }
+
+    res.json({ success: true });
+  });
+
+  // 8. Vite Middleware for Development / Static Serve for Production
+  if (process.env.NODE_ENV !== 'production') {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[EQUILIBRA Server] Servidor activo en http://0.0.0.0:${PORT}`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error('Fatal error starting server:', err);
+});

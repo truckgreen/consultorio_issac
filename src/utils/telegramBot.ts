@@ -118,18 +118,42 @@ export async function sendTelegramBookingAlert(
 ): Promise<{ success: boolean; message: string; data?: any }> {
   const config = { ...getStoredTelegramConfig(), ...overrideConfig };
 
-  if (!config.enabled) {
+  if (config.enabled === false) {
     return { success: false, message: 'Notificaciones de Telegram desactivadas en la configuración.' };
   }
 
-  const botToken = config.botToken || (typeof process !== 'undefined' ? process.env?.TELEGRAM_BOT_TOKEN : '') || '';
-  const chatId = config.chatId || (typeof process !== 'undefined' ? process.env?.TELEGRAM_CHAT_ID : '') || '';
+  // 1. Try sending via full-stack server endpoint first (has access to server Secrets)
+  try {
+    const res = await fetch('/api/telegram/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appointment,
+        customToken: config.botToken || undefined,
+        customChatId: config.chatId || undefined,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        saveTelegramConfig({ lastTestedAt: new Date().toISOString() });
+        return { success: true, message: 'Alerta enviada a Telegram con éxito desde el servidor.', data };
+      }
+    }
+  } catch (apiErr) {
+    console.warn('[Telegram Alert] Server API not reachable or failed, attempting direct client fallback:', apiErr);
+  }
+
+  // 2. Direct client fallback if botToken & chatId are provided in client or localStorage
+  const botToken = config.botToken || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_BOT_TOKEN) || '';
+  const chatId = config.chatId || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_CHAT_ID) || '';
 
   if (!botToken || !chatId) {
-    console.warn('Telegram Bot Token o Chat ID no configurados aún en el panel de administración.');
+    console.warn('Telegram Bot Token o Chat ID no configurados aún en el panel de administración ni en variables de entorno.');
     return {
       success: false,
-      message: 'Token o Chat ID de Telegram no configurados. Configúralos en el Panel de Administración > Configuración & Bot.',
+      message: 'Token o Chat ID de Telegram no configurados. Configúralos en Secrets o en Panel Admin > Configuración.',
     };
   }
 
@@ -190,7 +214,7 @@ ${tagMentionLine ? `━━━━━━━━━━━━━━━━━━━━
       return { success: false, message: `Error de Telegram: ${result.description || 'Token o Chat ID inválidos'}` };
     }
   } catch (err: any) {
-    console.error('Error sending Telegram alert:', err);
+    console.error('Error sending Telegram alert directly:', err);
     return { success: false, message: `Error de conexión con Telegram: ${err?.message || err}` };
   }
 }
@@ -202,6 +226,27 @@ export async function testTelegramNotification(
   token: string,
   chatId: string
 ): Promise<{ success: boolean; message: string }> {
+  // 1. Try server API test first
+  try {
+    const res = await fetch('/api/telegram/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token.trim(), chatId: chatId.trim() }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        saveTelegramConfig({ botToken: token.trim(), chatId: chatId.trim(), enabled: true, lastTestedAt: new Date().toISOString() });
+        return { success: true, message: '¡Mensaje de prueba recibido exitosamente en Telegram!' };
+      } else if (data.error) {
+        return { success: false, message: `Error devuelto: ${data.error}` };
+      }
+    }
+  } catch (serverErr) {
+    console.warn('[Telegram Test] Server route unavailable, trying direct fetch:', serverErr);
+  }
+
+  // 2. Direct browser test
   if (!token.trim() || !chatId.trim()) {
     return { success: false, message: 'Debes ingresar tanto el Telegram Bot Token como el Chat ID (ej: -1001234567890 o tu ID personal).' };
   }

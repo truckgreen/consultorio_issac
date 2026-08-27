@@ -16,20 +16,27 @@ let currentConfig: SupabaseConfig = {
 };
 
 export function getSupabaseCredentials(): { url: string; anonKey: string; source: 'custom' | 'env' | 'demo' } {
-  // 1. Check localStorage first
+  // 1. Check environment variables first (or Vite defined environment)
+  const envUrl =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
+    (typeof process !== 'undefined' ? process.env?.SUPABASE_URL : '') ||
+    '';
+  const envKey =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) ||
+    (typeof process !== 'undefined' ? (process.env?.SUPABASE_ANON_KEY || process.env?.SUPABASE_KEY) : '') ||
+    '';
+
+  // 2. Check localStorage if user manually configured in UI
   if (typeof window !== 'undefined') {
     const customUrl = localStorage.getItem(STORAGE_KEY_URL);
     const customKey = localStorage.getItem(STORAGE_KEY_KEY);
-    if (customUrl && customKey) {
-      return { url: customUrl, anonKey: customKey, source: 'custom' };
+    if (customUrl && customKey && customUrl.trim() && customKey.trim()) {
+      return { url: customUrl.trim(), anonKey: customKey.trim(), source: 'custom' };
     }
   }
 
-  // 2. Check environment variables
-  const envUrl = import.meta.env.VITE_SUPABASE_URL;
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   if (envUrl && envKey && !envUrl.includes('placeholder') && !envUrl.includes('your-project')) {
-    return { url: envUrl, anonKey: envKey, source: 'env' };
+    return { url: envUrl.trim(), anonKey: envKey.trim(), source: 'env' };
   }
 
   return { url: '', anonKey: '', source: 'demo' };
@@ -168,9 +175,24 @@ export function saveLocalMessages(messages: ContactMessage[]): void {
 
 // Database Operations for Appointments
 export async function getAppointmentsFromDb(): Promise<Appointment[]> {
-  const client = getSupabaseClient();
   const localList = getLocalAppointments();
 
+  // 1. Try server API
+  try {
+    const res = await fetch('/api/appointments');
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        saveLocalAppointments(json.data);
+        return json.data;
+      }
+    }
+  } catch (apiErr) {
+    // Continue to direct Supabase client
+  }
+
+  // 2. Direct Supabase client
+  const client = getSupabaseClient();
   if (!client) {
     return localList;
   }
@@ -219,43 +241,83 @@ export async function insertAppointment(appointment: Appointment): Promise<{ suc
   const updatedLocal = [appointment, ...currentLocal.filter(a => a.id !== appointment.id)];
   saveLocalAppointments(updatedLocal);
 
+  // 1. Call server API (handles server-side Supabase + automatic Telegram notification)
+  try {
+    const res = await fetch('/api/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(appointment),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success) {
+        return { success: true, data: appointment };
+      }
+    }
+  } catch (apiErr) {
+    console.warn('[insertAppointment] Server API call note, continuing to client direct:', apiErr);
+  }
+
+  // 2. Client-side direct Supabase fallback
   const client = getSupabaseClient();
   if (!client) {
     return { success: true, data: appointment };
   }
 
   try {
+    const payload: Record<string, any> = {
+      id: appointment.id,
+      code: appointment.code,
+      service_id: appointment.service_id || appointment.serviceId,
+      service_title: appointment.service_title || appointment.serviceTitle,
+      service_price: appointment.servicePrice || `${appointment.amount || 35} USD`,
+      amount: appointment.amount || 35,
+      fecha: appointment.fecha,
+      hora: appointment.hora,
+      nombre: appointment.nombre,
+      apellido: appointment.apellido,
+      telefono: appointment.telefono,
+      email: appointment.email,
+      motivo_consulta: appointment.motivo || appointment.motivoConsulta || '',
+      motivo: appointment.motivo || appointment.motivoConsulta || '',
+      primera_visita: appointment.primera_visita ?? appointment.primeraVisita,
+      status: appointment.status || 'CONFIRMADA',
+      specialist_id: appointment.specialist_id || appointment.specialistId || '',
+      specialist_name: appointment.specialist_name || appointment.specialistName || 'Lic. Isaac Jewsiejew',
+      notes: appointment.notes || '',
+      payment_status: appointment.payment_status || 'PENDIENTE',
+      created_at: appointment.created_at || appointment.createdAt || new Date().toISOString()
+    };
+
     const { data, error } = await client
       .from('appointments')
-      .upsert([
-        {
-          id: appointment.id,
-          code: appointment.code,
-          service_id: appointment.service_id || appointment.serviceId,
-          service_title: appointment.service_title || appointment.serviceTitle,
-          service_price: appointment.servicePrice || `${appointment.amount || 35} USD`,
-          amount: appointment.amount || 35,
-          fecha: appointment.fecha,
-          hora: appointment.hora,
-          nombre: appointment.nombre,
-          apellido: appointment.apellido,
-          telefono: appointment.telefono,
-          email: appointment.email,
-          motivo_consulta: appointment.motivo || appointment.motivoConsulta || '',
-          primera_visita: appointment.primera_visita ?? appointment.primeraVisita,
-          status: appointment.status || 'CONFIRMADA',
-          specialist_id: appointment.specialist_id || appointment.specialistId || '',
-          specialist_name: appointment.specialist_name || appointment.specialistName || 'Lic. Isaac Jewsiejew',
-          notes: appointment.notes || '',
-          payment_status: appointment.payment_status || 'PENDIENTE',
-          created_at: appointment.created_at || appointment.createdAt || new Date().toISOString()
-        }
-      ])
+      .upsert([payload])
       .select();
 
     if (error) {
-      console.warn('Could not insert to Supabase table (persisted locally):', error.message);
-      return { success: true, data: appointment, error: error.message };
+      // Retry with minimal columns if table has fewer columns
+      const minPayload = {
+        id: appointment.id,
+        code: payload.code,
+        service_id: payload.service_id,
+        service_title: payload.service_title,
+        fecha: payload.fecha,
+        hora: payload.hora,
+        nombre: payload.nombre,
+        apellido: payload.apellido,
+        telefono: payload.telefono,
+        email: payload.email,
+        status: payload.status,
+        amount: payload.amount,
+        specialist_name: payload.specialist_name,
+        created_at: payload.created_at
+      };
+      const retry = await client.from('appointments').upsert([minPayload]).select();
+      if (retry.error) {
+        console.warn('Could not insert to Supabase table (persisted locally):', retry.error.message);
+        return { success: true, data: appointment, error: retry.error.message };
+      }
+      return { success: true, data: retry.data && retry.data[0] ? retry.data[0] : appointment };
     }
 
     return { success: true, data: (data && data[0]) ? data[0] : appointment };
@@ -356,6 +418,20 @@ export async function sendContactMessageToSupabase(message: Omit<ContactMessage,
   const currentLocal = getLocalMessages();
   saveLocalMessages([newMsg, ...currentLocal]);
 
+  // 1. Try server endpoint first
+  try {
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newMsg),
+    });
+    if (res.ok) {
+      return { success: true };
+    }
+  } catch (apiErr) {
+    // Continue to client direct
+  }
+
   const client = getSupabaseClient();
   if (!client) {
     return { success: true };
@@ -366,9 +442,12 @@ export async function sendContactMessageToSupabase(message: Omit<ContactMessage,
       {
         id: newMsg.id,
         nombre: newMsg.name,
+        name: newMsg.name,
         email: newMsg.email,
         telefono: newMsg.phone || '',
+        phone: newMsg.phone || '',
         mensaje: newMsg.message,
+        message: newMsg.message,
         created_at: newMsg.created_at
       }
     ]);
@@ -433,9 +512,24 @@ export function saveLocalPatients(patients: PatientRecord[]): void {
 
 // Database Operations for Patients
 export async function getPatientsFromDb(): Promise<PatientRecord[]> {
-  const client = getSupabaseClient();
   const localList = getLocalPatients();
 
+  // 1. Try server API
+  try {
+    const res = await fetch('/api/patients');
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        saveLocalPatients(json.data);
+        return json.data;
+      }
+    }
+  } catch (apiErr) {
+    // Continue to direct Supabase client
+  }
+
+  // 2. Direct Supabase client
+  const client = getSupabaseClient();
   if (!client) {
     return localList;
   }
@@ -474,6 +568,23 @@ export async function insertPatientInDb(patient: PatientRecord): Promise<{ succe
   const currentLocal = getLocalPatients();
   const updatedLocal = [patient, ...currentLocal.filter(p => p.id !== patient.id)];
   saveLocalPatients(updatedLocal);
+
+  // 1. Try server API
+  try {
+    const res = await fetch('/api/patients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patient),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success) {
+        return { success: true, data: patient };
+      }
+    }
+  } catch (apiErr) {
+    // Fall through to client direct
+  }
 
   const client = getSupabaseClient();
   if (!client) {
@@ -614,30 +725,45 @@ export async function removeDocumentFromPatient(patientId: string, documentId: s
   return true;
 }
 
-export const SUPABASE_SQL_SCHEMA = `-- Copia y pega este script en el SQL Editor de Supabase para inicializar el Panel Admin de EQUILIBRA:
+export const SUPABASE_SQL_SCHEMA = `-- Copia y pega este script en el SQL Editor de Supabase para inicializar o actualizar el Panel Admin de EQUILIBRA:
 
+-- 1. Tabla de Citas Médicas
 CREATE TABLE IF NOT EXISTS appointments (
   id TEXT PRIMARY KEY,
   code TEXT NOT NULL UNIQUE,
   service_id TEXT NOT NULL,
   service_title TEXT NOT NULL,
-  fecha DATE NOT NULL,
+  service_price TEXT DEFAULT '35 USD',
+  selected_package_name TEXT,
+  selected_package_price TEXT,
+  fecha TEXT NOT NULL,
   hora TEXT NOT NULL,
   nombre TEXT NOT NULL,
   apellido TEXT NOT NULL,
   telefono TEXT NOT NULL,
   email TEXT NOT NULL,
   motivo TEXT,
+  motivo_consulta TEXT,
   primera_visita BOOLEAN DEFAULT true,
   status TEXT DEFAULT 'CONFIRMADA',
   specialist_id TEXT,
-  specialist_name TEXT,
+  specialist_name TEXT DEFAULT 'Lic. Isaac Jewsiejew',
   notes TEXT,
   payment_status TEXT DEFAULT 'PENDIENTE',
   amount NUMERIC DEFAULT 35,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Asegurar columnas si la tabla ya existía
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS motivo_consulta TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS service_price TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS selected_package_name TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS selected_package_price TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'PENDIENTE';
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 35;
+
+-- 2. Tabla de Expedientes de Pacientes
 CREATE TABLE IF NOT EXISTS patients (
   id TEXT PRIMARY KEY,
   cedula TEXT,
@@ -664,26 +790,36 @@ CREATE TABLE IF NOT EXISTS patients (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS documents JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS cedula TEXT;
+
+-- 3. Tabla de Mensajes de Contacto
 CREATE TABLE IF NOT EXISTS contact_messages (
   id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
+  name TEXT,
+  nombre TEXT,
   email TEXT NOT NULL,
   phone TEXT,
+  telefono TEXT,
   subject TEXT,
-  message TEXT NOT NULL,
+  message TEXT,
+  mensaje TEXT,
   status TEXT DEFAULT 'NUEVO',
   admin_notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Habilitar Políticas RLS
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Permitir todo en appointments" ON appointments;
 CREATE POLICY "Permitir todo en appointments" ON appointments FOR ALL TO public USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir todo en patients" ON patients FOR ALL TO public USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir todo en contact_messages" ON contact_messages FOR ALL TO public USING (true) WITH CHECK (true);
 
-ALTER PUBLICATION supabase_realtime ADD TABLE appointments;
-ALTER PUBLICATION supabase_realtime ADD TABLE patients;
+DROP POLICY IF EXISTS "Permitir todo en patients" ON patients;
+CREATE POLICY "Permitir todo en patients" ON patients FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permitir todo en contact_messages" ON contact_messages;
+CREATE POLICY "Permitir todo en contact_messages" ON contact_messages FOR ALL TO public USING (true) WITH CHECK (true);
 `;

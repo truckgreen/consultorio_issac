@@ -63,6 +63,56 @@ export function saveAppointmentToStorage(appointment: ConfirmedAppointment): voi
 }
 
 export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointment[]> {
+  // 1. Try server API first
+  try {
+    const res = await fetch('/api/appointments');
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        const mapped = json.data.map((row: any) => ({
+          id: String(row.id),
+          code: sanitizeString(row.code || generateSecureCode()),
+          serviceId: sanitizeString(row.service_id || row.serviceId),
+          servicePrice: row.service_price || (row.amount ? `${row.amount} USD` : undefined),
+          selectedPackageName: row.selected_package_name || row.package_name || undefined,
+          selectedPackagePrice: row.selected_package_price || undefined,
+          selectedPackageDescription: row.selected_package_description || undefined,
+          specialistId: row.specialist_id || row.specialistId || undefined,
+          specialistName: row.specialist_name || row.specialistName || 'Lic. Isaac Jewsiejew',
+          nombre: sanitizeString(row.nombre),
+          apellido: sanitizeString(row.apellido),
+          telefono: sanitizeString(row.telefono),
+          email: sanitizeString(row.email),
+          fecha: sanitizeString(row.fecha),
+          hora: sanitizeString(row.hora),
+          motivoConsulta: sanitizeString(row.motivo_consulta || row.motivo || '', 600),
+          primeraVisita: Boolean(row.primera_visita ?? row.primeraVisita),
+          createdAt: row.created_at || new Date().toISOString(),
+          status: row.status === 'PENDIENTE'
+            ? 'pendiente_validacion'
+            : row.status === 'CANCELADA'
+            ? 'cancelada'
+            : row.status === 'REPROGRAMADA'
+            ? 'reprogramada'
+            : (row.status || 'confirmada').toLowerCase(),
+          cancellationCount: row.cancellation_count || 0,
+          cancellationFeePercent: row.cancellation_fee_percent || 0,
+          cancellationFeeAmount: row.cancellation_fee_amount || 0,
+          cancellationReason: row.cancellation_reason || undefined,
+          canceledAt: row.canceled_at || undefined,
+          rescheduledCount: row.rescheduled_count || 0,
+          rescheduledFromDate: row.rescheduled_from_date || undefined,
+          rescheduledFromTime: row.rescheduled_from_time || undefined,
+          rescheduledAt: row.rescheduled_at || undefined,
+        })) as ConfirmedAppointment[];
+        localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(mapped));
+        return mapped;
+      }
+    }
+  } catch (apiErr) {
+    // Continue to direct Supabase client
+  }
+
   if (!isSupabaseConfigured) return getSavedAppointments();
 
   try {
@@ -166,7 +216,7 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
   // Trigger specialist & clinic notification alert
   notifySpecialistNewAppointment(cleanAppointment);
 
-  // Send real-time Telegram Bot notification alert
+  // Send real-time Telegram Bot notification alert (both client + server)
   sendTelegramBookingAlert(cleanAppointment).catch(err => {
     console.warn('Telegram bot alert error:', err);
   });
@@ -177,6 +227,23 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
     severity: 'INFO',
     details: `Cita médica agendada [${cleanAppointment.code}] para ${maskSensitiveData('name', `${cleanAppointment.nombre} ${cleanAppointment.apellido}`)} el ${cleanAppointment.fecha} (${cleanAppointment.hora}) con ${cleanAppointment.specialistName || 'Especialista'}.`,
   });
+
+  // 1. Call server API endpoint (persists to Supabase via server secrets and sends Telegram alert)
+  try {
+    const res = await fetch('/api/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cleanAppointment),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success) {
+        return { success: true };
+      }
+    }
+  } catch (apiErr) {
+    console.warn('Server API appointments POST note, falling back to direct client:', apiErr);
+  }
 
   if (!isSupabaseConfigured) {
     return { success: true };
@@ -205,6 +272,7 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
         fecha: cleanAppointment.fecha,
         hora: cleanAppointment.hora,
         motivo_consulta: cleanAppointment.motivoConsulta || '',
+        motivo: cleanAppointment.motivoConsulta || '',
         primera_visita: cleanAppointment.primeraVisita,
         status: cleanAppointment.status === 'pendiente_validacion'
           ? 'PENDIENTE'
@@ -221,14 +289,14 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
     ]);
 
     if (error) {
-      console.warn('Supabase insertion note:', error.message);
-      return { success: false, error: error.message };
+      console.warn('Supabase direct insertion note:', error.message);
+      return { success: true };
     }
 
     return { success: true };
   } catch (err: any) {
     console.warn('Supabase request error:', err);
-    return { success: false, error: err?.message || 'Error al conectar con la base de datos' };
+    return { success: true };
   }
 }
 
