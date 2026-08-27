@@ -244,31 +244,47 @@ export async function testTelegramNotification(
   token: string,
   chatId: string
 ): Promise<{ success: boolean; message: string }> {
-  // 1. Try server API test first
+  const cleanToken = token.trim();
+  const cleanChatId = chatId.trim();
+
+  if (!cleanToken || !cleanChatId) {
+    return {
+      success: false,
+      message: 'Debes ingresar tanto el Telegram Bot Token como el Chat ID (ej: -1001234567890 o tu ID personal).',
+    };
+  }
+
+  // 1. Prioritize sending via server-side /api/telegram/test proxy to avoid CORS/ISP blocking
   try {
     const res = await fetch('/api/telegram/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: token.trim(), chatId: chatId.trim() }),
+      body: JSON.stringify({ token: cleanToken, chatId: cleanChatId }),
     });
     if (res.ok) {
       const data = await res.json();
       if (data.success) {
-        saveTelegramConfig({ botToken: token.trim(), chatId: chatId.trim(), enabled: true, lastTestedAt: new Date().toISOString() });
+        saveTelegramConfig({
+          botToken: cleanToken,
+          chatId: cleanChatId,
+          enabled: true,
+          lastTestedAt: new Date().toISOString(),
+        });
         return { success: true, message: '¡Mensaje de prueba recibido exitosamente en Telegram!' };
       } else if (data.error) {
-        return { success: false, message: `Error devuelto: ${data.error}` };
+        return { success: false, message: `Error devuelto por Telegram: ${data.error}` };
+      }
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      if (errData && errData.error) {
+        return { success: false, message: `Telegram rechazó la solicitud: ${errData.error}` };
       }
     }
   } catch (serverErr) {
-    console.warn('[Telegram Test] Server route unavailable, trying direct fetch:', serverErr);
+    console.warn('[Telegram Test] Server route unavailable or returned error, trying direct browser request:', serverErr);
   }
 
-  // 2. Direct browser test
-  if (!token.trim() || !chatId.trim()) {
-    return { success: false, message: 'Debes ingresar tanto el Telegram Bot Token como el Chat ID (ej: -1001234567890 o tu ID personal).' };
-  }
-
+  // 2. Direct browser test (fallback)
   const testMessage = 
 `✅ *¡CONEXIÓN DE TELEGRAM EXITOSA CON EQUILIBRA!*
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -279,14 +295,14 @@ export async function testTelegramNotification(
 _A partir de este momento recibirás en tiempo real todas las citas que se agenden en la página web con todos los datos del paciente (nombre, apellido, teléfono, qué reservó si evaluación/sesión/paquete, especialista asignado y sus etiquetas @usuario)._`;
 
   try {
-    const url = `https://api.telegram.org/bot${token.trim()}/sendMessage`;
+    const url = `https://api.telegram.org/bot${cleanToken}/sendMessage`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        chat_id: chatId.trim(),
+        chat_id: cleanChatId,
         text: testMessage,
         parse_mode: 'Markdown',
       }),
@@ -294,13 +310,18 @@ _A partir de este momento recibirás en tiempo real todas las citas que se agend
 
     const result = await response.json();
     if (result.ok) {
-      saveTelegramConfig({ botToken: token.trim(), chatId: chatId.trim(), enabled: true, lastTestedAt: new Date().toISOString() });
+      saveTelegramConfig({ botToken: cleanToken, chatId: cleanChatId, enabled: true, lastTestedAt: new Date().toISOString() });
       return { success: true, message: '¡Mensaje de prueba recibido exitosamente en Telegram!' };
     } else {
       return { success: false, message: `Telegram rechazó la solicitud: ${result.description || 'Verifica que el bot pertenezca al chat/grupo y tenga permisos de administrador'}` };
     }
   } catch (err: any) {
-    return { success: false, message: `Error al conectar con la API de Telegram: ${err?.message || err}` };
+    console.error('Direct Telegram API browser error:', err);
+    return {
+      success: false,
+      message:
+        'El navegador no pudo conectar directamente con api.telegram.org (bloqueo de red/CORS o sin conexión). Se recomienda guardar las credenciales con el botón "Guardar Conexión" para que el servidor despache las alertas automáticamente.',
+    };
   }
 }
 
