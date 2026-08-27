@@ -2415,9 +2415,9 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                             </div>
                           </div>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            supabaseConfig.url ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            supabaseConfig.url && supabaseConfig.anonKey ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                           }`}>
-                            {supabaseConfig.url ? 'Conectado' : 'Almacenamiento Local'}
+                            {supabaseConfig.url && supabaseConfig.anonKey ? 'Conectado' : 'Almacenamiento Local'}
                           </span>
                         </div>
 

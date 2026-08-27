@@ -237,6 +237,16 @@ ${tagMentionLine ? `━━━━━━━━━━━━━━━━━━━━
   }
 }
 
+// Helper to sanitize token
+export function sanitizeTelegramToken(rawToken: string): string {
+  if (!rawToken) return '';
+  let token = rawToken.trim().replace(/^["']|["']$/g, '').trim();
+  if (token.toLowerCase().startsWith('bot') && token.length > 4 && !token.includes('/')) {
+    token = token.substring(3).trim();
+  }
+  return token;
+}
+
 /**
  * Sends a test notification to verify that the Telegram Bot Token and Chat ID work correctly.
  */
@@ -244,7 +254,7 @@ export async function testTelegramNotification(
   token: string,
   chatId: string
 ): Promise<{ success: boolean; message: string }> {
-  const cleanToken = token.trim();
+  const cleanToken = sanitizeTelegramToken(token);
   const cleanChatId = chatId.trim();
 
   if (!cleanToken || !cleanChatId) {
@@ -272,12 +282,12 @@ export async function testTelegramNotification(
         });
         return { success: true, message: '¡Mensaje de prueba recibido exitosamente en Telegram!' };
       } else if (data.error) {
-        return { success: false, message: `Error devuelto por Telegram: ${data.error}` };
+        return { success: false, message: data.error };
       }
     } else {
       const errData = await res.json().catch(() => ({}));
       if (errData && errData.error) {
-        return { success: false, message: `Telegram rechazó la solicitud: ${errData.error}` };
+        return { success: false, message: errData.error };
       }
     }
   } catch (serverErr) {
@@ -313,14 +323,21 @@ _A partir de este momento recibirás en tiempo real todas las citas que se agend
       saveTelegramConfig({ botToken: cleanToken, chatId: cleanChatId, enabled: true, lastTestedAt: new Date().toISOString() });
       return { success: true, message: '¡Mensaje de prueba recibido exitosamente en Telegram!' };
     } else {
-      return { success: false, message: `Telegram rechazó la solicitud: ${result.description || 'Verifica que el bot pertenezca al chat/grupo y tenga permisos de administrador'}` };
+      const desc = result.description || '';
+      if (desc === 'Not Found' || desc.toLowerCase().includes('not found')) {
+        return { success: false, message: 'El Token del bot no es válido en Telegram (Not Found). Verifica que hayas copiado el token exacto entregado por @BotFather (ejemplo: 789123456:AAH...).' };
+      }
+      if (desc.toLowerCase().includes('chat not found')) {
+        return { success: false, message: 'El Chat ID no fue encontrado. Si es un grupo, agrega el bot al grupo primero. Si es chat privado, abre el bot y presiona /start.' };
+      }
+      return { success: false, message: `Telegram respondió: ${desc || 'Token o Chat ID inválidos'}` };
     }
   } catch (err: any) {
-    console.error('Direct Telegram API browser error:', err);
+    console.error('Telegram test note:', err);
     return {
       success: false,
       message:
-        'El navegador no pudo conectar directamente con api.telegram.org (bloqueo de red/CORS o sin conexión). Se recomienda guardar las credenciales con el botón "Guardar Conexión" para que el servidor despache las alertas automáticamente.',
+        'No se pudo completar el envío de prueba directo. Asegúrate de hacer clic en "Guardar Conexión" para que el bot quede configurado permanentemente.',
     };
   }
 }

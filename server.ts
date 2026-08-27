@@ -131,9 +131,20 @@ function getServerSupabaseClient(): SupabaseClient | null {
   return null;
 }
 
+// Helper to sanitize telegram token
+function sanitizeTelegramToken(rawToken: string): string {
+  if (!rawToken) return '';
+  let token = rawToken.trim().replace(/^["']|["']$/g, '').trim();
+  // Strip "bot" prefix if user entered "bot123456:ABC..."
+  if (token.toLowerCase().startsWith('bot') && token.length > 4 && !token.includes('/')) {
+    token = token.substring(3).trim();
+  }
+  return token;
+}
+
 // Telegram messaging function on server
 async function sendTelegramMessage(token: string, chatId: string, text: string) {
-  const cleanToken = token.trim();
+  const cleanToken = sanitizeTelegramToken(token);
   const cleanChatId = chatId.trim();
 
   if (!cleanToken || !cleanChatId) {
@@ -141,7 +152,9 @@ async function sendTelegramMessage(token: string, chatId: string, text: string) 
   }
 
   const url = `https://api.telegram.org/bot${cleanToken}/sendMessage`;
-  const response = await fetch(url, {
+  
+  // Try sending with Markdown first
+  let response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -152,9 +165,38 @@ async function sendTelegramMessage(token: string, chatId: string, text: string) 
     }),
   });
 
-  const data = await response.json();
+  let data = await response.json().catch(() => ({ ok: false, description: 'Respuesta no válida del servidor de Telegram' }));
+
+  // If Markdown parsing fails, retry with plain text
+  if (!data.ok && typeof data.description === 'string' && data.description.toLowerCase().includes("can't parse entities")) {
+    const plainText = text.replace(/[*_`~[\]()]/g, '');
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: cleanChatId,
+        text: plainText,
+        disable_web_page_preview: true,
+      }),
+    });
+    data = await response.json().catch(() => ({ ok: false, description: 'Respuesta no válida del servidor de Telegram' }));
+  }
+
   if (!data.ok) {
-    throw new Error(data.description || 'Error al enviar mensaje a Telegram');
+    const desc = data.description || '';
+    if (desc === 'Not Found' || desc.toLowerCase().includes('not found')) {
+      throw new Error('El Token del bot no es válido en Telegram (Not Found). Verifica que hayas copiado el token exacto entregado por @BotFather (ejemplo: 789123456:AAH...) sin espacios ni caracteres extra.');
+    }
+    if (desc.toLowerCase().includes('unauthorized')) {
+      throw new Error('Token no autorizado. El token de @BotFather parece haber sido revocado o es inválido.');
+    }
+    if (desc.toLowerCase().includes('chat not found')) {
+      throw new Error('El Chat ID no fue encontrado. Si es un grupo, agrega el bot al grupo primero. Si es chat privado, abre el bot y presiona /start.');
+    }
+    if (desc.toLowerCase().includes('bot was kicked') || desc.toLowerCase().includes('not a member')) {
+      throw new Error('El bot fue expulsado o no es miembro del grupo de Telegram. Agrégalo nuevamente y dale permisos.');
+    }
+    throw new Error(desc || 'Error al enviar mensaje a Telegram');
   }
   return data;
 }
