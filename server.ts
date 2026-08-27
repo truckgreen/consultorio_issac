@@ -237,6 +237,33 @@ async function startServer() {
         getServerSupabaseClient();
       }
 
+      // Sync to Supabase clinic_settings table if client available
+      const client = getServerSupabaseClient();
+      if (client) {
+        if (updatePayload.telegramToken || updatePayload.telegramChatId || updatePayload.specialistTags) {
+          client.from('clinic_settings').upsert({
+            id: 'telegram_config',
+            value: {
+              botToken: updated.telegramToken,
+              chatId: updated.telegramChatId,
+              enabled: updated.telegramEnabled ?? true,
+              specialistTags: updated.specialistTags || {},
+            },
+            updated_at: new Date().toISOString(),
+          }).then(() => {}).catch(err => console.warn('[Server] Supabase clinic_settings upsert error:', err));
+        }
+        if (updatePayload.supabaseUrl || updatePayload.supabaseAnonKey) {
+          client.from('clinic_settings').upsert({
+            id: 'supabase_config',
+            value: {
+              url: updated.supabaseUrl,
+              anonKey: updated.supabaseAnonKey,
+            },
+            updated_at: new Date().toISOString(),
+          }).then(() => {}).catch(err => console.warn('[Server] Supabase clinic_settings upsert error:', err));
+        }
+      }
+
       const env = getEnvCredentials();
 
       res.json({

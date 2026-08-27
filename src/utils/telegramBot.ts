@@ -1,5 +1,6 @@
 import { ConfirmedAppointment, TelegramConfig } from '../types';
 import { TEAM_MEMBERS } from '../data/teamData';
+import { saveClinicSettingToSupabase } from '../lib/supabase';
 
 const TELEGRAM_CONFIG_STORAGE_KEY = 'equilibra_telegram_config';
 
@@ -68,7 +69,7 @@ export function saveTelegramConfig(config: Partial<TelegramConfig>): TelegramCon
     localStorage.setItem(TELEGRAM_CONFIG_STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('equilibra_telegram_config_updated', { detail: updated }));
 
-    // Persist to server config for all devices
+    // Persist to server config and Supabase Cloud Database for all devices
     fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,6 +80,10 @@ export function saveTelegramConfig(config: Partial<TelegramConfig>): TelegramCon
         specialistTags: updated.specialistTags,
       }),
     }).catch(err => console.warn('[saveTelegramConfig] Server sync note:', err));
+
+    saveClinicSettingToSupabase('telegram_config', updated).catch(err =>
+      console.warn('[saveTelegramConfig] Supabase DB sync note:', err)
+    );
 
     return updated;
   } catch (e) {

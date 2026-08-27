@@ -83,8 +83,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const handleTelegramUpdated = (e: any) => {
       const updated = e.detail || getStoredTelegramConfig();
       setTelegramConfig(updated);
-      setTelegramToken(updated.botToken || '');
-      setTelegramChatId(updated.chatId || '');
+      if (updated.botToken) setTelegramToken(updated.botToken);
+      if (updated.chatId) setTelegramChatId(updated.chatId);
       setTelegramEnabled(updated.enabled ?? true);
     };
 

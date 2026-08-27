@@ -257,14 +257,24 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
   const [telegramSaveSuccess, setTelegramSaveSuccess] = useState(false);
   const [tagsSaveSuccess, setTagsSaveSuccess] = useState(false);
 
-  // Sync telegram and supabase config on window event & mount
+  // Sync telegram and supabase config on window event & mount & isOpen
   useEffect(() => {
     syncGlobalConfigFromServer();
+    const cfg = getStoredTelegramConfig();
+    if (cfg.botToken) setTelegramToken(cfg.botToken);
+    if (cfg.chatId) setTelegramChatId(cfg.chatId);
+    if (typeof cfg.enabled === 'boolean') setTelegramEnabled(cfg.enabled);
+    if (cfg.specialistTags) setSpecialistTags(cfg.specialistTags);
+
+    const supCfg = getCurrentSupabaseConfig();
+    if (supCfg.url) setSupabaseUrl(supCfg.url);
+    if (supCfg.anonKey) setSupabaseAnonKey(supCfg.anonKey);
+
     const handleTelegramUpdated = (e: any) => {
       const updated = e.detail || getStoredTelegramConfig();
       setTelegramConfig(updated);
-      setTelegramToken(updated.botToken || '');
-      setTelegramChatId(updated.chatId || '');
+      if (updated.botToken) setTelegramToken(updated.botToken);
+      if (updated.chatId) setTelegramChatId(updated.chatId);
       setTelegramEnabled(updated.enabled ?? true);
       setSpecialistTags(updated.specialistTags || {});
     };
@@ -280,7 +290,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       window.removeEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
       window.removeEventListener('equilibra_supabase_config_updated', handleSupabaseUpdated);
     };
-  }, []);
+  }, [isOpen]);
 
   // Telegram Bot config state
   const handleSaveTelegram = (e: React.FormEvent) => {

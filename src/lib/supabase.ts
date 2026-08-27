@@ -52,43 +52,123 @@ export function getSupabaseCredentials(): { url: string; anonKey: string; source
   return { url: targetUrl, anonKey: '', source: 'demo' };
 }
 
+export async function saveClinicSettingToSupabase(key: string, value: any): Promise<boolean> {
+  try {
+    const client = getSupabaseClient();
+    if (!client) return false;
+    const { error } = await client.from('clinic_settings').upsert({
+      id: key,
+      value: value,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.warn('[Supabase Settings] Upsert note:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[Supabase Settings] Error saving setting to DB:', err);
+    return false;
+  }
+}
+
+export async function getClinicSettingFromSupabase<T = any>(key: string): Promise<T | null> {
+  try {
+    const client = getSupabaseClient();
+    if (!client) return null;
+    const { data, error } = await client.from('clinic_settings').select('value').eq('id', key).single();
+    if (error || !data) return null;
+    return data.value as T;
+  } catch {
+    return null;
+  }
+}
+
 export async function syncGlobalConfigFromServer(): Promise<void> {
   try {
-    const res = await fetch('/api/config');
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.supabase) {
-        if (data.supabase.url && data.supabase.anonKey) {
-          localStorage.setItem(STORAGE_KEY_URL, data.supabase.url);
-          localStorage.setItem(STORAGE_KEY_KEY, data.supabase.anonKey);
-          cachedClient = null;
-          initSupabase();
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('equilibra_supabase_config_updated', { detail: data.supabase }));
+    // 1. Try server-side /api/config endpoint
+    try {
+      const res = await fetch('/api/config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.supabase) {
+          if (data.supabase.url && data.supabase.anonKey) {
+            localStorage.setItem(STORAGE_KEY_URL, data.supabase.url);
+            localStorage.setItem(STORAGE_KEY_KEY, data.supabase.anonKey);
+            cachedClient = null;
+            initSupabase();
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('equilibra_supabase_config_updated', { detail: data.supabase }));
+            }
+          }
+        }
+        if (data && data.telegram) {
+          const tg = data.telegram;
+          if (tg.botToken || tg.chatId) {
+            const stored = localStorage.getItem('equilibra_telegram_config');
+            const parsed = stored ? JSON.parse(stored) : {};
+            const merged = {
+              ...parsed,
+              botToken: tg.botToken || parsed.botToken || '',
+              chatId: tg.chatId || parsed.chatId || '',
+              enabled: tg.enabled ?? parsed.enabled ?? true,
+              specialistTags: tg.specialistTags || parsed.specialistTags || {},
+            };
+            localStorage.setItem('equilibra_telegram_config', JSON.stringify(merged));
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('equilibra_telegram_config_updated', { detail: merged }));
+            }
           }
         }
       }
-      if (data && data.telegram) {
-        const tg = data.telegram;
-        if (tg.botToken || tg.chatId) {
-          const stored = localStorage.getItem('equilibra_telegram_config');
-          const parsed = stored ? JSON.parse(stored) : {};
-          const merged = {
-            ...parsed,
-            botToken: tg.botToken || parsed.botToken || '',
-            chatId: tg.chatId || parsed.chatId || '',
-            enabled: tg.enabled ?? parsed.enabled ?? true,
-            specialistTags: tg.specialistTags || parsed.specialistTags || {},
-          };
-          localStorage.setItem('equilibra_telegram_config', JSON.stringify(merged));
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('equilibra_telegram_config_updated', { detail: merged }));
+    } catch (apiErr) {
+      console.warn('[syncGlobalConfigFromServer] /api/config fetch note:', apiErr);
+    }
+
+    // 2. Direct cloud database check in Supabase clinic_settings table (for static hosting like Render / Vercel)
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const { data: dbSettings, error: dbErr } = await client.from('clinic_settings').select('*');
+        if (!dbErr && dbSettings && Array.isArray(dbSettings)) {
+          for (const row of dbSettings) {
+            if (row.id === 'telegram_config' && row.value) {
+              const tg = row.value;
+              const stored = localStorage.getItem('equilibra_telegram_config');
+              const parsed = stored ? JSON.parse(stored) : {};
+              const merged = {
+                ...parsed,
+                ...tg,
+                botToken: tg.botToken || parsed.botToken || '',
+                chatId: tg.chatId || parsed.chatId || '',
+                enabled: tg.enabled ?? parsed.enabled ?? true,
+                specialistTags: tg.specialistTags || parsed.specialistTags || {},
+              };
+              localStorage.setItem('equilibra_telegram_config', JSON.stringify(merged));
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('equilibra_telegram_config_updated', { detail: merged }));
+              }
+            }
+            if (row.id === 'supabase_config' && row.value) {
+              const sup = row.value;
+              if (sup.url && sup.anonKey) {
+                localStorage.setItem(STORAGE_KEY_URL, sup.url);
+                localStorage.setItem(STORAGE_KEY_KEY, sup.anonKey);
+                cachedClient = null;
+                initSupabase();
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('equilibra_supabase_config_updated', { detail: sup }));
+                }
+              }
+            }
           }
         }
+      } catch (dbSyncErr) {
+        console.warn('[syncGlobalConfigFromServer] Supabase DB sync note:', dbSyncErr);
       }
     }
   } catch (err) {
-    console.warn('[syncGlobalConfigFromServer] Note:', err);
+    console.warn('[syncGlobalConfigFromServer] Error:', err);
   }
 }
 
@@ -177,6 +257,10 @@ export function saveSupabaseCredentials(url: string, key: string): boolean {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ supabaseUrl: cleanUrl, supabaseAnonKey: cleanKey }),
     }).catch(err => console.warn('[saveSupabaseCredentials] Server sync note:', err));
+
+    saveClinicSettingToSupabase('supabase_config', { url: cleanUrl, anonKey: cleanKey }).catch(err =>
+      console.warn('[saveSupabaseCredentials] Supabase DB sync note:', err)
+    );
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('equilibra_supabase_config_updated', {
@@ -875,10 +959,18 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 4. Tabla de Configuración de la Clínica & Integraciones (Telegram, Bot, Config Global)
+CREATE TABLE IF NOT EXISTS clinic_settings (
+  id TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Habilitar Políticas RLS
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clinic_settings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Permitir todo en appointments" ON appointments;
 CREATE POLICY "Permitir todo en appointments" ON appointments FOR ALL TO public USING (true) WITH CHECK (true);
@@ -888,4 +980,7 @@ CREATE POLICY "Permitir todo en patients" ON patients FOR ALL TO public USING (t
 
 DROP POLICY IF EXISTS "Permitir todo en contact_messages" ON contact_messages;
 CREATE POLICY "Permitir todo en contact_messages" ON contact_messages FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permitir todo en clinic_settings" ON clinic_settings;
+CREATE POLICY "Permitir todo en clinic_settings" ON clinic_settings FOR ALL TO public USING (true) WITH CHECK (true);
 `;
