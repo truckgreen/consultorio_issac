@@ -16,7 +16,7 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
   {
     id: 'isaac-jewsiejew',
     name: 'Lic. Isaac Jewsiejew',
-    role: 'Fisioterapeuta Deportivo',
+    role: 'Fisioterapeuta Deportivo y General',
     specialty: 'Rehabilitación y readaptación física en deportistas',
     category: 'fisioterapia',
     email: 'isaac@equilibrafisioterapia.com',

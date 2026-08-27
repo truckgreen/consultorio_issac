@@ -84,7 +84,7 @@ export const APP_IMAGES = {
   team: {
     isaacJewsiejew: {
       src: "/imagenes/fotos de perfil/Isaac Jewsiejew.jpg",
-      alt: "Isaac Jewsiejew - Fisioterapeuta deportivo",
+      alt: "Isaac Jewsiejew - Fisioterapeuta deportivo y general",
     },
     marividRequena: {
       src: "/imagenes/fotos de perfil/Marivid Requena.jpg",

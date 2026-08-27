@@ -17,7 +17,7 @@ export const PREDEFINED_USERS: AuthUser[] = [
     username: 'isaac',
     name: 'Lic. Isaac Jewsiejew',
     role: 'SPECIALIST',
-    specialty: 'Fisioterapeuta Deportivo',
+    specialty: 'Fisioterapeuta Deportivo y  General',
     email: 'isaac.jewsiejew@equilibrave.com',
     pin: '3957',
   },

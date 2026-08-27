@@ -235,7 +235,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
   {
     id: "isaac-jewsiejew",
     name: "Isaac Jewsiejew",
-    role: "Fisioterapeuta deportivo",
+    role: "Fisioterapeuta Deportivo y General",
     specialty: "Rehabilitación y readaptación física en deportistas y atletas de alto rendimiento",
     category: "fisioterapia",
     imageUrl: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80",
