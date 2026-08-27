@@ -102,94 +102,116 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     setCancellationResult(null);
     setRescheduleSuccessMessage(null);
 
-    // Rate limit check
-    const rateCheck = checkRateLimit('portal_lookup', 10, 5 * 60 * 1000);
-    if (!rateCheck.allowed) {
-      setSearchError(rateCheck.message || 'Límite de consultas excedido por seguridad.');
-      return;
-    }
-
     setIsSearching(true);
 
     try {
       const all = await getAppointmentsFromDatabase();
       const fallbackLocal = getSavedAppointments();
       
-      // Remove duplicates by id/code
+      // Consolidate pool deduplicated by id & code
       const seen = new Set<string>();
       const pool: ConfirmedAppointment[] = [];
       for (const app of [...all, ...fallbackLocal]) {
         const key = app.id || app.code;
-        if (!seen.has(key)) {
+        if (key && !seen.has(key)) {
           seen.add(key);
           pool.push(app);
         }
       }
 
+      const normalizeCode = (s: string) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^EQ/, '');
+      const normalizePhone = (s: string) => (s || '').replace(/[^\d]/g, '');
+      const normalizeText = (s: string) =>
+        (s || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim();
+
       let matches: ConfirmedAppointment[] = [];
 
       if (searchTab === 'email_phone') {
-        const cleanQuery = searchEmailOrPhone.trim().toLowerCase();
-        if (!cleanQuery) {
-          setSearchError('Por favor ingresa tu correo electrónico o número de teléfono registrado.');
+        const rawInput = searchEmailOrPhone.trim();
+        if (!rawInput) {
+          setSearchError('Por favor ingresa tu correo, teléfono o código de cita.');
           setIsSearching(false);
           return;
         }
 
-        const digitsQuery = cleanQuery.replace(/[^\d]/g, '');
+        const textQ = normalizeText(rawInput);
+        const phoneQ = normalizePhone(rawInput);
+        const codeQ = normalizeCode(rawInput);
 
         matches = pool.filter((app) => {
-          // Check email
-          const appEmail = (app.email || '').toLowerCase().trim();
-          if (cleanQuery.includes('@') && appEmail.includes(cleanQuery)) {
-            return true;
-          }
-          if (appEmail && appEmail === cleanQuery) {
-            return true;
-          }
+          const appEmail = normalizeText(app.email || '');
+          const appName = normalizeText(`${app.nombre || ''} ${app.apellido || ''}`);
+          const appPhone = normalizePhone(app.telefono || '');
+          const appCode = normalizeCode(app.code || '');
+          const appId = normalizeCode(app.id || '');
 
-          // Check phone
-          const appPhoneDigits = (app.telefono || '').replace(/[^\d]/g, '');
-          if (digitsQuery.length >= 4 && appPhoneDigits.includes(digitsQuery)) {
-            return true;
-          }
+          // 1. Exact or partial email match
+          if (textQ.includes('@') && appEmail.includes(textQ)) return true;
+          if (appEmail && (appEmail === textQ || (textQ.length >= 3 && appEmail.includes(textQ)))) return true;
 
-          // Partial match on email user part
-          if (cleanQuery.length >= 4 && appEmail.includes(cleanQuery)) {
-            return true;
-          }
+          // 2. Phone match (check 4+ digits)
+          if (phoneQ.length >= 4 && (appPhone.includes(phoneQ) || phoneQ.includes(appPhone))) return true;
+
+          // 3. Code match in case user typed code in this field
+          if (codeQ.length >= 4 && (appCode === codeQ || appId === codeQ || appCode.includes(codeQ))) return true;
+
+          // 4. Name match (if 3+ characters)
+          if (textQ.length >= 3 && appName.includes(textQ)) return true;
 
           return false;
         });
       } else {
-        // Search by Code
-        const cleanCode = sanitizeString(searchCode).toUpperCase().trim();
-        if (!cleanCode) {
+        // Search by Code (or omni search)
+        const rawCode = searchCode.trim();
+        if (!rawCode) {
           setSearchError('Por favor ingresa tu código de cita (ej. EQ-8K3N-7P2W).');
           setIsSearching(false);
           return;
         }
 
-        const cleanValidator = sanitizeString(searchValidatorOptional).toLowerCase().trim();
-        const digitsValidator = cleanValidator.replace(/[^\d]/g, '');
+        const codeQ = normalizeCode(rawCode);
+        const textQ = normalizeText(rawCode);
+        const phoneQ = normalizePhone(rawCode);
+
+        const optionalValidator = searchValidatorOptional.trim();
+        const validatorText = normalizeText(optionalValidator);
+        const validatorPhone = normalizePhone(optionalValidator);
 
         matches = pool.filter((app) => {
-          const appCode = (app.code || '').toUpperCase().trim();
-          const appId = (app.id || '').toUpperCase().trim();
-          const codeMatches =
-            appCode === cleanCode ||
-            appId === cleanCode ||
-            appCode.replace('EQ-', '') === cleanCode.replace('EQ-', '');
+          const appCode = normalizeCode(app.code || '');
+          const appId = normalizeCode(app.id || '');
+          const rawAppCode = (app.code || '').toUpperCase();
+          const rawAppId = (app.id || '').toUpperCase();
+          const upperInput = rawCode.toUpperCase();
 
-          if (!codeMatches) return false;
+          // Code match checks
+          const isDirectCodeMatch =
+            rawAppCode === upperInput ||
+            rawAppId === upperInput ||
+            (codeQ.length >= 3 && (appCode === codeQ || appId === codeQ || appCode.includes(codeQ) || codeQ.includes(appCode)));
 
-          // If optional validator is provided, match it too
-          if (cleanValidator) {
-            const emailMatches = (app.email || '').toLowerCase().includes(cleanValidator);
-            const appPhoneDigits = (app.telefono || '').replace(/[^\d]/g, '');
-            const phoneMatches =
-              digitsValidator.length >= 4 && appPhoneDigits.includes(digitsValidator);
-            return emailMatches || phoneMatches;
+          // Omni fallback in case user typed email or phone in code box
+          const appEmail = normalizeText(app.email || '');
+          const appPhone = normalizePhone(app.telefono || '');
+          const appName = normalizeText(`${app.nombre || ''} ${app.apellido || ''}`);
+
+          const isEmailMatch = textQ.includes('@') && appEmail.includes(textQ);
+          const isPhoneMatch = phoneQ.length >= 6 && appPhone.includes(phoneQ);
+          const isNameMatch = textQ.length >= 4 && appName.includes(textQ);
+
+          const mainMatch = isDirectCodeMatch || isEmailMatch || isPhoneMatch || isNameMatch;
+          if (!mainMatch) return false;
+
+          // If optional validator is provided, use as verification check
+          if (optionalValidator) {
+            const valEmailMatch = appEmail.includes(validatorText);
+            const valPhoneMatch = validatorPhone.length >= 4 && appPhone.includes(validatorPhone);
+            const valNameMatch = appName.includes(validatorText);
+            return valEmailMatch || valPhoneMatch || valNameMatch;
           }
 
           return true;
@@ -199,8 +221,8 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
       if (matches.length === 0) {
         setSearchError(
           searchTab === 'email_phone'
-            ? 'No encontramos ninguna cita asociada a este correo o teléfono. Verifica que sea el mismo dato con el que agendaste.'
-            : 'No encontramos ninguna cita con el código ingresado. Verifica el código e intenta nuevamente.'
+            ? 'No encontramos ninguna cita con esos datos. Verifica el correo, teléfono o código e intenta nuevamente.'
+            : 'No encontramos ninguna cita con el código ingresado. Verifica tu código (ej. EQ-XXXX-XXXX) e intenta nuevamente.'
         );
         recordSecurityEvent({
           action: 'AUTH_FAILED',
@@ -229,8 +251,9 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
           details: `Consulta múltiple (${matches.length} citas) autorizada en portal.`,
         });
       }
-    } catch {
-      setSearchError('Error temporal al consultar los registros. Por favor intenta más tarde.');
+    } catch (err) {
+      console.error('Portal search error:', err);
+      setSearchError('Error temporal al consultar los registros. Por favor intenta de nuevo.');
     } finally {
       setIsSearching(false);
     }

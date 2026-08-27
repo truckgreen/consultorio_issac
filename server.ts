@@ -131,6 +131,9 @@ function getServerSupabaseClient(): SupabaseClient | null {
   return null;
 }
 
+// In-memory appointments fallback cache
+const serverAppointmentsCache: any[] = [];
+
 // Helper to sanitize telegram token
 function sanitizeTelegramToken(rawToken: string): string {
   if (!rawToken) return '';
@@ -504,29 +507,50 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
   // 5. Appointments API (Save to Supabase & Auto-notify Telegram)
   app.get('/api/appointments', async (req, res) => {
     const supabaseClient = getServerSupabaseClient();
-    if (!supabaseClient) {
-      return res.json({ success: true, data: [], source: 'local' });
-    }
+    let supabaseData: any[] = [];
 
-    try {
-      const { data, error } = await supabaseClient
-        .from('appointments')
-        .select('*')
-        .order('created_at', { ascending: false });
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('appointments')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        return res.status(400).json({ success: false, error: error.message });
+        if (!error && Array.isArray(data)) {
+          supabaseData = data;
+        }
+      } catch (err: any) {
+        console.warn('[Server Supabase GET] Note:', err?.message);
       }
-      res.json({ success: true, data: data || [], source: 'supabase' });
-    } catch (err: any) {
-      res.status(500).json({ success: false, error: err?.message });
     }
+
+    // Merge supabase data with server memory cache (newest and deduplicated)
+    const map = new Map<string, any>();
+    for (const item of [...supabaseData, ...serverAppointmentsCache]) {
+      const key = String(item.id || item.code || '');
+      if (key && !map.has(key)) {
+        map.set(key, item);
+      }
+    }
+
+    const merged = Array.from(map.values());
+    res.json({ success: true, data: merged, source: supabaseData.length > 0 ? 'supabase+cache' : 'memory_cache' });
   });
 
   app.post('/api/appointments', createRateLimiter(10 * 60 * 1000, 30, 'appointments_create'), async (req, res) => {
     const appointment = req.body;
     if (!appointment || !appointment.id) {
       return res.status(400).json({ success: false, error: 'Datos de cita inválidos' });
+    }
+
+    // Always store in server memory cache
+    const existingIdx = serverAppointmentsCache.findIndex(
+      (a) => a.id === appointment.id || (a.code && a.code === appointment.code)
+    );
+    if (existingIdx >= 0) {
+      serverAppointmentsCache[existingIdx] = { ...serverAppointmentsCache[existingIdx], ...appointment };
+    } else {
+      serverAppointmentsCache.unshift(appointment);
     }
 
     let supabaseSaved = false;
@@ -652,6 +676,28 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
       telegramError,
       appointment,
     });
+  });
+
+  // 5b. Update single appointment (e.g. reschedule or cancel)
+  app.put('/api/appointments/:id', async (req, res) => {
+    const { id } = req.params;
+    const updates = req.body || {};
+
+    const idx = serverAppointmentsCache.findIndex((a) => a.id === id || a.code === id);
+    if (idx >= 0) {
+      serverAppointmentsCache[idx] = { ...serverAppointmentsCache[idx], ...updates };
+    }
+
+    const supabaseClient = getServerSupabaseClient();
+    if (supabaseClient) {
+      try {
+        await supabaseClient.from('appointments').update(updates).eq('id', id);
+      } catch (err) {
+        console.warn('[Server PUT appointment error]:', err);
+      }
+    }
+
+    res.json({ success: true, updated: updates });
   });
 
   // 6. Patients API

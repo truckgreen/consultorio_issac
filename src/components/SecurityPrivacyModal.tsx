@@ -12,11 +12,9 @@ import {
   Server,
   KeyRound,
   EyeOff,
-  Clock,
   Sparkles,
 } from 'lucide-react';
 import {
-  getSecurityLogs,
   purgeLocalPatientData,
   getClientFingerprint,
 } from '../utils/security';
@@ -32,13 +30,12 @@ export const SecurityPrivacyModal: React.FC<SecurityPrivacyModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'policy' | 'controls' | 'audit'>('policy');
+  const [activeTab, setActiveTab] = useState<'policy' | 'controls'>('policy');
   const [purgedMessage, setPurgedMessage] = useState<string | null>(null);
   const [downloadSuccess, setDownloadSuccess] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
-  const logs = getSecurityLogs().slice(0, 15);
   const localAppointments = getSavedAppointments();
   const fingerprint = getClientFingerprint();
 
@@ -128,7 +125,7 @@ export const SecurityPrivacyModal: React.FC<SecurityPrivacyModalProps> = ({
             </button>
           </div>
 
-          {/* Navigation Tabs */}
+            {/* Navigation Tabs */}
           <div className="flex border-b border-slate-200 dark:border-slate-800 px-6 bg-slate-50 dark:bg-slate-900/50">
             <button
               onClick={() => setActiveTab('policy')}
@@ -152,18 +149,6 @@ export const SecurityPrivacyModal: React.FC<SecurityPrivacyModalProps> = ({
             >
               <FileCheck className="w-4 h-4" />
               <span>Tus Derechos de Datos (ARCO)</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('audit')}
-              className={`py-3.5 px-4 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
-                activeTab === 'audit'
-                  ? 'border-amber-500 text-amber-600 dark:text-amber-400'
-                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              <Clock className="w-4 h-4" />
-              <span>Auditoría de Sesión</span>
             </button>
           </div>
 
@@ -314,68 +299,6 @@ export const SecurityPrivacyModal: React.FC<SecurityPrivacyModalProps> = ({
                       <span>Borrar Memoria Local</span>
                     </button>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'audit' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Identificador de Sesión Seguro:</span>
-                    <code className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-slate-800 dark:text-slate-200">
-                      {fingerprint}
-                    </code>
-                  </div>
-                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                    ● Enlace Cifrado Activo
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Registro de Seguridad Reciente
-                  </h4>
-
-                  {logs.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-                      No hay eventos anómalos o bloqueos registrados en esta sesión. Todo opera con normalidad.
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {logs.map((log) => (
-                        <div
-                          key={log.id}
-                          className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex items-start justify-between gap-3 text-xs"
-                        >
-                          <div className="flex items-start gap-2.5">
-                            {log.severity === 'CRITICAL' ? (
-                              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                            ) : log.severity === 'WARNING' ? (
-                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                            ) : (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                            )}
-                            <div>
-                              <div className="font-semibold text-slate-800 dark:text-slate-200">
-                                {log.details}
-                              </div>
-                              <div className="text-[10px] text-slate-400 mt-0.5">
-                                Acción: {log.action} • Huella: {log.fingerprintHash}
-                              </div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] text-slate-400 shrink-0 whitespace-nowrap">
-                            {new Date(log.timestamp).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              second: '2-digit',
-                            })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             )}

@@ -19,7 +19,6 @@ import { SpecialistAccessModal } from './components/SpecialistAccessModal';
 import { SecurityPrivacyModal } from './components/SecurityPrivacyModal';
 import { DeveloperSupportModal } from './components/DeveloperSupportModal';
 import { AppDownloadModal } from './components/AppDownloadModal';
-import { BetaNoticeBanner } from './components/BetaNoticeBanner';
 import { ServiceItem } from './types';
 import { syncGlobalConfigFromServer } from './lib/supabase';
 
@@ -72,9 +71,6 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#faf8f5] dark:bg-[#0f141c] text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950">
-      {/* 0. Beta Phase Notice Banner */}
-      <BetaNoticeBanner />
-
       {/* 1. Sticky Navigation Bar */}
       <Navbar
         darkMode={darkMode}

@@ -79,7 +79,7 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
             <span>Especialistas de Primera Línea</span>
           </div>
 
-          {/* Instagram Title Styling: NUESTRO EQUIPO */}
+          {/* Instagram Title Styling: NUESTRO EQUIPO / FISIOJEWSIJEW */}
           <div className="space-y-1">
             <span className="text-xs uppercase tracking-[0.25em] font-extrabold text-amber-600 dark:text-amber-400 block">
               Nuestro

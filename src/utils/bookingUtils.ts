@@ -36,15 +36,33 @@ export function getSavedAppointments(): ConfirmedAppointment[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_APPOINTMENTS_KEY);
-    if (!raw) return [];
-    const parsed: ConfirmedAppointment[] = JSON.parse(raw);
-    const filtered = (parsed || []).filter(
-      (a) => !a.id.startsWith('seed_') && !a.id.startsWith('app_seed_') && !a.id.startsWith('demo_')
-    );
-    if (filtered.length !== parsed.length) {
-      localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(filtered));
-    }
-    return filtered;
+    const rawAlt1 = localStorage.getItem('equilibra_appointments');
+    const rawAlt2 = localStorage.getItem('appointments');
+
+    const pool: ConfirmedAppointment[] = [];
+    const seen = new Set<string>();
+
+    const parseAndAdd = (str: string | null) => {
+      if (!str) return;
+      try {
+        const arr = JSON.parse(str);
+        if (Array.isArray(arr)) {
+          for (const item of arr) {
+            const key = String(item.id || item.code || '');
+            if (key && !seen.has(key) && !key.startsWith('seed_') && !key.startsWith('demo_')) {
+              seen.add(key);
+              pool.push(item);
+            }
+          }
+        }
+      } catch {}
+    };
+
+    parseAndAdd(raw);
+    parseAndAdd(rawAlt1);
+    parseAndAdd(rawAlt2);
+
+    return pool;
   } catch (e) {
     console.error('Error reading saved appointments:', e);
     return [];
@@ -55,7 +73,7 @@ export function saveAppointmentToStorage(appointment: ConfirmedAppointment): voi
   if (typeof window === 'undefined') return;
   try {
     const current = getSavedAppointments();
-    const updated = [appointment, ...current.filter((a) => a.id !== appointment.id)];
+    const updated = [appointment, ...current.filter((a) => a.id !== appointment.id && a.code !== appointment.code)];
     localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(updated));
   } catch (e) {
     console.error('Error saving appointment:', e);
@@ -63,30 +81,85 @@ export function saveAppointmentToStorage(appointment: ConfirmedAppointment): voi
 }
 
 export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointment[]> {
+  const localList = getSavedAppointments();
+  let serverList: ConfirmedAppointment[] = [];
+  let supabaseList: ConfirmedAppointment[] = [];
+
   // 1. Try server API first
   try {
     const res = await fetch('/api/appointments');
     if (res.ok) {
       const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-        const mapped = json.data.map((row: any) => ({
+      if (json.success && Array.isArray(json.data)) {
+        serverList = json.data.map((row: any) => ({
           id: String(row.id),
           code: sanitizeString(row.code || generateSecureCode()),
-          serviceId: sanitizeString(row.service_id || row.serviceId),
+          serviceId: sanitizeString(row.service_id || row.serviceId || 'fisioterapia'),
+          servicePrice: row.service_price || row.servicePrice || (row.amount ? `${row.amount} USD` : undefined),
+          selectedPackageName: row.selected_package_name || row.package_name || row.selectedPackageName || undefined,
+          selectedPackagePrice: row.selected_package_price || row.selectedPackagePrice || undefined,
+          selectedPackageDescription: row.selected_package_description || row.selectedPackageDescription || undefined,
+          specialistId: row.specialist_id || row.specialistId || undefined,
+          specialistName: row.specialist_name || row.specialistName || 'Lic. Isaac Jewsiejew',
+          nombre: sanitizeString(row.nombre || ''),
+          apellido: sanitizeString(row.apellido || ''),
+          telefono: sanitizeString(row.telefono || ''),
+          email: sanitizeString(row.email || ''),
+          fecha: sanitizeString(row.fecha || ''),
+          hora: sanitizeString(row.hora || ''),
+          motivoConsulta: sanitizeString(row.motivo_consulta || row.motivo || row.motivoConsulta || '', 600),
+          primeraVisita: Boolean(row.primera_visita ?? row.primeraVisita),
+          createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+          status: row.status === 'PENDIENTE'
+            ? 'pendiente_validacion'
+            : row.status === 'CANCELADA'
+            ? 'cancelada'
+            : row.status === 'REPROGRAMADA'
+            ? 'reprogramada'
+            : (row.status || 'confirmada').toLowerCase(),
+          cancellationCount: row.cancellation_count || row.cancellationCount || 0,
+          cancellationFeePercent: row.cancellation_fee_percent || row.cancellationFeePercent || 0,
+          cancellationFeeAmount: row.cancellation_fee_amount || row.cancellationFeeAmount || 0,
+          cancellationReason: row.cancellation_reason || row.cancellationReason || undefined,
+          canceledAt: row.canceled_at || row.canceledAt || undefined,
+          rescheduledCount: row.rescheduled_count || row.rescheduledCount || 0,
+          rescheduledFromDate: row.rescheduled_from_date || row.rescheduledFromDate || undefined,
+          rescheduledFromTime: row.rescheduled_from_time || row.rescheduledFromTime || undefined,
+          rescheduledAt: row.rescheduled_at || row.rescheduledAt || undefined,
+        })) as ConfirmedAppointment[];
+      }
+    }
+  } catch (apiErr) {
+    // Continue
+  }
+
+  // 2. Direct Supabase client if configured
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        supabaseList = data.map((row) => ({
+          id: String(row.id),
+          code: sanitizeString(row.code || generateSecureCode()),
+          serviceId: sanitizeString(row.service_id || 'fisioterapia'),
           servicePrice: row.service_price || (row.amount ? `${row.amount} USD` : undefined),
           selectedPackageName: row.selected_package_name || row.package_name || undefined,
           selectedPackagePrice: row.selected_package_price || undefined,
           selectedPackageDescription: row.selected_package_description || undefined,
-          specialistId: row.specialist_id || row.specialistId || undefined,
-          specialistName: row.specialist_name || row.specialistName || 'Lic. Isaac Jewsiejew',
-          nombre: sanitizeString(row.nombre),
-          apellido: sanitizeString(row.apellido),
-          telefono: sanitizeString(row.telefono),
-          email: sanitizeString(row.email),
-          fecha: sanitizeString(row.fecha),
-          hora: sanitizeString(row.hora),
+          specialistId: row.specialist_id || undefined,
+          specialistName: row.specialist_name || 'Lic. Isaac Jewsiejew',
+          nombre: sanitizeString(row.nombre || ''),
+          apellido: sanitizeString(row.apellido || ''),
+          telefono: sanitizeString(row.telefono || ''),
+          email: sanitizeString(row.email || ''),
+          fecha: sanitizeString(row.fecha || ''),
+          hora: sanitizeString(row.hora || ''),
           motivoConsulta: sanitizeString(row.motivo_consulta || row.motivo || '', 600),
-          primeraVisita: Boolean(row.primera_visita ?? row.primeraVisita),
+          primeraVisita: Boolean(row.primera_visita),
           createdAt: row.created_at || new Date().toISOString(),
           status: row.status === 'PENDIENTE'
             ? 'pendiente_validacion'
@@ -105,70 +178,29 @@ export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointmen
           rescheduledFromTime: row.rescheduled_from_time || undefined,
           rescheduledAt: row.rescheduled_at || undefined,
         })) as ConfirmedAppointment[];
-        localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(mapped));
-        return mapped;
       }
+    } catch (e) {
+      console.warn('Supabase fetch note:', e);
     }
-  } catch (apiErr) {
-    // Continue to direct Supabase client
   }
 
-  if (!isSupabaseConfigured) return getSavedAppointments();
+  // Deduplicate and consolidate all sources
+  const seenKeys = new Set<string>();
+  const merged: ConfirmedAppointment[] = [];
 
-  try {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.warn('Supabase appointments query note:', error.message);
-      return getSavedAppointments();
+  for (const item of [...serverList, ...supabaseList, ...localList]) {
+    const key = String(item.id || item.code || '');
+    if (key && !seenKeys.has(key)) {
+      seenKeys.add(key);
+      merged.push(item);
     }
-
-    const appointments = (data || []).map((row) => ({
-      id: String(row.id),
-      code: sanitizeString(row.code || generateSecureCode()),
-      serviceId: sanitizeString(row.service_id),
-      servicePrice: row.service_price || (row.amount ? `${row.amount} USD` : undefined),
-      selectedPackageName: row.selected_package_name || row.package_name || undefined,
-      selectedPackagePrice: row.selected_package_price || undefined,
-      selectedPackageDescription: row.selected_package_description || undefined,
-      specialistId: row.specialist_id || undefined,
-      specialistName: row.specialist_name || 'Lic. Isaac Jewsiejew',
-      nombre: sanitizeString(row.nombre),
-      apellido: sanitizeString(row.apellido),
-      telefono: sanitizeString(row.telefono),
-      email: sanitizeString(row.email),
-      fecha: sanitizeString(row.fecha),
-      hora: sanitizeString(row.hora),
-      motivoConsulta: sanitizeString(row.motivo_consulta || row.motivo || '', 600),
-      primeraVisita: Boolean(row.primera_visita),
-      createdAt: row.created_at || new Date().toISOString(),
-      status: row.status === 'PENDIENTE'
-        ? 'pendiente_validacion'
-        : row.status === 'CANCELADA'
-        ? 'cancelada'
-        : row.status === 'REPROGRAMADA'
-        ? 'reprogramada'
-        : (row.status || 'confirmada').toLowerCase(),
-      cancellationCount: row.cancellation_count || 0,
-      cancellationFeePercent: row.cancellation_fee_percent || 0,
-      cancellationFeeAmount: row.cancellation_fee_amount || 0,
-      cancellationReason: row.cancellation_reason || undefined,
-      canceledAt: row.canceled_at || undefined,
-      rescheduledCount: row.rescheduled_count || 0,
-      rescheduledFromDate: row.rescheduled_from_date || undefined,
-      rescheduledFromTime: row.rescheduled_from_time || undefined,
-      rescheduledAt: row.rescheduled_at || undefined,
-    })) as ConfirmedAppointment[];
-
-    localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(appointments));
-    return appointments;
-  } catch (err) {
-    console.warn('Network query error reading appointments:', err);
-    return getSavedAppointments();
   }
+
+  if (merged.length > 0 && typeof window !== 'undefined') {
+    localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(merged));
+  }
+
+  return merged;
 }
 
 export function subscribeToAppointments(onChange: (appointments: ConfirmedAppointment[]) => void): (() => void) | null {
@@ -309,16 +341,29 @@ export async function rescheduleAppointmentInDatabase(
   newTime: string,
   rescheduleReason?: string
 ): Promise<{ success: boolean; updatedAppointment?: ConfirmedAppointment; error?: string }> {
-  const currentLocal = getSavedAppointments();
-  const index = currentLocal.findIndex(
-    (a) => a.id === appointmentIdOrCode || a.code.toUpperCase() === appointmentIdOrCode.toUpperCase()
+  let all = getSavedAppointments();
+  let index = all.findIndex(
+    (a) =>
+      a.id === appointmentIdOrCode ||
+      a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+      a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
   );
+
+  if (index === -1) {
+    all = await getAppointmentsFromDatabase();
+    index = all.findIndex(
+      (a) =>
+        a.id === appointmentIdOrCode ||
+        a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+        a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    );
+  }
 
   if (index === -1) {
     return { success: false, error: 'No se encontró la cita a reprogramar.' };
   }
 
-  const app = currentLocal[index];
+  const app = all[index];
   const updated: ConfirmedAppointment = {
     ...app,
     rescheduledFromDate: app.fecha,
@@ -334,6 +379,24 @@ export async function rescheduleAppointmentInDatabase(
   };
 
   saveAppointmentToStorage(updated);
+
+  // Sync to server API
+  try {
+    void fetch(`/api/appointments/${app.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fecha: updated.fecha,
+        hora: updated.hora,
+        status: 'REPROGRAMADA',
+        rescheduled_from_date: updated.rescheduledFromDate,
+        rescheduled_from_time: updated.rescheduledFromTime,
+        rescheduled_count: updated.rescheduledCount,
+        rescheduled_at: updated.rescheduledAt,
+        notes: updated.notes,
+      }),
+    });
+  } catch {}
 
   recordSecurityEvent({
     action: 'BOOKING_SUCCESS',
@@ -395,10 +458,23 @@ export async function cancelAppointmentInDatabase(
   updatedAppointment?: ConfirmedAppointment;
   error?: string;
 }> {
-  const currentLocal = getSavedAppointments();
-  const index = currentLocal.findIndex(
-    (a) => a.id === appointmentIdOrCode || a.code.toUpperCase() === appointmentIdOrCode.toUpperCase()
+  let currentLocal = getSavedAppointments();
+  let index = currentLocal.findIndex(
+    (a) =>
+      a.id === appointmentIdOrCode ||
+      a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+      a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
   );
+
+  if (index === -1) {
+    currentLocal = await getAppointmentsFromDatabase();
+    index = currentLocal.findIndex(
+      (a) =>
+        a.id === appointmentIdOrCode ||
+        a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+        a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    );
+  }
 
   if (index === -1) {
     return {
@@ -436,6 +512,23 @@ export async function cancelAppointmentInDatabase(
   };
 
   saveAppointmentToStorage(updated);
+
+  // Sync to server API
+  try {
+    void fetch(`/api/appointments/${app.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'CANCELADA',
+        cancellation_count: currentCancellationNumber,
+        cancellation_fee_percent: penaltyPercent,
+        cancellation_fee_amount: penaltyAmount,
+        cancellation_reason: updated.cancellationReason,
+        canceled_at: updated.canceledAt,
+        notes: updated.notes,
+      }),
+    });
+  } catch {}
 
   recordSecurityEvent({
     action: 'APPOINTMENT_CANCEL_REQUEST',
