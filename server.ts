@@ -201,8 +201,55 @@ async function sendTelegramMessage(token: string, chatId: string, text: string) 
   return data;
 }
 
+// In-memory sliding window rate limiter
+interface RateLimitBucket {
+  timestamps: number[];
+}
+const rateLimits = new Map<string, RateLimitBucket>();
+
+function createRateLimiter(windowMs: number, maxRequests: number, actionName: string) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'ip-client';
+    const clientIp = Array.isArray(rawIp) ? rawIp[0] : String(rawIp).split(',')[0].trim();
+    const key = `${actionName}:${clientIp}`;
+    const now = Date.now();
+
+    let bucket = rateLimits.get(key);
+    if (!bucket) {
+      bucket = { timestamps: [] };
+      rateLimits.set(key, bucket);
+    }
+
+    bucket.timestamps = bucket.timestamps.filter((ts) => now - ts < windowMs);
+
+    if (bucket.timestamps.length >= maxRequests) {
+      const oldest = bucket.timestamps[0];
+      const retryAfterSec = Math.max(1, Math.ceil((windowMs - (now - oldest)) / 1000));
+      res.setHeader('Retry-After', String(retryAfterSec));
+      return res.status(429).json({
+        success: false,
+        error: `Límite de solicitudes de seguridad alcanzado para '${actionName}'. Reintenta en ${retryAfterSec} segundos.`,
+      });
+    }
+
+    bucket.timestamps.push(now);
+    next();
+  };
+}
+
 async function startServer() {
   const app = express();
+
+  // Web Security Headers
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+  });
+
   app.use(express.json({ limit: '15mb' }));
 
   // 1. Health check
@@ -238,7 +285,7 @@ async function startServer() {
   });
 
   // 2b. Update Global Configuration (Saves across all devices and server runtime)
-  app.post('/api/config', (req, res) => {
+  app.post('/api/config', createRateLimiter(60 * 1000, 15, 'config_update'), (req, res) => {
     try {
       const {
         supabaseUrl,
@@ -333,7 +380,7 @@ async function startServer() {
   });
 
   // 3. Telegram notification endpoint
-  app.post('/api/telegram/notify', async (req, res) => {
+  app.post('/api/telegram/notify', createRateLimiter(60 * 1000, 20, 'telegram_notify'), async (req, res) => {
     try {
       const { appointment, customToken, customChatId } = req.body;
       const env = getEnvCredentials();
@@ -419,7 +466,7 @@ async function startServer() {
   });
 
   // 4. Telegram test endpoint
-  app.post('/api/telegram/test', async (req, res) => {
+  app.post('/api/telegram/test', createRateLimiter(60 * 1000, 10, 'telegram_test'), async (req, res) => {
     try {
       const { token, chatId } = req.body;
       const env = getEnvCredentials();
@@ -476,7 +523,7 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
     }
   });
 
-  app.post('/api/appointments', async (req, res) => {
+  app.post('/api/appointments', createRateLimiter(10 * 60 * 1000, 30, 'appointments_create'), async (req, res) => {
     const appointment = req.body;
     if (!appointment || !appointment.id) {
       return res.status(400).json({ success: false, error: 'Datos de cita inválidos' });
@@ -592,8 +639,8 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
         await sendTelegramMessage(env.telegramToken, env.telegramChatId, telegramText);
         telegramSent = true;
       } catch (tgErr: any) {
-        telegramError = tgErr?.message;
-        console.error('[Server Telegram Auto-Alert] Error:', tgErr);
+        telegramError = tgErr?.message || 'Error al despachar notificación de Telegram';
+        console.warn('[Server Telegram Auto-Alert] Advertencia:', telegramError);
       }
     }
 
@@ -645,7 +692,7 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
   });
 
   // 7. Contact Messages API
-  app.post('/api/contact', async (req, res) => {
+  app.post('/api/contact', createRateLimiter(10 * 60 * 1000, 10, 'contact_message'), async (req, res) => {
     const msg = req.body;
     const env = getEnvCredentials();
 
