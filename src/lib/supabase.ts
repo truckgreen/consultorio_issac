@@ -15,8 +15,19 @@ let currentConfig: SupabaseConfig = {
   source: 'demo'
 };
 
+const DEFAULT_SUPABASE_URL = 'https://lzszxtxddlamplzsoihx.supabase.co';
+
 export function getSupabaseCredentials(): { url: string; anonKey: string; source: 'custom' | 'env' | 'demo' } {
-  // 1. Check environment variables first (or Vite defined environment)
+  // 1. Check localStorage if user configured in UI
+  if (typeof window !== 'undefined') {
+    const customUrl = localStorage.getItem(STORAGE_KEY_URL);
+    const customKey = localStorage.getItem(STORAGE_KEY_KEY);
+    if (customUrl && customKey && customUrl.trim() && customKey.trim()) {
+      return { url: customUrl.trim(), anonKey: customKey.trim(), source: 'custom' };
+    }
+  }
+
+  // 2. Check environment variables (or Vite defined environment)
   const envUrl =
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
     (typeof process !== 'undefined' ? process.env?.SUPABASE_URL : '') ||
@@ -26,20 +37,59 @@ export function getSupabaseCredentials(): { url: string; anonKey: string; source
     (typeof process !== 'undefined' ? (process.env?.SUPABASE_ANON_KEY || process.env?.SUPABASE_KEY) : '') ||
     '';
 
-  // 2. Check localStorage if user manually configured in UI
-  if (typeof window !== 'undefined') {
-    const customUrl = localStorage.getItem(STORAGE_KEY_URL);
-    const customKey = localStorage.getItem(STORAGE_KEY_KEY);
-    if (customUrl && customKey && customUrl.trim() && customKey.trim()) {
-      return { url: customUrl.trim(), anonKey: customKey.trim(), source: 'custom' };
-    }
-  }
-
   if (envUrl && envKey && !envUrl.includes('placeholder') && !envUrl.includes('your-project')) {
     return { url: envUrl.trim(), anonKey: envKey.trim(), source: 'env' };
   }
 
-  return { url: '', anonKey: '', source: 'demo' };
+  // 3. Fallback to preconfigured project URL
+  const storedUrl = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_URL) : null;
+  const targetUrl = (storedUrl || envUrl || DEFAULT_SUPABASE_URL).trim();
+
+  if (envKey && envKey.trim()) {
+    return { url: targetUrl, anonKey: envKey.trim(), source: 'env' };
+  }
+
+  return { url: targetUrl, anonKey: '', source: 'demo' };
+}
+
+export async function syncGlobalConfigFromServer(): Promise<void> {
+  try {
+    const res = await fetch('/api/config');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.supabase) {
+        if (data.supabase.url && data.supabase.anonKey) {
+          localStorage.setItem(STORAGE_KEY_URL, data.supabase.url);
+          localStorage.setItem(STORAGE_KEY_KEY, data.supabase.anonKey);
+          cachedClient = null;
+          initSupabase();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('equilibra_supabase_config_updated', { detail: data.supabase }));
+          }
+        }
+      }
+      if (data && data.telegram) {
+        const tg = data.telegram;
+        if (tg.botToken || tg.chatId) {
+          const stored = localStorage.getItem('equilibra_telegram_config');
+          const parsed = stored ? JSON.parse(stored) : {};
+          const merged = {
+            ...parsed,
+            botToken: tg.botToken || parsed.botToken || '',
+            chatId: tg.chatId || parsed.chatId || '',
+            enabled: tg.enabled ?? parsed.enabled ?? true,
+            specialistTags: tg.specialistTags || parsed.specialistTags || {},
+          };
+          localStorage.setItem('equilibra_telegram_config', JSON.stringify(merged));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('equilibra_telegram_config_updated', { detail: merged }));
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[syncGlobalConfigFromServer] Note:', err);
+  }
 }
 
 export function initSupabase(): SupabaseClient | null {
@@ -67,7 +117,7 @@ export function initSupabase(): SupabaseClient | null {
   }
 
   currentConfig = {
-    url: '',
+    url: url || DEFAULT_SUPABASE_URL,
     anonKey: '',
     isConnected: false,
     source: 'demo'
@@ -83,13 +133,13 @@ export function getSupabaseClient(): SupabaseClient | null {
   return cachedClient;
 }
 
-export const supabase = getSupabaseClient() || createClient('https://placeholder.supabase.co', 'placeholder-anon-key');
+export const supabase = getSupabaseClient() || createClient(DEFAULT_SUPABASE_URL, 'placeholder-anon-key');
 export const isSupabaseConfigured = Boolean(getSupabaseCredentials().url && getSupabaseCredentials().anonKey);
 
 export function getCurrentSupabaseConfig(): SupabaseConfig {
   const { url, anonKey, source } = getSupabaseCredentials();
   return {
-    url,
+    url: url || DEFAULT_SUPABASE_URL,
     anonKey,
     isConnected: Boolean(url && anonKey),
     source
@@ -114,10 +164,26 @@ export async function testConnection(url: string, key: string): Promise<{ succes
 
 export function saveSupabaseCredentials(url: string, key: string): boolean {
   try {
-    localStorage.setItem(STORAGE_KEY_URL, url.trim());
-    localStorage.setItem(STORAGE_KEY_KEY, key.trim());
+    const cleanUrl = url.trim();
+    const cleanKey = key.trim();
+    localStorage.setItem(STORAGE_KEY_URL, cleanUrl);
+    localStorage.setItem(STORAGE_KEY_KEY, cleanKey);
     cachedClient = null;
     initSupabase();
+
+    // Persist to server config for all devices
+    fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supabaseUrl: cleanUrl, supabaseAnonKey: cleanKey }),
+    }).catch(err => console.warn('[saveSupabaseCredentials] Server sync note:', err));
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('equilibra_supabase_config_updated', {
+        detail: { url: cleanUrl, anonKey: cleanKey, isConfigured: true }
+      }));
+    }
+
     return true;
   } catch {
     return false;

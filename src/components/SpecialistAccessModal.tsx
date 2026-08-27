@@ -107,6 +107,7 @@ import {
   clearSupabaseCredentials,
   testConnection,
   SUPABASE_SQL_SCHEMA,
+  syncGlobalConfigFromServer,
 } from '../lib/supabase';
 
 interface SpecialistAccessModalProps {
@@ -256,8 +257,9 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
   const [telegramSaveSuccess, setTelegramSaveSuccess] = useState(false);
   const [tagsSaveSuccess, setTagsSaveSuccess] = useState(false);
 
-  // Sync telegram config on window event
+  // Sync telegram and supabase config on window event & mount
   useEffect(() => {
+    syncGlobalConfigFromServer();
     const handleTelegramUpdated = (e: any) => {
       const updated = e.detail || getStoredTelegramConfig();
       setTelegramConfig(updated);
@@ -266,8 +268,18 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       setTelegramEnabled(updated.enabled ?? true);
       setSpecialistTags(updated.specialistTags || {});
     };
+    const handleSupabaseUpdated = (e: any) => {
+      const updated = e.detail || getCurrentSupabaseConfig();
+      setSupabaseConfig(getCurrentSupabaseConfig());
+      if (updated.url) setSupabaseUrl(updated.url);
+      if (updated.anonKey) setSupabaseAnonKey(updated.anonKey);
+    };
     window.addEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
-    return () => window.removeEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
+    window.addEventListener('equilibra_supabase_config_updated', handleSupabaseUpdated);
+    return () => {
+      window.removeEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
+      window.removeEventListener('equilibra_supabase_config_updated', handleSupabaseUpdated);
+    };
   }, []);
 
   // Telegram Bot config state

@@ -21,8 +21,14 @@ import { DeveloperSupportModal } from './components/DeveloperSupportModal';
 import { AppDownloadModal } from './components/AppDownloadModal';
 import { BetaNoticeBanner } from './components/BetaNoticeBanner';
 import { ServiceItem } from './types';
+import { syncGlobalConfigFromServer } from './lib/supabase';
 
 export function App() {
+  // Global config sync across all devices
+  useEffect(() => {
+    syncGlobalConfigFromServer();
+  }, []);
+
   // 1. Dark Mode State
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('equilibra_theme');

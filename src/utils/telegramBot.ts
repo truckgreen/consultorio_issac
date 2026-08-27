@@ -67,6 +67,19 @@ export function saveTelegramConfig(config: Partial<TelegramConfig>): TelegramCon
     };
     localStorage.setItem(TELEGRAM_CONFIG_STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('equilibra_telegram_config_updated', { detail: updated }));
+
+    // Persist to server config for all devices
+    fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telegramToken: updated.botToken,
+        telegramChatId: updated.chatId,
+        telegramEnabled: updated.enabled,
+        specialistTags: updated.specialistTags,
+      }),
+    }).catch(err => console.warn('[saveTelegramConfig] Server sync note:', err));
+
     return updated;
   } catch (e) {
     console.error('Error saving telegram config:', e);

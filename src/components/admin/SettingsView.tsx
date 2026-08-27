@@ -24,7 +24,9 @@ import {
   saveSupabaseCredentials, 
   clearSupabaseCredentials, 
   testConnection, 
-  SUPABASE_SQL_SCHEMA 
+  SUPABASE_SQL_SCHEMA,
+  syncGlobalConfigFromServer,
+  getCurrentSupabaseConfig
 } from '../../lib/supabase';
 import { 
   getStoredTelegramConfig, 
@@ -50,7 +52,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onClearData,
 }) => {
   // Supabase state
-  const [url, setUrl] = useState(supabaseConfig.url || '');
+  const [url, setUrl] = useState(supabaseConfig.url || 'https://lzszxtxddlamplzsoihx.supabase.co');
   const [anonKey, setAnonKey] = useState(supabaseConfig.anonKey || '');
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -67,11 +69,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [telegramSaveSuccess, setTelegramSaveSuccess] = useState(false);
 
   useEffect(() => {
+    syncGlobalConfigFromServer();
     const cfg = getStoredTelegramConfig();
     setTelegramConfig(cfg);
     setTelegramToken(cfg.botToken || '');
     setTelegramChatId(cfg.chatId || '');
     setTelegramEnabled(cfg.enabled ?? true);
+
+    const supCfg = getCurrentSupabaseConfig();
+    if (supCfg.url) setUrl(supCfg.url);
+    if (supCfg.anonKey) setAnonKey(supCfg.anonKey);
+
+    const handleTelegramUpdated = (e: any) => {
+      const updated = e.detail || getStoredTelegramConfig();
+      setTelegramConfig(updated);
+      setTelegramToken(updated.botToken || '');
+      setTelegramChatId(updated.chatId || '');
+      setTelegramEnabled(updated.enabled ?? true);
+    };
+
+    const handleSupabaseUpdated = (e: any) => {
+      const updated = e.detail || getCurrentSupabaseConfig();
+      if (updated.url) setUrl(updated.url);
+      if (updated.anonKey) setAnonKey(updated.anonKey);
+    };
+
+    window.addEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
+    window.addEventListener('equilibra_supabase_config_updated', handleSupabaseUpdated);
+    return () => {
+      window.removeEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
+      window.removeEventListener('equilibra_supabase_config_updated', handleSupabaseUpdated);
+    };
   }, []);
 
   const handleTestSupabase = async () => {

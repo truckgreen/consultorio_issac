@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -8,15 +9,63 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 dotenv.config();
 
 const PORT = 3000;
+const CONFIG_FILE = path.join(process.cwd(), 'app_config.json');
 
-// Helper to get environment credentials across multiple common naming conventions
+// Interface for persistent config
+interface StoredAppConfig {
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+  telegramToken?: string;
+  telegramChatId?: string;
+  telegramEnabled?: boolean;
+  specialistTags?: Record<string, string>;
+  updatedAt?: string;
+}
+
+// Read saved config from disk if exists
+function readDiskConfig(): StoredAppConfig {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.warn('[Config] Error reading app_config.json:', err);
+  }
+  return {
+    supabaseUrl: 'https://lzszxtxddlamplzsoihx.supabase.co',
+    telegramEnabled: true,
+  };
+}
+
+// Write config to disk
+function writeDiskConfig(newConfig: Partial<StoredAppConfig>): StoredAppConfig {
+  try {
+    const existing = readDiskConfig();
+    const merged: StoredAppConfig = {
+      ...existing,
+      ...newConfig,
+      updatedAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2), 'utf-8');
+    return merged;
+  } catch (err) {
+    console.error('[Config] Error writing app_config.json:', err);
+    return readDiskConfig();
+  }
+}
+
+// Helper to get environment credentials across multiple sources and storage
 function getEnvCredentials() {
+  const disk = readDiskConfig();
+
   const supabaseUrl =
     process.env.SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
     process.env.SUPABASE_PROJECT_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    '';
+    disk.supabaseUrl ||
+    'https://lzszxtxddlamplzsoihx.supabase.co';
 
   const supabaseKey =
     process.env.SUPABASE_ANON_KEY ||
@@ -25,6 +74,7 @@ function getEnvCredentials() {
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_PUBLIC_KEY ||
     process.env.VITE_SUPABASE_KEY ||
+    disk.supabaseAnonKey ||
     '';
 
   const telegramToken =
@@ -33,6 +83,7 @@ function getEnvCredentials() {
     process.env.BOT_TOKEN ||
     process.env.TELEGRAM_TOKEN ||
     process.env.VITE_BOT_TOKEN ||
+    disk.telegramToken ||
     '';
 
   const telegramChatId =
@@ -41,24 +92,35 @@ function getEnvCredentials() {
     process.env.CHAT_ID ||
     process.env.TELEGRAM_GROUP_ID ||
     process.env.VITE_CHAT_ID ||
+    disk.telegramChatId ||
     '';
+
+  const telegramEnabled = disk.telegramEnabled ?? true;
+  const specialistTags = disk.specialistTags || {};
 
   return {
     supabaseUrl: supabaseUrl.trim(),
     supabaseKey: supabaseKey.trim(),
     telegramToken: telegramToken.trim(),
     telegramChatId: telegramChatId.trim(),
+    telegramEnabled,
+    specialistTags,
   };
 }
 
 let serverSupabaseClient: SupabaseClient | null = null;
+let currentClientUrl = '';
+let currentClientKey = '';
 
 function getServerSupabaseClient(): SupabaseClient | null {
   const { supabaseUrl, supabaseKey } = getEnvCredentials();
   if (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) {
-    if (!serverSupabaseClient) {
+    if (!serverSupabaseClient || currentClientUrl !== supabaseUrl || currentClientKey !== supabaseKey) {
       try {
         serverSupabaseClient = createClient(supabaseUrl, supabaseKey);
+        currentClientUrl = supabaseUrl;
+        currentClientKey = supabaseKey;
+        console.log('[Server Supabase] Connected to project:', supabaseUrl);
       } catch (err) {
         console.error('[Server Supabase] Client init error:', err);
         return null;
@@ -112,21 +174,93 @@ async function startServer() {
     });
   });
 
-  // 2. Public configuration endpoint
+  // 2. Global configuration endpoint (Syncs credentials across all devices)
   app.get('/api/config', (req, res) => {
-    const { supabaseUrl, supabaseKey, telegramToken, telegramChatId } = getEnvCredentials();
+    const { supabaseUrl, supabaseKey, telegramToken, telegramChatId, telegramEnabled, specialistTags } = getEnvCredentials();
     res.json({
+      success: true,
       supabase: {
         url: supabaseUrl,
         anonKey: supabaseKey,
         isConfigured: Boolean(supabaseUrl && supabaseKey),
       },
       telegram: {
-        isConfigured: Boolean(telegramToken && telegramChatId),
+        botToken: telegramToken,
         chatId: telegramChatId,
+        enabled: telegramEnabled,
+        specialistTags: specialistTags || {},
+        isConfigured: Boolean(telegramToken && telegramChatId),
         hasToken: Boolean(telegramToken),
       },
     });
+  });
+
+  // 2b. Update Global Configuration (Saves across all devices and server runtime)
+  app.post('/api/config', (req, res) => {
+    try {
+      const {
+        supabaseUrl,
+        supabaseAnonKey,
+        supabaseKey,
+        telegramToken,
+        botToken,
+        telegramChatId,
+        chatId,
+        telegramEnabled,
+        enabled,
+        specialistTags,
+      } = req.body;
+
+      const updatePayload: Partial<StoredAppConfig> = {};
+
+      if (typeof supabaseUrl === 'string') updatePayload.supabaseUrl = supabaseUrl.trim();
+      if (typeof supabaseAnonKey === 'string') updatePayload.supabaseAnonKey = supabaseAnonKey.trim();
+      else if (typeof supabaseKey === 'string') updatePayload.supabaseAnonKey = supabaseKey.trim();
+
+      if (typeof telegramToken === 'string') updatePayload.telegramToken = telegramToken.trim();
+      else if (typeof botToken === 'string') updatePayload.telegramToken = botToken.trim();
+
+      if (typeof telegramChatId === 'string') updatePayload.telegramChatId = telegramChatId.trim();
+      else if (typeof chatId === 'string') updatePayload.telegramChatId = chatId.trim();
+
+      if (typeof telegramEnabled === 'boolean') updatePayload.telegramEnabled = telegramEnabled;
+      else if (typeof enabled === 'boolean') updatePayload.telegramEnabled = enabled;
+
+      if (specialistTags && typeof specialistTags === 'object') {
+        updatePayload.specialistTags = specialistTags;
+      }
+
+      const updated = writeDiskConfig(updatePayload);
+
+      // Re-initialize Supabase client if keys changed
+      if (updatePayload.supabaseUrl || updatePayload.supabaseAnonKey) {
+        getServerSupabaseClient();
+      }
+
+      const env = getEnvCredentials();
+
+      res.json({
+        success: true,
+        message: 'Configuración guardada persistentemente y sincronizada con todos los dispositivos.',
+        config: {
+          supabase: {
+            url: env.supabaseUrl,
+            anonKey: env.supabaseKey,
+            isConfigured: Boolean(env.supabaseUrl && env.supabaseKey),
+          },
+          telegram: {
+            botToken: env.telegramToken,
+            chatId: env.telegramChatId,
+            enabled: env.telegramEnabled,
+            specialistTags: env.specialistTags,
+            isConfigured: Boolean(env.telegramToken && env.telegramChatId),
+          },
+        },
+      });
+    } catch (err: any) {
+      console.error('[API POST /api/config] Error:', err);
+      res.status(500).json({ success: false, error: err?.message || 'Error al guardar configuración global' });
+    }
   });
 
   // 3. Telegram notification endpoint
