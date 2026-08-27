@@ -7,15 +7,15 @@ import {
   Sparkles, 
   Edit3, 
   Layers, 
-  ShieldCheck,
-  Search
+  ShieldCheck, 
+  Search 
 } from 'lucide-react';
 import { ServiceItem } from '../../types';
-import { SERVICES } from '../../data/equilibraData';
+import { SERVICES_DATA } from '../../data/servicesData';
 
 export const ServicesPricingView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [servicesList, setServicesList] = useState<ServiceItem[]>(SERVICES);
+  const [servicesList, setServicesList] = useState<ServiceItem[]>(SERVICES_DATA);
   const [editingService, setEditingService] = useState<ServiceItem | null>(null);
 
   const filteredServices = servicesList.filter(s => {
@@ -58,7 +58,7 @@ export const ServicesPricingView: React.FC = () => {
         </div>
 
         <span className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300 text-xs font-bold">
-          9 Especialidades Activas
+          {SERVICES_DATA.length} Especialidades Activas
         </span>
       </div>
 
@@ -111,7 +111,7 @@ export const ServicesPricingView: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                    {service.priceFormatted}
+                    {service.priceFormatted || `$${service.price} USD`}
                   </span>
                 </div>
               </div>

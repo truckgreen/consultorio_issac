@@ -11,10 +11,14 @@ import {
   Tag, 
   FileText, 
   DollarSign,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 import { Appointment, AppointmentStatus } from '../../types';
-import { SERVICES, TEAM_MEMBERS, STANDARD_WEEKDAY_SLOTS } from '../../data/equilibraData';
+import { SERVICES_DATA } from '../../data/servicesData';
+import { TEAM_MEMBERS } from '../../data/teamData';
+import { STANDARD_WEEKDAY_SLOTS } from '../../utils/bookingUtils';
+import { getAutoSelectedSpecialistForService } from '../../utils/specialistAvailability';
 
 interface CreateAppointmentModalProps {
   isOpen: boolean;
@@ -33,14 +37,16 @@ export const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
   const [apellido, setApellido] = useState('');
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
-  const [serviceId, setServiceId] = useState(SERVICES[0].id);
-  const [specialistName, setSpecialistName] = useState(defaultSpecialistName || TEAM_MEMBERS[0].name);
+  const [serviceId, setServiceId] = useState(SERVICES_DATA[0].id);
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [specialistName, setSpecialistName] = useState(
+    defaultSpecialistName || getAutoSelectedSpecialistForService(SERVICES_DATA[0].id, fecha)?.specialist.name || TEAM_MEMBERS[0].name
+  );
   const [hora, setHora] = useState(STANDARD_WEEKDAY_SLOTS[0]);
   const [motivo, setMotivo] = useState('');
   const [primeraVisita, setPrimeraVisita] = useState(true);
   const [status, setStatus] = useState<AppointmentStatus>('CONFIRMADA');
-  const [amount, setAmount] = useState<number>(SERVICES[0].price);
+  const [amount, setAmount] = useState<number>(SERVICES_DATA[0].price);
   const [paymentStatus, setPaymentStatus] = useState<'PENDIENTE' | 'PAGADO' | 'EXONERADO'>('PENDIENTE');
   const [notes, setNotes] = useState('');
 
@@ -48,15 +54,28 @@ export const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
 
   const handleServiceChange = (sId: string) => {
     setServiceId(sId);
-    const s = SERVICES.find(srv => srv.id === sId);
+    const s = SERVICES_DATA.find(srv => srv.id === sId);
     if (s) {
       setAmount(s.price);
+    }
+    // Auto-select specialist for the chosen service & date
+    const autoSpec = getAutoSelectedSpecialistForService(sId, fecha);
+    if (autoSpec) {
+      setSpecialistName(autoSpec.specialist.name);
+    }
+  };
+
+  const handleDateChange = (newDate: string) => {
+    setFecha(newDate);
+    const autoSpec = getAutoSelectedSpecialistForService(serviceId, newDate);
+    if (autoSpec) {
+      setSpecialistName(autoSpec.specialist.name);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedService = SERVICES.find(s => s.id === serviceId) || SERVICES[0];
+    const selectedService = SERVICES_DATA.find(s => s.id === serviceId) || SERVICES_DATA[0];
     const selectedSpecialist = TEAM_MEMBERS.find(t => t.name === specialistName);
 
     const randomCode = `EQ-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -189,9 +208,14 @@ export const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
 
           {/* Service & Specialist Assignment */}
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-3">
-            <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-              <Stethoscope className="w-3.5 h-3.5 text-amber-500" />
-              <span>Servicio & Especialista</span>
+            <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px] flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Stethoscope className="w-3.5 h-3.5 text-amber-500" />
+                <span>Servicio & Especialista Asignado</span>
+              </span>
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-normal flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Auto-asignación inteligente
+              </span>
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -202,9 +226,9 @@ export const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                   onChange={(e) => handleServiceChange(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 >
-                  {SERVICES.map(s => (
+                  {SERVICES_DATA.map(s => (
                     <option key={s.id} value={s.id}>
-                      {s.title} ({s.priceFormatted})
+                      {s.title} ({s.priceFormatted || `$${s.price} USD`})
                     </option>
                   ))}
                 </select>
@@ -238,7 +262,7 @@ export const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                 type="date"
                 required
                 value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
+                onChange={(e) => handleDateChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
               />
             </div>

@@ -8,10 +8,10 @@ import {
   CheckCircle2, 
   Trash2, 
   Clock, 
-  ExternalLink,
-  Reply,
-  ShieldCheck,
-  Archive
+  ExternalLink, 
+  Reply, 
+  ShieldCheck, 
+  Archive 
 } from 'lucide-react';
 import { ContactMessage } from '../../types';
 
@@ -28,8 +28,6 @@ export const MessagesInboxView: React.FC<MessagesInboxViewProps> = ({
 }) => {
   const [filter, setFilter] = useState<'ALL' | 'NUEVO' | 'RESPONDIDO' | 'ARCHIVADO'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState('');
 
   const filteredMessages = messages.filter(m => {
     if (filter !== 'ALL' && m.status !== filter) return false;

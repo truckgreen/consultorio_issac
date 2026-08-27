@@ -52,6 +52,17 @@ export interface SpecialtyItem {
   subSpecialties: string[];
 }
 
+export interface SpecialistAbsence {
+  isInactive: boolean;
+  reason?: 'enfermedad' | 'vacaciones' | 'permiso' | 'capacitacion' | 'otro';
+  reasonDetails?: string; // e.g. "Reposo médico por 3 días"
+  inactiveFrom?: string; // YYYY-MM-DD
+  inactiveUntil?: string; // YYYY-MM-DD
+  substituteSpecialistId?: string;
+  substituteSpecialistName?: string;
+  notes?: string;
+}
+
 export interface TeamMember {
   id: string;
   name: string;
@@ -63,11 +74,16 @@ export interface TeamMember {
   credentials: string;
   bio: string;
   relatedServiceId?: string;
-  status?: 'disponible' | 'en_consulta' | 'de_guardia' | 'descanso';
+  status?: 'disponible' | 'en_consulta' | 'de_guardia' | 'descanso' | 'inactivo_reposo' | 'vacaciones';
   assignedAppointmentsCount?: number;
   easyPin?: string;
   email?: string;
   packagesOffered?: ServicePricingTier[];
+  isInactive?: boolean;
+  inactiveReason?: string;
+  inactiveFrom?: string;
+  inactiveUntil?: string;
+  absence?: SpecialistAbsence;
 }
 
 export interface SpecialistUser {
@@ -81,6 +97,20 @@ export interface SpecialistUser {
   avatarUrl?: string;
   relatedServiceId: string;
   biometricRegistered?: boolean;
+  isInactive?: boolean;
+  inactiveReason?: string;
+  inactiveFrom?: string;
+  inactiveUntil?: string;
+  absence?: SpecialistAbsence;
+}
+
+export interface TelegramConfig {
+  botToken: string;
+  chatId: string;
+  enabled: boolean;
+  notifyOnBooking: boolean;
+  notifyOnCancellation?: boolean;
+  lastTestedAt?: string;
 }
 
 export interface AdminUser {
@@ -244,4 +274,18 @@ export interface SupabaseConfig {
   anonKey: string;
   isConnected: boolean;
   source: 'env' | 'custom' | 'demo';
+}
+
+export type UserRole = 'SUPERADMIN' | 'SPECIALIST';
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  name: string;
+  role: UserRole;
+  specialty: string;
+  email: string;
+  pin: string;
+  avatarUrl?: string;
+  phone?: string;
 }

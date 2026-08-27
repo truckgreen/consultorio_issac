@@ -11,13 +11,14 @@ import {
   MapPin, 
   Phone, 
   Clock, 
-  ChevronRight,
-  ShieldCheck,
-  Moon,
-  Sun
+  ChevronRight, 
+  ShieldCheck, 
+  Moon, 
+  Sun, 
+  LogIn
 } from 'lucide-react';
 import { AdminTab } from './AdminSidebar';
-import { SupabaseConfig } from '../../types';
+import { SupabaseConfig, AuthUser } from '../../types';
 
 interface MobileMenuSheetProps {
   isOpen: boolean;
@@ -32,6 +33,8 @@ interface MobileMenuSheetProps {
   onExportJsonBackup: () => void;
   onLoadDemoData: () => void;
   unreadMessagesCount: number;
+  currentUser: AuthUser;
+  onLogout: () => void;
 }
 
 export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = ({
@@ -43,10 +46,9 @@ export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = ({
   onOpenSupabaseModal,
   isDarkMode,
   onToggleDarkMode,
-  onExportCsv,
-  onExportJsonBackup,
-  onLoadDemoData,
   unreadMessagesCount,
+  currentUser,
+  onLogout
 }) => {
   if (!isOpen) return null;
 
@@ -57,7 +59,7 @@ export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-      <div className="w-full sm:max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl p-5 border-t sm:border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-5">
+      <div className="w-full sm:max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl p-5 border-t sm:border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-from-bottom-5">
         
         {/* Header with Grab Handle */}
         <div>
@@ -89,82 +91,86 @@ export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = ({
         {/* Modules Grid */}
         <div className="space-y-2">
           
-          {/* Especialistas & Staff */}
-          <button
-            onClick={() => handleNavigate('especialistas')}
-            className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all border ${
-              activeTab === 'especialistas'
-                ? 'bg-amber-500 text-white border-amber-500 font-bold shadow-md shadow-amber-500/20'
-                : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeTab === 'especialistas' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950 text-amber-600'}`}>
-                <Stethoscope className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold">Especialistas & Staff Médico</p>
-                <p className={`text-[10px] ${activeTab === 'especialistas' ? 'text-amber-100' : 'text-slate-400'}`}>
-                  9 Profesionales y turnos clínicos
-                </p>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${activeTab === 'especialistas' ? 'bg-white text-amber-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
-              9
-            </span>
-          </button>
+          {currentUser.role === 'SUPERADMIN' && (
+            <>
+              {/* Especialistas & Staff */}
+              <button
+                onClick={() => handleNavigate('especialistas')}
+                className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all border ${
+                  activeTab === 'especialistas'
+                    ? 'bg-amber-500 text-white border-amber-500 font-bold shadow-md shadow-amber-500/20'
+                    : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeTab === 'especialistas' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950 text-amber-600'}`}>
+                    <Stethoscope className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-bold">Especialistas & Staff Médico</p>
+                    <p className={`text-[10px] ${activeTab === 'especialistas' ? 'text-amber-100' : 'text-slate-400'}`}>
+                      9 Profesionales y turnos clínicos
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${activeTab === 'especialistas' ? 'bg-white text-amber-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                  9
+                </span>
+              </button>
 
-          {/* Servicios & Tarifas */}
-          <button
-            onClick={() => handleNavigate('servicios')}
-            className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all border ${
-              activeTab === 'servicios'
-                ? 'bg-amber-500 text-white border-amber-500 font-bold shadow-md shadow-amber-500/20'
-                : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeTab === 'servicios' ? 'bg-white/20 text-white' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600'}`}>
-                <Tag className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold">Catálogo de Servicios & Tarifas</p>
-                <p className={`text-[10px] ${activeTab === 'servicios' ? 'text-amber-100' : 'text-slate-400'}`}>
-                  Precios en $ USD de las 9 disciplinas
-                </p>
-              </div>
-            </div>
-            <ChevronRight className={`w-4 h-4 ${activeTab === 'servicios' ? 'text-white' : 'text-slate-400'}`} />
-          </button>
+              {/* Servicios & Tarifas */}
+              <button
+                onClick={() => handleNavigate('servicios')}
+                className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all border ${
+                  activeTab === 'servicios'
+                    ? 'bg-amber-500 text-white border-amber-500 font-bold shadow-md shadow-amber-500/20'
+                    : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeTab === 'servicios' ? 'bg-white/20 text-white' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600'}`}>
+                    <Tag className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-bold">Catálogo de Servicios & Tarifas</p>
+                    <p className={`text-[10px] ${activeTab === 'servicios' ? 'text-amber-100' : 'text-slate-400'}`}>
+                      Precios en $ USD de las 9 disciplinas
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className={`w-4 h-4 ${activeTab === 'servicios' ? 'text-white' : 'text-slate-400'}`} />
+              </button>
 
-          {/* Consultas & Leads */}
-          <button
-            onClick={() => handleNavigate('mensajes')}
-            className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all border ${
-              activeTab === 'mensajes'
-                ? 'bg-amber-500 text-white border-amber-500 font-bold shadow-md shadow-amber-500/20'
-                : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeTab === 'mensajes' ? 'bg-white/20 text-white' : 'bg-blue-100 dark:bg-blue-950 text-blue-600'}`}>
-                <MessageSquare className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold">Consultas & Leads de Pacientes</p>
-                <p className={`text-[10px] ${activeTab === 'mensajes' ? 'text-amber-100' : 'text-slate-400'}`}>
-                  Bandeja de entrada con respuesta WhatsApp
-                </p>
-              </div>
-            </div>
-            {unreadMessagesCount > 0 ? (
-              <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold">
-                {unreadMessagesCount} nuevos
-              </span>
-            ) : (
-              <ChevronRight className={`w-4 h-4 ${activeTab === 'mensajes' ? 'text-white' : 'text-slate-400'}`} />
-            )}
-          </button>
+              {/* Consultas & Leads */}
+              <button
+                onClick={() => handleNavigate('mensajes')}
+                className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all border ${
+                  activeTab === 'mensajes'
+                    ? 'bg-amber-500 text-white border-amber-500 font-bold shadow-md shadow-amber-500/20'
+                    : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeTab === 'mensajes' ? 'bg-white/20 text-white' : 'bg-blue-100 dark:bg-blue-950 text-blue-600'}`}>
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-bold">Consultas & Leads de Pacientes</p>
+                    <p className={`text-[10px] ${activeTab === 'mensajes' ? 'text-amber-100' : 'text-slate-400'}`}>
+                      Bandeja de entrada con respuesta WhatsApp
+                    </p>
+                  </div>
+                </div>
+                {unreadMessagesCount > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                    {unreadMessagesCount} nuevos
+                  </span>
+                ) : (
+                  <ChevronRight className={`w-4 h-4 ${activeTab === 'mensajes' ? 'text-white' : 'text-slate-400'}`} />
+                )}
+              </button>
+            </>
+          )}
 
           {/* Configuración & Supabase Cloud */}
           <button
@@ -180,13 +186,26 @@ export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = ({
                 <Settings className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-bold">Configuración & Supabase Cloud</p>
+                <p className="text-xs font-bold">
+                  {currentUser.role === 'SUPERADMIN' ? 'Configuración & Supabase Cloud' : 'Configuración de Perfil'}
+                </p>
                 <p className={`text-[10px] ${activeTab === 'configuracion' ? 'text-amber-100' : 'text-slate-400'}`}>
-                  Base de datos, respaldos y credenciales
+                  {currentUser.role === 'SUPERADMIN' ? 'Base de datos, respaldos y credenciales' : 'Ajustes de visualización y cuenta'}
                 </p>
               </div>
             </div>
             <ChevronRight className={`w-4 h-4 ${activeTab === 'configuracion' ? 'text-white' : 'text-slate-400'}`} />
+          </button>
+
+          {/* Logout Button (Mobile) */}
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-3 p-3 rounded-2xl bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition-all"
+          >
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-rose-100 dark:bg-rose-900/30">
+              <LogIn className="w-4 h-4 rotate-180" />
+            </div>
+            <p className="text-xs font-bold text-left">Cerrar Sesión Profesional</p>
           </button>
 
         </div>

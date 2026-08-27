@@ -1,7 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Appointment, ContactMessage, SupabaseConfig, PatientRecord, MedicalRecordDocument } from '../types';
 
-const STORAGE_KEY_APPOINTMENTS = 'equilibra_local_appointments';
+const STORAGE_KEY_APPOINTMENTS = 'equilibra_saved_appointments';
 const STORAGE_KEY_MESSAGES = 'equilibra_local_messages';
 const STORAGE_KEY_PATIENTS = 'equilibra_local_patients';
 const STORAGE_KEY_URL = 'equilibra_supabase_url';
@@ -17,16 +17,18 @@ let currentConfig: SupabaseConfig = {
 
 export function getSupabaseCredentials(): { url: string; anonKey: string; source: 'custom' | 'env' | 'demo' } {
   // 1. Check localStorage first
-  const customUrl = localStorage.getItem(STORAGE_KEY_URL);
-  const customKey = localStorage.getItem(STORAGE_KEY_KEY);
-  if (customUrl && customKey) {
-    return { url: customUrl, anonKey: customKey, source: 'custom' };
+  if (typeof window !== 'undefined') {
+    const customUrl = localStorage.getItem(STORAGE_KEY_URL);
+    const customKey = localStorage.getItem(STORAGE_KEY_KEY);
+    if (customUrl && customKey) {
+      return { url: customUrl, anonKey: customKey, source: 'custom' };
+    }
   }
 
   // 2. Check environment variables
   const envUrl = import.meta.env.VITE_SUPABASE_URL;
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  if (envUrl && envKey && !envUrl.includes('placeholder')) {
+  if (envUrl && envKey && !envUrl.includes('placeholder') && !envUrl.includes('your-project')) {
     return { url: envUrl, anonKey: envKey, source: 'env' };
   }
 
@@ -74,6 +76,9 @@ export function getSupabaseClient(): SupabaseClient | null {
   return cachedClient;
 }
 
+export const supabase = getSupabaseClient() || createClient('https://placeholder.supabase.co', 'placeholder-anon-key');
+export const isSupabaseConfigured = Boolean(getSupabaseCredentials().url && getSupabaseCredentials().anonKey);
+
 export function getCurrentSupabaseConfig(): SupabaseConfig {
   const { url, anonKey, source } = getSupabaseCredentials();
   return {
@@ -90,7 +95,6 @@ export async function testConnection(url: string, key: string): Promise<{ succes
   }
   try {
     const testClient = createClient(url, key);
-    // Attempt a light ping
     const { error } = await testClient.from('appointments').select('id').limit(1);
     if (error && error.code !== 'PGRST116' && error.message && !error.message.includes('relation "appointments" does not exist')) {
       return { success: false, message: error.message };
@@ -138,6 +142,7 @@ export function getLocalAppointments(): Appointment[] {
 export function saveLocalAppointments(appointments: Appointment[]): void {
   try {
     localStorage.setItem(STORAGE_KEY_APPOINTMENTS, JSON.stringify(appointments));
+    window.dispatchEvent(new CustomEvent('equilibra_appointments_updated'));
   } catch (e) {
     console.error('Failed to save to local storage', e);
   }
@@ -202,11 +207,7 @@ export function subscribeToAppointments(onChange: (appointments: Appointment[]) 
     .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async () => {
       onChange(await getAppointmentsFromDb());
     })
-    .subscribe((status) => {
-      if (status === 'CHANNEL_ERROR') {
-        console.warn('Supabase Realtime no pudo suscribirse a appointments. Revisa Realtime y RLS en Supabase.');
-      }
-    });
+    .subscribe();
 
   return () => {
     void client.removeChannel(channel);
@@ -214,7 +215,6 @@ export function subscribeToAppointments(onChange: (appointments: Appointment[]) 
 }
 
 export async function insertAppointment(appointment: Appointment): Promise<{ success: boolean; data?: Appointment; error?: string }> {
-  // Always persist locally
   const currentLocal = getLocalAppointments();
   const updatedLocal = [appointment, ...currentLocal.filter(a => a.id !== appointment.id)];
   saveLocalAppointments(updatedLocal);
@@ -231,9 +231,9 @@ export async function insertAppointment(appointment: Appointment): Promise<{ suc
         {
           id: appointment.id,
           code: appointment.code,
-          service_id: appointment.service_id,
-          service_title: appointment.service_title,
-          service_price: `${appointment.amount || 35} USD`,
+          service_id: appointment.service_id || appointment.serviceId,
+          service_title: appointment.service_title || appointment.serviceTitle,
+          service_price: appointment.servicePrice || `${appointment.amount || 35} USD`,
           amount: appointment.amount || 35,
           fecha: appointment.fecha,
           hora: appointment.hora,
@@ -241,14 +241,14 @@ export async function insertAppointment(appointment: Appointment): Promise<{ suc
           apellido: appointment.apellido,
           telefono: appointment.telefono,
           email: appointment.email,
-          motivo_consulta: appointment.motivo || '',
-          primera_visita: appointment.primera_visita,
+          motivo_consulta: appointment.motivo || appointment.motivoConsulta || '',
+          primera_visita: appointment.primera_visita ?? appointment.primeraVisita,
           status: appointment.status || 'CONFIRMADA',
-          specialist_id: appointment.specialist_id || '',
-          specialist_name: appointment.specialist_name || 'Lic. Isaac Jewsiejew',
+          specialist_id: appointment.specialist_id || appointment.specialistId || '',
+          specialist_name: appointment.specialist_name || appointment.specialistName || 'Lic. Isaac Jewsiejew',
           notes: appointment.notes || '',
           payment_status: appointment.payment_status || 'PENDIENTE',
-          created_at: new Date().toISOString()
+          created_at: appointment.created_at || appointment.createdAt || new Date().toISOString()
         }
       ])
       .select();
@@ -425,6 +425,7 @@ export function getLocalPatients(): PatientRecord[] {
 export function saveLocalPatients(patients: PatientRecord[]): void {
   try {
     localStorage.setItem(STORAGE_KEY_PATIENTS, JSON.stringify(patients));
+    window.dispatchEvent(new CustomEvent('equilibra_patients_updated'));
   } catch (e) {
     console.error('Failed to save patients to local storage', e);
   }
@@ -451,7 +452,6 @@ export async function getPatientsFromDb(): Promise<PatientRecord[]> {
     }
 
     if (data && Array.isArray(data)) {
-      // Map and preserve documents if local had base64 docs
       const merged = data.map((remotePat: any) => {
         const localMatch = localList.find(l => l.id === remotePat.id);
         return {
@@ -471,7 +471,6 @@ export async function getPatientsFromDb(): Promise<PatientRecord[]> {
 }
 
 export async function insertPatientInDb(patient: PatientRecord): Promise<{ success: boolean; data?: PatientRecord; error?: string }> {
-  // Always persist locally
   const currentLocal = getLocalPatients();
   const updatedLocal = [patient, ...currentLocal.filter(p => p.id !== patient.id)];
   saveLocalPatients(updatedLocal);
@@ -617,7 +616,6 @@ export async function removeDocumentFromPatient(patientId: string, documentId: s
 
 export const SUPABASE_SQL_SCHEMA = `-- Copia y pega este script en el SQL Editor de Supabase para inicializar el Panel Admin de EQUILIBRA:
 
--- 1. Tabla de Citas Clínicas (Appointments)
 CREATE TABLE IF NOT EXISTS appointments (
   id TEXT PRIMARY KEY,
   code TEXT NOT NULL UNIQUE,
@@ -640,7 +638,32 @@ CREATE TABLE IF NOT EXISTS appointments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. Tabla de Mensajes y Consultas de Pacientes (Contact Messages)
+CREATE TABLE IF NOT EXISTS patients (
+  id TEXT PRIMARY KEY,
+  cedula TEXT,
+  nombre TEXT NOT NULL,
+  apellido TEXT NOT NULL,
+  telefono TEXT NOT NULL,
+  email TEXT NOT NULL,
+  fecha_nacimiento DATE,
+  edad INTEGER,
+  genero TEXT DEFAULT 'M',
+  direccion TEXT,
+  contacto_emergencia JSONB,
+  total_appointments INTEGER DEFAULT 0,
+  completed_appointments INTEGER DEFAULT 0,
+  last_visit TEXT,
+  total_spent NUMERIC DEFAULT 0,
+  first_visit_date TEXT,
+  clinical_notes TEXT,
+  medical_conditions TEXT,
+  alergias TEXT,
+  antecedentes TEXT,
+  medicamentos_actuales TEXT,
+  documents JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS contact_messages (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -653,16 +676,14 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. Habilitar Seguridad a Nivel de Fila (RLS)
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Permitir todo en appointments" 
-ON appointments FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir todo en appointments" ON appointments FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir todo en patients" ON patients FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir todo en contact_messages" ON contact_messages FOR ALL TO public USING (true) WITH CHECK (true);
 
-CREATE POLICY "Permitir todo en contact_messages" 
-ON contact_messages FOR ALL TO public USING (true) WITH CHECK (true);
-
--- 4. Activar cambios en tiempo real para que la web y el panel compartan la agenda
 ALTER PUBLICATION supabase_realtime ADD TABLE appointments;
+ALTER PUBLICATION supabase_realtime ADD TABLE patients;
 `;

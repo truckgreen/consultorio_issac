@@ -14,7 +14,9 @@ import {
   PhoneCall
 } from 'lucide-react';
 import { Appointment, AppointmentStatus } from '../../types';
-import { SERVICES, TEAM_MEMBERS, STANDARD_WEEKDAY_SLOTS } from '../../data/equilibraData';
+import { SERVICES_DATA } from '../../data/servicesData';
+import { TEAM_MEMBERS } from '../../data/teamData';
+import { STANDARD_WEEKDAY_SLOTS } from '../../utils/bookingUtils';
 
 interface EditAppointmentModalProps {
   isOpen: boolean;
@@ -36,8 +38,8 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
   const [fecha, setFecha] = useState(appointment.fecha);
   const [hora, setHora] = useState(appointment.hora);
   const [status, setStatus] = useState<AppointmentStatus>(appointment.status);
-  const [specialistName, setSpecialistName] = useState(appointment.specialist_name || TEAM_MEMBERS[0].name);
-  const [serviceId, setServiceId] = useState(appointment.service_id);
+  const [specialistName, setSpecialistName] = useState(appointment.specialist_name || appointment.specialistName || TEAM_MEMBERS[0].name);
+  const [serviceId, setServiceId] = useState(appointment.service_id || appointment.serviceId);
   const [amount, setAmount] = useState(appointment.amount || 35);
   const [paymentStatus, setPaymentStatus] = useState(appointment.payment_status || 'PENDIENTE');
   const [notes, setNotes] = useState(appointment.notes || '');
@@ -48,8 +50,8 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
       setFecha(appointment.fecha);
       setHora(appointment.hora);
       setStatus(appointment.status);
-      setSpecialistName(appointment.specialist_name || TEAM_MEMBERS[0].name);
-      setServiceId(appointment.service_id);
+      setSpecialistName(appointment.specialist_name || appointment.specialistName || TEAM_MEMBERS[0].name);
+      setServiceId(appointment.service_id || appointment.serviceId);
       setAmount(appointment.amount || 35);
       setPaymentStatus(appointment.payment_status || 'PENDIENTE');
       setNotes(appointment.notes || '');
@@ -59,7 +61,7 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const service = SERVICES.find(s => s.id === serviceId);
+    const service = SERVICES_DATA.find(s => s.id === serviceId);
     const specialist = TEAM_MEMBERS.find(t => t.name === specialistName);
 
     onSaveUpdates(appointment.id, {
@@ -68,8 +70,11 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
       status,
       specialist_id: specialist?.id || appointment.specialist_id,
       specialist_name: specialistName,
+      specialistName: specialistName,
       service_id: serviceId,
-      service_title: service?.title || appointment.service_title,
+      serviceId: serviceId,
+      service_title: service?.title || appointment.service_title || appointment.serviceTitle,
+      serviceTitle: service?.title || appointment.service_title || appointment.serviceTitle,
       amount,
       payment_status: paymentStatus as any,
       notes,
@@ -80,8 +85,9 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
 
   const handleSendWhatsApp = () => {
     const cleanPhone = appointment.telefono.replace(/[^0-9]/g, '');
+    const serviceTitle = appointment.service_title || appointment.serviceTitle || 'Fisioterapia & Bienestar';
     const msg = encodeURIComponent(
-      `¡Hola ${appointment.nombre}! Te escribimos desde EQUILIBRA en Sabana Grande sobre tu cita (${appointment.code}) de ${appointment.service_title} programada para el ${fecha} a las ${hora}.`
+      `¡Hola ${appointment.nombre}! Te escribimos desde EQUILIBRA en Sabana Grande sobre tu cita (${appointment.code}) de ${serviceTitle} programada para el ${fecha} a las ${hora}.`
     );
     window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
   };
@@ -102,7 +108,7 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
               </h2>
             </div>
             <p className="text-xs text-slate-500">
-              Registrada el {new Date(appointment.created_at).toLocaleDateString('es-VE')}
+              Registrada el {new Date(appointment.created_at || appointment.createdAt || Date.now()).toLocaleDateString('es-VE')}
             </p>
           </div>
 
@@ -159,7 +165,7 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
                 onChange={(e) => setServiceId(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
               >
-                {SERVICES.map(s => (
+                {SERVICES_DATA.map(s => (
                   <option key={s.id} value={s.id}>{s.title}</option>
                 ))}
               </select>

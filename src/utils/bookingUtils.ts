@@ -8,6 +8,7 @@ import {
   maskSensitiveData,
 } from './security';
 import { notifySpecialistNewAppointment } from './notificationUtils';
+import { sendTelegramBookingAlert } from './telegramBot';
 
 export const STANDARD_WEEKDAY_SLOTS = [
   '08:00 AM - 09:00 AM',
@@ -157,6 +158,11 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
 
   // Trigger specialist & clinic notification alert
   notifySpecialistNewAppointment(cleanAppointment);
+
+  // Send real-time Telegram Bot notification alert
+  sendTelegramBookingAlert(cleanAppointment).catch(err => {
+    console.warn('Telegram bot alert error:', err);
+  });
 
   // Record security audit event
   recordSecurityEvent({

@@ -21,7 +21,9 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { Appointment, AppointmentStatus } from '../../types';
-import { SERVICES, TEAM_MEMBERS, STANDARD_WEEKDAY_SLOTS } from '../../data/equilibraData';
+import { SERVICES_DATA } from '../../data/servicesData';
+import { TEAM_MEMBERS } from '../../data/teamData';
+import { STANDARD_WEEKDAY_SLOTS } from '../../utils/bookingUtils';
 
 interface AppointmentsManagerViewProps {
   appointments: Appointment[];
@@ -41,7 +43,7 @@ export const AppointmentsManagerView: React.FC<AppointmentsManagerViewProps> = (
   onExportCsv,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | AppointmentStatus>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | string>('ALL');
   const [serviceFilter, setServiceFilter] = useState<string>('ALL');
   const [dateFilter, setDateFilter] = useState<'ALL' | 'TODAY' | 'TOMORROW' | 'WEEK'>('ALL');
   const [viewMode, setViewMode] = useState<'table' | 'schedule'>('table');
@@ -51,6 +53,11 @@ export const AppointmentsManagerView: React.FC<AppointmentsManagerViewProps> = (
 
   // Filter appointments
   const filteredAppointments = appointments.filter(app => {
+    const serviceTitle = app.service_title || app.serviceTitle || '';
+    const specialistName = app.specialist_name || app.specialistName || '';
+    const serviceId = app.service_id || app.serviceId || '';
+    const statusNormalized = (app.status || 'CONFIRMADA').toUpperCase();
+
     // Search matching
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
@@ -58,16 +65,21 @@ export const AppointmentsManagerView: React.FC<AppointmentsManagerViewProps> = (
       app.apellido.toLowerCase().includes(searchLower) ||
       app.code.toLowerCase().includes(searchLower) ||
       app.telefono.includes(searchLower) ||
-      app.service_title.toLowerCase().includes(searchLower) ||
-      (app.specialist_name && app.specialist_name.toLowerCase().includes(searchLower));
+      serviceTitle.toLowerCase().includes(searchLower) ||
+      specialistName.toLowerCase().includes(searchLower);
 
     if (!matchesSearch) return false;
 
     // Status filter
-    if (statusFilter !== 'ALL' && app.status !== statusFilter) return false;
+    if (statusFilter !== 'ALL') {
+      if (statusFilter === 'CONFIRMADA' && !['CONFIRMADA', 'confirmada'].includes(app.status)) return false;
+      if (statusFilter === 'PENDIENTE' && !['PENDIENTE', 'pendiente', 'pendiente_validacion'].includes(app.status)) return false;
+      if (statusFilter === 'COMPLETADA' && !['COMPLETADA', 'completada'].includes(app.status)) return false;
+      if (statusFilter === 'CANCELADA' && !['CANCELADA', 'cancelada'].includes(app.status)) return false;
+    }
 
     // Service filter
-    if (serviceFilter !== 'ALL' && app.service_id !== serviceFilter) return false;
+    if (serviceFilter !== 'ALL' && serviceId !== serviceFilter) return false;
 
     // Date filter
     if (dateFilter === 'TODAY' && app.fecha !== todayStr) return false;
@@ -84,8 +96,10 @@ export const AppointmentsManagerView: React.FC<AppointmentsManagerViewProps> = (
 
   const handleSendWhatsAppReminder = (app: Appointment) => {
     const cleanPhone = app.telefono.replace(/[^0-9]/g, '');
+    const serviceTitle = app.service_title || app.serviceTitle || 'Fisioterapia & Bienestar';
+    const specialistName = app.specialist_name || app.specialistName || 'Especialista Asignado';
     const message = encodeURIComponent(
-      `¡Hola ${app.nombre}! 👋 Te recordamos tu cita de *${app.service_title}* en el Centro EQUILIBRA (Sabana Grande, Caracas) para el día *${app.fecha}* a las *${app.hora}*. Código: *${app.code}*. Especialista: *${app.specialist_name || 'Asignado en clínica'}*. ¡Agradecemos confirmar tu asistencia respondiendo a este mensaje!`
+      `¡Hola ${app.nombre}! 👋 Te recordamos tu cita de *${serviceTitle}* en el Centro EQUILIBRA (Sabana Grande, Caracas) para el día *${app.fecha}* a las *${app.hora}*. Código: *${app.code}*. Especialista: *${specialistName}*. ¡Agradecemos confirmar tu asistencia respondiendo a este mensaje!`
     );
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
   };
@@ -101,7 +115,7 @@ export const AppointmentsManagerView: React.FC<AppointmentsManagerViewProps> = (
             <span>Gestión Integral de Citas & Agenda</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Control de reservas, pacientes, especialistas y estados de atención
+            Control de reservas en tiempo real, pacientes, especialistas y estados de atención
           </p>
         </div>
 
@@ -148,8 +162,8 @@ export const AppointmentsManagerView: React.FC<AppointmentsManagerViewProps> = (
               onChange={(e) => setServiceFilter(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
-              <option value="ALL">Todos los Servicios (9)</option>
-              {SERVICES.map(s => (
+              <option value="ALL">Todos los Servicios ({SERVICES_DATA.length})</option>
+              {SERVICES_DATA.map(s => (
                 <option key={s.id} value={s.id}>{s.title}</option>
               ))}
             </select>
@@ -196,7 +210,7 @@ export const AppointmentsManagerView: React.FC<AppointmentsManagerViewProps> = (
             ].map(pill => (
               <button
                 key={pill.id}
-                onClick={() => setStatusFilter(pill.id as any)}
+                onClick={() => setStatusFilter(pill.id)}
                 className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                   statusFilter === pill.id
                     ? 'bg-amber-500 text-white shadow-sm'
@@ -266,138 +280,155 @@ export const AppointmentsManagerView: React.FC<AppointmentsManagerViewProps> = (
                     <th className="py-3.5 px-4">Fecha & Hora</th>
                     <th className="py-3.5 px-4">Contacto</th>
                     <th className="py-3.5 px-4">Estado</th>
-                    <th className="py-3.5 px-4">Monto / Pago</th>
+                    <th className="py-3.5 px-4">Monto / Tarifa</th>
                     <th className="py-3.5 px-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                  {filteredAppointments.map((app) => (
-                    <tr 
-                      key={app.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group"
-                    >
-                      {/* Code & Patient */}
-                      <td className="py-4 px-4">
-                        <div className="space-y-1">
-                          <span className="font-mono font-bold text-amber-600 dark:text-amber-400 text-xs">
-                            {app.code}
-                          </span>
-                          <p className="font-bold text-slate-900 dark:text-white text-sm">
-                            {app.nombre} {app.apellido}
-                          </p>
-                          {app.primera_visita && (
-                            <span className="inline-block text-[10px] font-bold px-2 py-0.2 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300">
-                              Primera consulta
+                  {filteredAppointments.map((app) => {
+                    const statusVal = (app.status || 'CONFIRMADA').toUpperCase();
+                    const isConfirmed = statusVal === 'CONFIRMADA';
+                    const isCompleted = statusVal === 'COMPLETADA';
+                    const isPending = ['PENDIENTE', 'PENDIENTE_VALIDACION'].includes(statusVal);
+                    const isCanceled = statusVal === 'CANCELADA';
+
+                    const serviceTitle = app.service_title || app.serviceTitle || 'Fisioterapia';
+                    const specialistName = app.specialist_name || app.specialistName || 'Lic. Isaac Jewsiejew';
+                    const displayPrice = app.selectedPackagePrice || app.servicePrice || app.service_price || `$${app.amount || 35} USD`;
+
+                    return (
+                      <tr 
+                        key={app.id}
+                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group"
+                      >
+                        {/* Code & Patient */}
+                        <td className="py-4 px-4">
+                          <div className="space-y-1">
+                            <span className="font-mono font-bold text-amber-600 dark:text-amber-400 text-xs">
+                              {app.code}
                             </span>
-                          )}
-                        </div>
-                      </td>
+                            <p className="font-bold text-slate-900 dark:text-white text-sm">
+                              {app.nombre} {app.apellido}
+                            </p>
+                            {(app.primera_visita ?? app.primeraVisita) && (
+                              <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300">
+                                Primera consulta (Evaluación)
+                              </span>
+                            )}
+                            {app.selectedPackageName && (
+                              <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                                📦 {app.selectedPackageName}
+                              </span>
+                            )}
+                          </div>
+                        </td>
 
-                      {/* Service & Specialist */}
-                      <td className="py-4 px-4">
-                        <div className="space-y-0.5">
-                          <p className="font-bold text-slate-900 dark:text-white">
-                            {app.service_title}
-                          </p>
-                          <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                            <Stethoscope className="w-3 h-3 text-amber-500" />
-                            <span>{app.specialist_name || 'Sin asignar'}</span>
-                          </p>
-                        </div>
-                      </td>
+                        {/* Service & Specialist */}
+                        <td className="py-4 px-4">
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-slate-900 dark:text-white">
+                              {serviceTitle}
+                            </p>
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                              <Stethoscope className="w-3 h-3 text-amber-500" />
+                              <span>{specialistName}</span>
+                            </p>
+                          </div>
+                        </td>
 
-                      {/* Date & Time */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <div className="space-y-0.5">
-                          <p className={`font-bold ${app.fecha === todayStr ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
-                            {app.fecha} {app.fecha === todayStr && '(Hoy)'}
-                          </p>
-                          <p className="text-[11px] text-slate-500 flex items-center gap-1 font-mono">
-                            <Clock className="w-3 h-3" />
-                            <span>{app.hora}</span>
-                          </p>
-                        </div>
-                      </td>
+                        {/* Date & Time */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <div className="space-y-0.5">
+                            <p className={`font-bold ${app.fecha === todayStr ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
+                              {app.fecha} {app.fecha === todayStr && '(Hoy)'}
+                            </p>
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1 font-mono">
+                              <Clock className="w-3 h-3" />
+                              <span>{app.hora}</span>
+                            </p>
+                          </div>
+                        </td>
 
-                      {/* Contact */}
-                      <td className="py-4 px-4">
-                        <div className="space-y-0.5 text-[11px]">
-                          <p className="font-medium text-slate-800 dark:text-slate-200">
-                            {app.telefono}
-                          </p>
-                          <p className="text-slate-400 truncate max-w-[140px]">
-                            {app.email}
-                          </p>
-                        </div>
-                      </td>
+                        {/* Contact */}
+                        <td className="py-4 px-4">
+                          <div className="space-y-0.5 text-[11px]">
+                            <p className="font-medium text-slate-800 dark:text-slate-200">
+                              {app.telefono}
+                            </p>
+                            <p className="text-slate-400 truncate max-w-[140px]">
+                              {app.email}
+                            </p>
+                          </div>
+                        </td>
 
-                      {/* Status Selector */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <select
-                          value={app.status}
-                          onChange={(e) => onQuickUpdateStatus(app.id, e.target.value as AppointmentStatus)}
-                          className={`text-xs font-bold py-1.5 px-2.5 rounded-xl border focus:outline-none cursor-pointer ${
-                            app.status === 'CONFIRMADA'
-                              ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300'
-                              : app.status === 'COMPLETADA'
-                              ? 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-300'
-                              : app.status === 'PENDIENTE'
-                              ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-300'
-                              : 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border-rose-300'
-                          }`}
-                        >
-                          <option value="CONFIRMADA">Confirmada</option>
-                          <option value="COMPLETADA">Atendida / Pagada</option>
-                          <option value="PENDIENTE">Pendiente</option>
-                          <option value="CANCELADA">Cancelada</option>
-                        </select>
-                      </td>
-
-                      {/* Price / Payment */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="font-bold text-slate-900 dark:text-white">
-                          ${app.amount || 35} USD
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-4 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* WhatsApp */}
-                          <button
-                            onClick={() => handleSendWhatsAppReminder(app)}
-                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900 text-emerald-600 dark:text-emerald-400 transition-colors"
-                            title="Enviar WhatsApp de recordatorio"
+                        {/* Status Selector */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <select
+                            value={isPending ? 'PENDIENTE' : isCanceled ? 'CANCELADA' : isCompleted ? 'COMPLETADA' : 'CONFIRMADA'}
+                            onChange={(e) => onQuickUpdateStatus(app.id, e.target.value as AppointmentStatus)}
+                            className={`text-xs font-bold py-1.5 px-2.5 rounded-xl border focus:outline-none cursor-pointer ${
+                              isConfirmed
+                                ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300'
+                                : isCompleted
+                                ? 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-300'
+                                : isPending
+                                ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-300'
+                                : 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border-rose-300'
+                            }`}
                           >
-                            <Phone className="w-3.5 h-3.5" />
-                          </button>
+                            <option value="CONFIRMADA">Confirmada</option>
+                            <option value="COMPLETADA">Atendida / Pagada</option>
+                            <option value="PENDIENTE">Pendiente</option>
+                            <option value="CANCELADA">Cancelada</option>
+                          </select>
+                        </td>
 
-                          {/* Edit / Detail */}
-                          <button
-                            onClick={() => onSelectAppointmentForEdit(app)}
-                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
-                            title="Editar ficha y notas clínicas"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
+                        {/* Price / Payment */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            {displayPrice}
+                          </span>
+                        </td>
 
-                          {/* Delete */}
-                          <button
-                            onClick={() => {
-                              if (confirm(`¿Eliminar la cita ${app.code} de ${app.nombre} ${app.apellido}?`)) {
-                                onDeleteAppointment(app.id);
-                              }
-                            }}
-                            className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                            title="Eliminar cita"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
+                        {/* Actions */}
+                        <td className="py-4 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* WhatsApp */}
+                            <button
+                              onClick={() => handleSendWhatsAppReminder(app)}
+                              className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900 text-emerald-600 dark:text-emerald-400 transition-colors"
+                              title="Enviar WhatsApp de recordatorio"
+                            >
+                              <Phone className="w-3.5 h-3.5" />
+                            </button>
 
-                    </tr>
-                  ))}
+                            {/* Edit / Detail */}
+                            <button
+                              onClick={() => onSelectAppointmentForEdit(app)}
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+                              title="Editar ficha y notas clínicas"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Delete */}
+                            <button
+                              onClick={() => {
+                                if (confirm(`¿Eliminar la cita ${app.code} de ${app.nombre} ${app.apellido}?`)) {
+                                  onDeleteAppointment(app.id);
+                                }
+                              }}
+                              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                              title="Eliminar cita"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -452,10 +483,10 @@ export const AppointmentsManagerView: React.FC<AppointmentsManagerViewProps> = (
                           {app.nombre} {app.apellido}
                         </p>
                         <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                          {app.service_title}
+                          {app.service_title || app.serviceTitle}
                         </p>
                         <p className="text-[10px] text-slate-400">
-                          Esp: {app.specialist_name || 'Asignado'}
+                          Esp: {app.specialist_name || app.specialistName || 'Asignado'}
                         </p>
                       </div>
                     ))

@@ -482,13 +482,13 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
                           {app.code}
                         </span>
                         <span className="font-bold text-slate-900 dark:text-white">
-                          {app.service_title}
+                          {app.service_title || app.serviceTitle}
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 flex items-center gap-2">
                         <span>{app.fecha} • {app.hora}</span>
                         <span>•</span>
-                        <span>Esp: {app.specialist_name || 'Asignado'}</span>
+                        <span>Esp: {app.specialist_name || app.specialistName || 'Asignado'}</span>
                       </p>
                     </div>
 

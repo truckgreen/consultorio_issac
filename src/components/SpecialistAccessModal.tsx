@@ -39,13 +39,32 @@ import {
   LayoutDashboard,
   Stethoscope,
   Volume2,
+  CalendarOff,
+  Edit2,
+  UserX,
+  Settings,
+  Bot,
+  Send,
+  AlertCircle,
+  Building2,
+  Copy,
 } from 'lucide-react';
-import { ConfirmedAppointment, SpecialistUser, AdminUser, AdminNotification } from '../types';
+import { ConfirmedAppointment, SpecialistUser, AdminUser, AdminNotification, TeamMember, SpecialistAbsence, TelegramConfig, SupabaseConfig } from '../types';
 import {
   getAppointmentsFromDatabase,
   getSavedAppointments,
   saveAppointmentToStorage,
 } from '../utils/bookingUtils';
+import {
+  getStoredTelegramConfig,
+  saveTelegramConfig,
+  testTelegramNotification,
+} from '../utils/telegramBot';
+import {
+  getStoredSpecialistsAvailability,
+  saveSpecialistAvailability,
+  isSpecialistInactiveOnDate,
+} from '../utils/specialistAvailability';
 import {
   SPECIALISTS_ACCOUNTS,
   ADMIN_ACCOUNT,
@@ -75,13 +94,20 @@ import {
   playNotificationChime,
 } from '../utils/notificationUtils';
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
+import {
+  getCurrentSupabaseConfig,
+  saveSupabaseCredentials,
+  clearSupabaseCredentials,
+  testConnection,
+  SUPABASE_SQL_SCHEMA,
+} from '../lib/supabase';
 
 interface SpecialistAccessModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type PanelTab = 'dashboard' | 'agenda' | 'pacientes' | 'staff' | 'servicios' | 'cancelaciones' | 'auditoria';
+type PanelTab = 'dashboard' | 'agenda' | 'pacientes' | 'staff' | 'servicios' | 'cancelaciones' | 'auditoria' | 'configuracion';
 
 export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
   isOpen,
@@ -126,8 +152,18 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
   );
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
 
-  // Staff status state
-  const [staffStatuses] = useState<{ [id: string]: 'disponible' | 'en_consulta' | 'de_guardia' | 'descanso' }>({
+  // Staff status and availability state
+  const [specialistAvailabilities, setSpecialistAvailabilities] = useState<Record<string, SpecialistAbsence>>({});
+  const [editingAbsenceMember, setEditingAbsenceMember] = useState<TeamMember | null>(null);
+  const [isInactiveForm, setIsInactiveForm] = useState(false);
+  const [absenceReason, setAbsenceReason] = useState<'enfermedad' | 'vacaciones' | 'permiso' | 'capacitacion' | 'otro'>('enfermedad');
+  const [absenceReasonDetails, setAbsenceReasonDetails] = useState('');
+  const [inactiveFromDate, setInactiveFromDate] = useState('');
+  const [inactiveUntilDate, setInactiveUntilDate] = useState('');
+  const [substituteId, setSubstituteId] = useState('');
+  const [absenceNotes, setAbsenceNotes] = useState('');
+
+  const [staffStatuses, setStaffStatuses] = useState<{ [id: string]: 'disponible' | 'en_consulta' | 'de_guardia' | 'descanso' }>({
     'isaac-jewsiejew': 'disponible',
     'marivid-requena': 'disponible',
     'laury-torrealba': 'en_consulta',
@@ -139,6 +175,131 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     'kareinys-martinez': 'disponible',
     'rebecca-triana': 'disponible',
   });
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    setSpecialistAvailabilities(getStoredSpecialistsAvailability());
+    const handler = () => {
+      setSpecialistAvailabilities(getStoredSpecialistsAvailability());
+    };
+    window.addEventListener('equilibra_specialist_availability_changed', handler);
+    return () => window.removeEventListener('equilibra_specialist_availability_changed', handler);
+  }, []);
+
+  const openAbsenceModal = (member: TeamMember) => {
+    setEditingAbsenceMember(member);
+    const existing = specialistAvailabilities[member.id];
+    if (existing) {
+      setIsInactiveForm(existing.isInactive);
+      setAbsenceReason(existing.reason || 'enfermedad');
+      setAbsenceReasonDetails(existing.reasonDetails || '');
+      setInactiveFromDate(existing.inactiveFrom || todayStr);
+      setInactiveUntilDate(existing.inactiveUntil || '');
+      setSubstituteId(existing.substituteSpecialistId || '');
+      setAbsenceNotes(existing.notes || '');
+    } else {
+      setIsInactiveForm(true);
+      setAbsenceReason('enfermedad');
+      setAbsenceReasonDetails('Reposo médico');
+      setInactiveFromDate(todayStr);
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 3);
+      setInactiveUntilDate(nextWeek.toISOString().split('T')[0]);
+      setSubstituteId('');
+      setAbsenceNotes('');
+    }
+  };
+
+  const handleSaveAbsence = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAbsenceMember) return;
+
+    const substitute = TEAM_MEMBERS.find((m) => m.id === substituteId);
+
+    const absenceData: SpecialistAbsence = {
+      isInactive: isInactiveForm,
+      reason: absenceReason,
+      reasonDetails: absenceReasonDetails.trim(),
+      inactiveFrom: isInactiveForm ? inactiveFromDate : undefined,
+      inactiveUntil: isInactiveForm ? inactiveUntilDate : undefined,
+      substituteSpecialistId: isInactiveForm && substitute ? substitute.id : undefined,
+      substituteSpecialistName: isInactiveForm && substitute ? substitute.name : undefined,
+      notes: absenceNotes.trim(),
+    };
+
+    saveSpecialistAvailability(editingAbsenceMember.id, absenceData);
+    setSpecialistAvailabilities(getStoredSpecialistsAvailability());
+    setEditingAbsenceMember(null);
+  };
+
+  // Telegram Bot config state
+  const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>(getStoredTelegramConfig());
+  const [telegramToken, setTelegramToken] = useState(telegramConfig.botToken || '');
+  const [telegramChatId, setTelegramChatId] = useState(telegramConfig.chatId || '');
+  const [telegramEnabled, setTelegramEnabled] = useState(telegramConfig.enabled ?? true);
+  const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+  const [telegramTestResult, setTelegramTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [telegramSaveSuccess, setTelegramSaveSuccess] = useState(false);
+
+  // Supabase settings state
+  const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getCurrentSupabaseConfig());
+  const [supabaseUrl, setSupabaseUrl] = useState(supabaseConfig.url || '');
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState(supabaseConfig.anonKey || '');
+  const [isTestingSupabase, setIsTestingSupabase] = useState(false);
+  const [supabaseTestResult, setSupabaseTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [supabaseSaveSuccess, setSupabaseSaveSuccess] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  const handleSaveTelegram = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated = saveTelegramConfig({
+      botToken: telegramToken.trim(),
+      chatId: telegramChatId.trim(),
+      enabled: telegramEnabled,
+      notifyOnBooking: true,
+      notifyOnCancellation: true,
+    });
+    setTelegramConfig(updated);
+    setTelegramSaveSuccess(true);
+    setTimeout(() => setTelegramSaveSuccess(false), 3000);
+  };
+
+  const handleTestTelegram = async () => {
+    setIsTestingTelegram(true);
+    setTelegramTestResult(null);
+    const res = await testTelegramNotification(telegramToken, telegramChatId);
+    setTelegramTestResult(res);
+    setIsTestingTelegram(false);
+  };
+
+  const handleSaveSupabase = (e: React.FormEvent) => {
+    e.preventDefault();
+    const ok = saveSupabaseCredentials(supabaseUrl, supabaseAnonKey);
+    if (ok) {
+      setSupabaseSaveSuccess(true);
+      setSupabaseConfig(getCurrentSupabaseConfig());
+      setTimeout(() => setSupabaseSaveSuccess(false), 3000);
+      loadClinicalData();
+    }
+  };
+
+  const handleTestSupabase = async () => {
+    setIsTestingSupabase(true);
+    setSupabaseTestResult(null);
+    const res = await testConnection(supabaseUrl, supabaseAnonKey);
+    setSupabaseTestResult(res);
+    setIsTestingSupabase(false);
+  };
+
+  const handleClearSupabase = () => {
+    clearSupabaseCredentials();
+    setSupabaseUrl('');
+    setSupabaseAnonKey('');
+    setSupabaseConfig(getCurrentSupabaseConfig());
+    setSupabaseTestResult(null);
+    loadClinicalData();
+  };
 
   // Auto-lock session after 15 minutes of inactivity
   const sessionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -867,6 +1028,23 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     <ShieldCheck className="w-3.5 h-3.5" />
                     <span>Seguridad</span>
                   </button>
+
+                  <button
+                    onClick={() => setActiveTab('configuracion')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                      activeTab === 'configuracion'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Configuración & Bot</span>
+                    {telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled ? (
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Bot de Telegram Activo" />
+                    ) : (
+                      <span className="w-2 h-2 rounded-full bg-amber-400" title="Bot pendiente de configuración" />
+                    )}
+                  </button>
                 </div>
 
                 {/* Quick actions: Excel Export & Biometric Setup */}
@@ -1282,36 +1460,269 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                 {/* 4. EQUIPO DE ESPECIALISTAS TAB */}
                 {activeTab === 'staff' && (
                   <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <Stethoscope className="w-4 h-4 text-amber-500" />
+                          <span>Gestión de Estado, Actividad y Reposos del Equipo</span>
+                        </h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                          Cambia la actividad en tiempo real o programa descansos, permisos y suplencias médicas.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          ● {TEAM_MEMBERS.length - TEAM_MEMBERS.filter((m) => isSpecialistInactiveOnDate(m.id, todayStr)).length} Activos
+                        </span>
+                        {TEAM_MEMBERS.filter((m) => isSpecialistInactiveOnDate(m.id, todayStr)).length > 0 && (
+                          <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                            ● {TEAM_MEMBERS.filter((m) => isSpecialistInactiveOnDate(m.id, todayStr)).length} En Reposo
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                      {TEAM_MEMBERS.map((member) => (
-                        <div
-                          key={member.id}
-                          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start gap-3 shadow-sm"
-                        >
-                          <img
-                            src={member.image}
-                            alt={member.name}
-                            className="w-12 h-12 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
-                              {member.name}
-                            </h4>
-                            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold truncate">
-                              {member.role}
-                            </p>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
-                              {member.specialty}
-                            </p>
-                            <div className="mt-2 flex items-center justify-between">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                                {staffStatuses[member.id] || 'disponible'}
-                              </span>
+                      {TEAM_MEMBERS.map((member) => {
+                        const isInactive = isSpecialistInactiveOnDate(member.id, todayStr);
+                        const absenceInfo = specialistAvailabilities[member.id];
+                        const currentStatus = isInactive ? 'descanso' : (staffStatuses[member.id] || 'disponible');
+
+                        return (
+                          <div
+                            key={member.id}
+                            className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all space-y-3 shadow-sm ${
+                              isInactive 
+                                ? 'border-amber-500/50 dark:border-amber-500/40 bg-amber-50/20 dark:bg-amber-950/10' 
+                                : 'border-slate-200 dark:border-slate-800'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <img
+                                src={member.image}
+                                alt={member.name}
+                                className="w-12 h-12 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
+                                  {member.name}
+                                </h4>
+                                <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold truncate">
+                                  {member.role}
+                                </p>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
+                                  {member.specialty}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Inactivity banner if inactive */}
+                            {isInactive && absenceInfo && (
+                              <div className="p-2.5 rounded-xl bg-amber-100/70 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-900/60 text-[10px] text-amber-900 dark:text-amber-200 space-y-1">
+                                <div className="flex items-center gap-1 font-bold">
+                                  <AlertTriangle className="w-3 h-3 text-amber-600" />
+                                  <span>Reposo: {absenceInfo.reasonDetails || absenceInfo.reason || 'Ausente'}</span>
+                                </div>
+                                <p className="text-slate-600 dark:text-slate-400">
+                                  📅 Hasta: <strong>{absenceInfo.inactiveUntil || 'Indefinido'}</strong>
+                                </p>
+                                {absenceInfo.substituteSpecialistName && (
+                                  <p className="text-emerald-700 dark:text-emerald-300 font-semibold">
+                                    🩺 Suplente: {absenceInfo.substituteSpecialistName}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Status Selector & Absence Configuration Button */}
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                              {/* Quick Status Dropdown */}
+                              <div className="relative flex-1">
+                                <select
+                                  value={currentStatus}
+                                  onChange={(e) => {
+                                    const val = e.target.value as any;
+                                    if (val === 'descanso') {
+                                      openAbsenceModal(member);
+                                    } else {
+                                      // If setting to available/en_consulta, clear inactivity
+                                      if (isInactive) {
+                                        saveSpecialistAvailability(member.id, { isInactive: false });
+                                        setSpecialistAvailabilities(getStoredSpecialistsAvailability());
+                                      }
+                                      setStaffStatuses((prev) => ({ ...prev, [member.id]: val }));
+                                    }
+                                  }}
+                                  className={`w-full text-[11px] font-bold py-1.5 px-2.5 rounded-xl border appearance-none cursor-pointer focus:outline-none transition-colors ${
+                                    currentStatus === 'disponible'
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                      : currentStatus === 'en_consulta'
+                                      ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                                      : currentStatus === 'de_guardia'
+                                      ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                                      : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                  }`}
+                                >
+                                  <option value="disponible">● Disponible</option>
+                                  <option value="en_consulta">● En Consulta</option>
+                                  <option value="de_guardia">● De Guardia</option>
+                                  <option value="descanso">● En Reposo / Ausente</option>
+                                </select>
+                              </div>
+
+                              {/* Absence Modal Trigger Button */}
+                              <button
+                                onClick={() => openAbsenceModal(member)}
+                                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                                title="Configurar reposo médico, vacaciones y suplente"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
+
+                    {/* Absence / Inactivity Modal Popup */}
+                    {editingAbsenceMember && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+                        <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+                          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold">
+                                <CalendarOff className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                                  Reposo / Inactividad de {editingAbsenceMember.name}
+                                </h3>
+                                <p className="text-[11px] text-slate-500">{editingAbsenceMember.specialty}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setEditingAbsenceMember(null)}
+                              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <form onSubmit={handleSaveAbsence} className="space-y-4 text-xs">
+                            {/* Toggle Inactivity */}
+                            <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                              <div>
+                                <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                                  ¿Especialista en Reposo / Inactivo?
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                  Desactiva su asignación en citas web y transfiere a su suplente
+                                </span>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={isInactiveForm}
+                                onChange={(e) => setIsInactiveForm(e.target.checked)}
+                                className="w-5 h-5 accent-amber-500 rounded"
+                              />
+                            </label>
+
+                            {isInactiveForm && (
+                              <div className="space-y-3 p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 animate-in fade-in">
+                                <div>
+                                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                                    Motivo de la Ausencia:
+                                  </label>
+                                  <select
+                                    value={absenceReason}
+                                    onChange={(e) => setAbsenceReason(e.target.value as any)}
+                                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white"
+                                  >
+                                    <option value="enfermedad">Reposo Médico / Enfermedad</option>
+                                    <option value="vacaciones">Vacaciones Programadas</option>
+                                    <option value="permiso">Permiso Especial / Personal</option>
+                                    <option value="capacitacion">Capacitación / Congreso</option>
+                                    <option value="otro">Otro Motivo</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                                    Detalle / Diagnóstico (visible para administración):
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ej: Reposo traumatológico de 5 días"
+                                    value={absenceReasonDetails}
+                                    onChange={(e) => setAbsenceReasonDetails(e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white"
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                                      Desde Fecha:
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={inactiveFromDate}
+                                      onChange={(e) => setInactiveFromDate(e.target.value)}
+                                      className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                                      Hasta Fecha:
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={inactiveUntilDate}
+                                      onChange={(e) => setInactiveUntilDate(e.target.value)}
+                                      className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                                    Especialista Suplente Asignado:
+                                  </label>
+                                  <select
+                                    value={substituteId}
+                                    onChange={(e) => setSubstituteId(e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white"
+                                  >
+                                    <option value="">-- Sin especialista suplente (Bloquear horario) --</option>
+                                    {TEAM_MEMBERS.filter((m) => m.id !== editingAbsenceMember.id).map((sub) => (
+                                      <option key={sub.id} value={sub.id}>
+                                        {sub.name} ({sub.role})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                              <button
+                                type="button"
+                                onClick={() => setEditingAbsenceMember(null)}
+                                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="submit"
+                                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md shadow-amber-500/20"
+                              >
+                                Guardar Disponibilidad
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1452,6 +1863,274 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* 8. CONFIGURACIÓN, TELEGRAM BOT & SUPABASE TAB */}
+                {activeTab === 'configuracion' && (
+                  <div className="space-y-6">
+                    {/* Header */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <Settings className="w-4 h-4 text-amber-500" />
+                          <span>Configuración de Integraciones, Telegram Bot & Base de Datos</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          Conecta el bot de Telegram para recibir alertas en tu teléfono cada vez que un paciente agende una cita.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[11px] font-bold px-3 py-1 rounded-xl border ${
+                          telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                        }`}>
+                          {telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled ? '● Telegram Activo' : '● Telegram Pendiente'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* Telegram Bot Notification Card */}
+                      <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold">
+                              <Send className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                Bot de Notificaciones Telegram
+                              </h4>
+                              <p className="text-[11px] text-slate-500">Alertas automáticas en tiempo real al agendar citas</p>
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}>
+                            {telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled ? 'Conectado' : 'Inactivo'}
+                          </span>
+                        </div>
+
+                        <form onSubmit={handleSaveTelegram} className="space-y-3.5 text-xs">
+                          {/* Toggle Active */}
+                          <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                            <div>
+                              <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                                Notificaciones activas
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                Despacha alertas a Telegram inmediatamente
+                              </span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={telegramEnabled}
+                              onChange={(e) => setTelegramEnabled(e.target.checked)}
+                              className="w-5 h-5 accent-sky-500 rounded cursor-pointer"
+                            />
+                          </label>
+
+                          {/* Token Field */}
+                          <div>
+                            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                              Telegram Bot Token:
+                            </label>
+                            <input
+                              type="password"
+                              placeholder="Ej: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
+                              value={telegramToken}
+                              onChange={(e) => setTelegramToken(e.target.value)}
+                              className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white font-mono text-xs"
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              Obtenido a través de <strong>@BotFather</strong> en Telegram al crear tu bot.
+                            </p>
+                          </div>
+
+                          {/* Chat ID Field */}
+                          <div>
+                            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                              Chat ID o Canal ID:
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Ej: 987654321 o -1001234567890"
+                              value={telegramChatId}
+                              onChange={(e) => setTelegramChatId(e.target.value)}
+                              className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white font-mono text-xs"
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              Tu ID de usuario personal o el ID del grupo/canal de la clínica (usa <strong>@userinfobot</strong> para ver tu ID).
+                            </p>
+                          </div>
+
+                          {/* Test result message */}
+                          {telegramTestResult && (
+                            <div className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-semibold ${
+                              telegramTestResult.success
+                                ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200'
+                                : 'bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-red-200'
+                            }`}>
+                              {telegramTestResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                              <span>{telegramTestResult.message}</span>
+                            </div>
+                          )}
+
+                          {/* Save feedback */}
+                          {telegramSaveSuccess && (
+                            <div className="p-3 rounded-xl bg-emerald-500 text-white font-bold flex items-center gap-2 text-xs">
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>¡Configuración de Telegram guardada y activa!</span>
+                            </div>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <button
+                              type="submit"
+                              className="flex-1 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
+                            >
+                              <Check className="w-4 h-4" />
+                              <span>Guardar Telegram</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleTestTelegram}
+                              disabled={isTestingTelegram || !telegramToken || !telegramChatId}
+                              className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>{isTestingTelegram ? 'Enviando...' : '🧪 Probar Bot'}</span>
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+
+                      {/* Supabase & Cloud Database Card */}
+                      <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold">
+                              <Database className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                Base de Datos Cloud (Supabase)
+                              </h4>
+                              <p className="text-[11px] text-slate-500">Persistencia segura de expedientes y citas en la nube</p>
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            supabaseConfig.url ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}>
+                            {supabaseConfig.url ? 'Conectado' : 'Almacenamiento Local'}
+                          </span>
+                        </div>
+
+                        <form onSubmit={handleSaveSupabase} className="space-y-3.5 text-xs">
+                          <div>
+                            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                              Project URL de Supabase:
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="https://xyzcompany.supabase.co"
+                              value={supabaseUrl}
+                              onChange={(e) => setSupabaseUrl(e.target.value)}
+                              className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white font-mono text-xs"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                              API Anon Key (Public Key):
+                            </label>
+                            <input
+                              type="password"
+                              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                              value={supabaseAnonKey}
+                              onChange={(e) => setSupabaseAnonKey(e.target.value)}
+                              className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white font-mono text-xs"
+                            />
+                          </div>
+
+                          {supabaseTestResult && (
+                            <div className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-semibold ${
+                              supabaseTestResult.success
+                                ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200'
+                                : 'bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-red-200'
+                            }`}>
+                              {supabaseTestResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                              <span>{supabaseTestResult.message}</span>
+                            </div>
+                          )}
+
+                          {supabaseSaveSuccess && (
+                            <div className="p-3 rounded-xl bg-emerald-500 text-white font-bold flex items-center gap-2 text-xs">
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>¡Credenciales de Supabase guardadas exitosamente!</span>
+                            </div>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <button
+                              type="submit"
+                              className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
+                            >
+                              <Check className="w-4 h-4" />
+                              <span>Guardar Supabase</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleTestSupabase}
+                              disabled={isTestingSupabase || !supabaseUrl || !supabaseAnonKey}
+                              className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${isTestingSupabase ? 'animate-spin' : ''}`} />
+                              <span>Probar Conexión</span>
+                            </button>
+
+                            {supabaseConfig.url && (
+                              <button
+                                type="button"
+                                onClick={handleClearSupabase}
+                                className="p-2.5 rounded-xl bg-red-100 hover:bg-red-200 dark:bg-red-950/50 dark:hover:bg-red-900 text-red-600 dark:text-red-300 transition-all"
+                                title="Desconectar Supabase y volver a local"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                    {/* Clinic Information Card */}
+                    <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                      <div className="flex items-center gap-2 font-bold text-xs text-slate-800 dark:text-slate-200">
+                        <Building2 className="w-4 h-4 text-amber-500" />
+                        <span>Información de la Sede Clínica Equilibra</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                          <span className="text-slate-400 text-[10px] block font-bold uppercase">Ubicación</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">Av. Principal de Las Mercedes, Caracas</span>
+                        </div>
+                        <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                          <span className="text-slate-400 text-[10px] block font-bold uppercase">Horario de Atención</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">Lunes a Sábado: 8:00 AM - 6:00 PM</span>
+                        </div>
+                        <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                          <span className="text-slate-400 text-[10px] block font-bold uppercase">Contacto Directo</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">+58 412 123 4567 • info@equilibra.com</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Mobile Bottom Navigation Bar (For iPhone / Mobile Screen Sizes) */}
@@ -1497,13 +2176,13 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('auditoria')}
+                  onClick={() => setActiveTab('configuracion')}
                   className={`flex flex-col items-center py-1 px-2 rounded-xl text-[10px] font-bold ${
-                    activeTab === 'auditoria' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'
+                    activeTab === 'configuracion' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'
                   }`}
                 >
-                  <ShieldCheck className="w-4 h-4 mb-0.5" />
-                  <span>Seguridad</span>
+                  <Settings className="w-4 h-4 mb-0.5" />
+                  <span>Ajustes</span>
                 </button>
               </div>
             </div>

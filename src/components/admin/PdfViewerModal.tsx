@@ -57,7 +57,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   };
 
   const handleOpenExternal = () => {
-    // If it's a base64 data URL, convert to Blob URL to open reliably in modern browsers
     try {
       if (doc.fileData.startsWith('data:application/pdf;base64,')) {
         const base64Data = doc.fileData.replace('data:application/pdf;base64,', '');

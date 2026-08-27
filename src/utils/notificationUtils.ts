@@ -1,4 +1,4 @@
-﻿import { AdminNotification, ConfirmedAppointment } from '../types';
+import { AdminNotification, ConfirmedAppointment } from '../types';
 
 const NOTIFICATIONS_STORAGE_KEY = 'equilibra_admin_notifications';
 
