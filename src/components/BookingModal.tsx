@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
-import { SPECIALISTS_ACCOUNTS } from '../data/specialistsAuthData';
+import { SPECIALISTS_ACCOUNTS, getAssignedSpecialistForService } from '../data/specialistsAuthData';
 import { ConfirmedAppointment, ServicePricingTier } from '../types';
 import { BookingCalendar } from './BookingCalendar';
 import {
@@ -122,12 +122,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       });
     }
 
-    // Match specialist
-    const matchingSpec = SPECIALISTS_ACCOUNTS.find((sp) => sp.relatedServiceId === selectedServiceId);
-    if (matchingSpec) {
-      setSelectedSpecialistId(matchingSpec.id);
+    // Automatically match specialist for selected service
+    const assignedSpec = getAssignedSpecialistForService(selectedServiceId);
+    if (assignedSpec) {
+      setSelectedSpecialistId(assignedSpec.id);
     }
-  }, [selectedServiceId]);
+  }, [selectedServiceId, currentService]);
 
   useEffect(() => {
     if (isOpen) {
@@ -349,49 +349,51 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
             </div>
 
-            {/* Specialist selector */}
+            {/* Specialist Automatically Assigned Card */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  2. Especialista Asignado:
+                  2. Especialista Asignado (Automático):
                 </label>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Atención 1 a 1
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Asignado por especialidad
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 max-h-48 sm:max-h-44 overflow-y-auto p-1 pr-1.5 scrollbar-thin">
-                {SPECIALISTS_ACCOUNTS.map((spec) => {
-                  const isSel = selectedSpecialistId === spec.id;
-                  return (
-                    <button
-                      key={spec.id}
-                      type="button"
-                      onClick={() => setSelectedSpecialistId(spec.id)}
-                      title={`${spec.name} - ${spec.role}`}
-                      className={`p-2.5 sm:p-3 rounded-xl border text-left text-xs flex items-center gap-2.5 sm:gap-3 transition-all min-w-0 ${
-                        isSel
-                          ? 'border-amber-500 bg-amber-50/90 dark:bg-amber-950/40 font-bold ring-2 ring-amber-500/40 shadow-sm'
-                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-slate-50/70 dark:bg-slate-900/50'
-                      }`}
-                    >
+              {(() => {
+                const assignedSpec = getAssignedSpecialistForService(selectedServiceId);
+                return (
+                  <div className="p-3 sm:p-3.5 rounded-xl border border-amber-500/50 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-950/40 dark:via-amber-950/20 dark:to-transparent flex items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-center gap-3 min-w-0">
                       <img
-                        src={spec.avatarUrl}
-                        alt={spec.name}
-                        className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-300 dark:border-slate-700 aspect-square shadow-sm"
+                        src={assignedSpec.avatarUrl}
+                        alt={assignedSpec.name}
+                        className="w-12 h-12 rounded-full object-cover shrink-0 border-2 border-amber-500/60 shadow-sm aspect-square"
                       />
-                      <div className="min-w-0 flex-1">
-                        <span className="block font-bold text-slate-900 dark:text-white text-xs sm:text-xs leading-snug line-clamp-1">
-                          {spec.name}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 dark:text-white text-sm sm:text-base leading-tight">
+                            {assignedSpec.name}
+                          </span>
+                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950">
+                            Especialista Oficial
+                          </span>
+                        </div>
+                        <span className="text-xs text-slate-600 dark:text-slate-300 block leading-tight mt-0.5">
+                          {assignedSpec.role}
                         </span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block leading-tight line-clamp-1 sm:line-clamp-2 mt-0.5">
-                          {spec.role}
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate mt-0.5">
+                          {assignedSpec.specialty}
                         </span>
                       </div>
-                      {isSel && <Check className="w-4 h-4 text-amber-600 dark:text-amber-400 ml-auto shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 shrink-0">
+                      <Lock className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="hidden sm:inline">Asignación Directa</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Packages / Pricing Tiers selector */}

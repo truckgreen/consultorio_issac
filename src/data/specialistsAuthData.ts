@@ -88,8 +88,8 @@ export const SPECIALISTS_ACCOUNTS: SpecialistUser[] = [
   {
     id: 'indira-acevedo',
     name: 'Prof. Indira Acevedo',
-    role: 'Instructora de Boxeo y Acondicionamiento',
-    specialty: 'Boxeo técnico, reflejos y descarga activa de tensiones',
+    role: 'Instructora de Boxeo y Entrenamiento Funcional',
+    specialty: 'Boxeo técnico, entrenamiento funcional y acondicionamiento',
     category: 'entrenamiento',
     email: 'indira@equilibrafisioterapia.com',
     easyPin: '4376',
@@ -174,5 +174,31 @@ export function setBiometricRegisteredForUser(userId: string, status: boolean): 
     localStorage.setItem(`biometrics_${userId}`, JSON.stringify({ verifiedAt: Date.now() }));
   } else {
     localStorage.removeItem(`biometrics_${userId}`);
+  }
+}
+
+/**
+ * Returns the exact clinical specialist automatically assigned to a given service ID
+ */
+export function getAssignedSpecialistForService(serviceId: string): SpecialistUser {
+  switch (serviceId) {
+    case 'fisioterapia-pediatrica':
+      return SPECIALISTS_ACCOUNTS.find((s) => s.id === 'marivid-requena') || SPECIALISTS_ACCOUNTS[1];
+    case 'fisioterapia-geriatrica':
+      return SPECIALISTS_ACCOUNTS.find((s) => s.id === 'laury-torrealba') || SPECIALISTS_ACCOUNTS[2];
+    case 'fisioterapia-deportiva':
+      return SPECIALISTS_ACCOUNTS.find((s) => s.id === 'isaac-jewsiejew') || SPECIALISTS_ACCOUNTS[0];
+    case 'traumatologia':
+      return SPECIALISTS_ACCOUNTS.find((s) => s.id === 'ruben-torrealba') || SPECIALISTS_ACCOUNTS[4];
+    case 'psicologia':
+      return SPECIALISTS_ACCOUNTS.find((s) => s.id === 'cristina-flores') || SPECIALISTS_ACCOUNTS[5];
+    case 'nutricion':
+      return SPECIALISTS_ACCOUNTS.find((s) => s.id === 'stephani-salina') || SPECIALISTS_ACCOUNTS[3];
+    case 'boxeo':
+    case 'entrenamiento-funcional':
+      return SPECIALISTS_ACCOUNTS.find((s) => s.id === 'indira-acevedo') || SPECIALISTS_ACCOUNTS[6];
+    case 'fisioterapia':
+    default:
+      return SPECIALISTS_ACCOUNTS.find((s) => s.id === 'isaac-jewsiejew') || SPECIALISTS_ACCOUNTS[0];
   }
 }

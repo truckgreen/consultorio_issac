@@ -40,30 +40,30 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
           className="relative bg-white dark:bg-[#151c28] rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 z-10"
         >
           {/* Header Image Frame */}
-          <div className="relative h-60 w-full overflow-hidden bg-slate-900">
+          <div className="relative h-72 sm:h-84 md:h-96 w-full overflow-hidden bg-slate-950">
             <img
               src={imageAsset.src}
               alt={imageAsset.alt || service.title}
               referrerPolicy="no-referrer"
-              className="w-full h-full object-cover object-center"
+              className={`w-full h-full object-cover ${imageAsset.position || 'object-[center_15%]'}`}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/40 to-transparent" />
             
             {/* Close button */}
             <button
               onClick={onClose}
               aria-label="Cerrar modal"
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-colors"
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-md transition-colors z-20 shadow-lg border border-white/20"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Title on Image */}
-            <div className="absolute bottom-4 left-6 right-6 text-white">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-bold uppercase tracking-wider mb-2">
+            <div className="absolute bottom-5 left-6 right-6 text-white z-10">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-bold uppercase tracking-wider mb-2 shadow-md">
                 <Sparkles className="w-3 h-3" /> Especialidad Clínica
               </span>
-              <h3 className="text-2xl sm:text-3xl font-extrabold font-heading">
+              <h3 className="text-2xl sm:text-3xl font-extrabold font-heading drop-shadow-md">
                 {service.title}
               </h3>
             </div>

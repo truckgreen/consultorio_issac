@@ -37,7 +37,14 @@ export function getSavedAppointments(): ConfirmedAppointment[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_APPOINTMENTS_KEY);
     if (!raw) return [];
-    return JSON.parse(raw);
+    const parsed: ConfirmedAppointment[] = JSON.parse(raw);
+    const filtered = (parsed || []).filter(
+      (a) => !a.id.startsWith('seed_') && !a.id.startsWith('app_seed_') && !a.id.startsWith('demo_')
+    );
+    if (filtered.length !== parsed.length) {
+      localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(filtered));
+    }
+    return filtered;
   } catch (e) {
     console.error('Error reading saved appointments:', e);
     return [];

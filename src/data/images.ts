@@ -8,6 +8,7 @@ export interface ImageAsset {
   src: string;
   alt: string;
   credit?: string;
+  position?: string;
 }
 
 export const APP_IMAGES = {
@@ -15,57 +16,67 @@ export const APP_IMAGES = {
   hero: {
     src: "/imagenes/consultorio.jpg",
     alt: "Centro de Fisioterapia y Rehabilitación Equilibra",
+    position: "object-center",
   },
 
   // About Section: "El verdadero bienestar comienza en movimiento"
   about: {
-    src: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1200&q=80",
+    src: "/imagenes/consultorio.jpg",
     alt: "Sesión de fisioterapia y rehabilitación activa",
+    position: "object-[center_35%]",
   },
   aboutSecondary: {
-    src: "https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=1000&q=80",
+    src: "/imagenes/fotodeperfil.jpg",
     alt: "Especialista acompañando la recuperación del paciente",
+    position: "object-top",
   },
 
   // 9 Core Services (Matches the exact cards in the photo)
   services: {
     fisioterapia: {
-      // Puedes reemplazar esta ruta por tu imagen local (ej: '/imagenes/servicios/fisioterapia/fondo fisioterapia.jpg') o una URL directa
       src: "/imagenes/servicios/fisioterapia/fondo fisioterapia.jpg",
-      alt: "Fisioterapia y entrenamiento de fuerza en banco asistido",
+      alt: "Fisioterapia y evaluación funcional",
+      position: "object-[center_12%]",
     },
     fisioterapiaPediatrica: {
-      // Puedes colocar tu foto en /imagenes/servicios/fisioterapia-pediatrica/portada.jpg o una URL directa
       src: "/imagenes/servicios/fisioterapia pediatrica/foto fondo.jpg",
       alt: "Fisioterapia Pediátrica infantil y desarrollo motor",
+      position: "object-[center_18%]",
     },
     fisioterapiaGeriatrica: {
       src: "/imagenes/servicios/fisioterapia geriatrica/foto fondo.jpg",
       alt: "Fisioterapia Geriátrica y movilidad para adultos mayores",
+      position: "object-[center_18%]",
     },
     fisioterapiaDeportiva: {
       src: "/imagenes/servicios/fisioterapia deportiva/foto fondo.jpg",
       alt: "Fisioterapia Deportiva y prevención de lesiones en atletas",
+      position: "object-[center_15%]",
     },
     traumatologia: {
       src: "/imagenes/servicios/traumatologia/foto fondo.jpg",
       alt: "Traumatología y valoración ortopédica integral",
+      position: "object-[center_18%]",
     },
     psicologia: {
       src: "/imagenes/servicios/psicologia/foto fondo.jpg",
       alt: "Psicología y salud emocional",
+      position: "object-[center_20%]",
     },
     nutricion: {
-      src: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=800&q=80",
+      src: "/imagenes/servicios/nutricion/precios.jpg",
       alt: "Nutrición clínica y deportiva personalizada",
+      position: "object-[center_20%]",
     },
     entrenamientoFuncional: {
-      src: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80",
-      alt: "Entrenamiento funcional y biomecánica del movimiento",
+      src: "/imagenes/servicios/entrenamiento funcional/precios.jpg",
+      alt: "Entrenamiento funcional y acondicionamiento biomecánico",
+      position: "object-[center_20%]",
     },
     boxeo: {
       src: "/imagenes/servicios/boxeo/foto fondo.jpg",
       alt: "Boxeo terapéutico y acondicionamiento cardiovascular",
+      position: "object-[center_18%]",
     },
   },
 

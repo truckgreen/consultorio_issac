@@ -90,31 +90,31 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({
                   className="group bg-white dark:bg-[#151c28] rounded-3xl overflow-hidden shadow-sm hover:shadow-xl border border-slate-200/80 dark:border-slate-800 transition-all duration-300 flex flex-col hover:-translate-y-1.5"
                 >
                   {/* Image Container */}
-                  <div className="relative h-56 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <div className="relative h-64 sm:h-72 w-full overflow-hidden bg-slate-900">
                     <img
                       src={imageAsset.src}
                       alt={imageAsset.alt || service.title}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover object-center transform group-hover:scale-108 transition-transform duration-500"
+                      className={`w-full h-full object-cover ${imageAsset.position || 'object-[center_15%]'} transform group-hover:scale-105 transition-transform duration-500`}
                       loading="lazy"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
                     
                     {/* Top Badges: Price & Duration */}
-                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2">
+                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2 z-10">
                       <div className="bg-amber-500 text-slate-950 font-black text-xs sm:text-sm px-3 py-1 rounded-full shadow-md flex items-center gap-1">
                         <span>{service.priceFormatted} USD</span>
                         <span className="text-[10px] font-semibold text-slate-900/80">/ sesión</span>
                       </div>
 
-                      <div className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold text-white flex items-center gap-1.5 border border-white/20">
+                      <div className="bg-black/70 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold text-white flex items-center gap-1.5 border border-white/20 shadow-md">
                         <Clock className="w-3 h-3 text-amber-400" />
                         <span>{service.duration}</span>
                       </div>
                     </div>
 
                     {/* Title overlay on bottom of image for punchy contrast */}
-                    <div className="absolute bottom-4 left-4 right-4">
+                    <div className="absolute bottom-4 left-4 right-4 z-10">
                       <h3 className="text-xl sm:text-2xl font-bold text-white drop-shadow font-heading group-hover:text-amber-300 transition-colors">
                         {service.title}
                       </h3>

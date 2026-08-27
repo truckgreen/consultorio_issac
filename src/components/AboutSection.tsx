@@ -47,7 +47,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenBooking }) => 
                   src={APP_IMAGES.about.src}
                   alt={APP_IMAGES.about.alt}
                   referrerPolicy="no-referrer"
-                  className="w-full h-[400px] sm:h-[480px] object-cover object-center transform hover:scale-105 transition-transform duration-500"
+                  className={`w-full h-[400px] sm:h-[480px] object-cover ${APP_IMAGES.about.position || 'object-center'} transform hover:scale-105 transition-transform duration-500`}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6 text-white">
