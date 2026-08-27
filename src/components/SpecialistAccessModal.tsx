@@ -49,16 +49,23 @@ import {
   Building2,
   Copy,
 } from 'lucide-react';
-import { ConfirmedAppointment, SpecialistUser, AdminUser, AdminNotification, TeamMember, SpecialistAbsence, TelegramConfig, SupabaseConfig } from '../types';
+import { ConfirmedAppointment, SpecialistUser, AdminUser, AdminNotification, TeamMember, SpecialistAbsence, TelegramConfig, SupabaseConfig, PatientRecord } from '../types';
 import {
   getAppointmentsFromDatabase,
   getSavedAppointments,
   saveAppointmentToStorage,
 } from '../utils/bookingUtils';
 import {
+  getStoredPatients,
+  saveStoredPatient,
+  deleteStoredPatient,
+} from '../utils/patientUtils';
+import { PatientRegistrationModal } from './PatientRegistrationModal';
+import {
   getStoredTelegramConfig,
   saveTelegramConfig,
   testTelegramNotification,
+  testTelegramSpecialistTagging,
 } from '../utils/telegramBot';
 import {
   getStoredSpecialistsAvailability,
@@ -132,6 +139,9 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
   // Tabs & Filters
   const [activeTab, setActiveTab] = useState<PanelTab>('dashboard');
   const [appointments, setAppointments] = useState<ConfirmedAppointment[]>([]);
+  const [registeredPatients, setRegisteredPatients] = useState<PatientRecord[]>(getStoredPatients());
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState<boolean>(false);
+  const [editingPatient, setEditingPatient] = useState<PatientRecord | null>(null);
   const [securityLogs, setSecurityLogs] = useState<SecurityAuditEntry[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState<boolean>(false);
@@ -238,19 +248,29 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
   const [telegramToken, setTelegramToken] = useState(telegramConfig.botToken || '');
   const [telegramChatId, setTelegramChatId] = useState(telegramConfig.chatId || '');
   const [telegramEnabled, setTelegramEnabled] = useState(telegramConfig.enabled ?? true);
+  const [specialistTags, setSpecialistTags] = useState<Record<string, string>>(telegramConfig.specialistTags || {});
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+  const [testingTagMemberId, setTestingTagMemberId] = useState<string | null>(null);
   const [telegramTestResult, setTelegramTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [specialistTagTestResult, setSpecialistTagTestResult] = useState<{ memberId: string; success: boolean; message: string } | null>(null);
   const [telegramSaveSuccess, setTelegramSaveSuccess] = useState(false);
+  const [tagsSaveSuccess, setTagsSaveSuccess] = useState(false);
 
-  // Supabase settings state
-  const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getCurrentSupabaseConfig());
-  const [supabaseUrl, setSupabaseUrl] = useState(supabaseConfig.url || '');
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState(supabaseConfig.anonKey || '');
-  const [isTestingSupabase, setIsTestingSupabase] = useState(false);
-  const [supabaseTestResult, setSupabaseTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [supabaseSaveSuccess, setSupabaseSaveSuccess] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
+  // Sync telegram config on window event
+  useEffect(() => {
+    const handleTelegramUpdated = (e: any) => {
+      const updated = e.detail || getStoredTelegramConfig();
+      setTelegramConfig(updated);
+      setTelegramToken(updated.botToken || '');
+      setTelegramChatId(updated.chatId || '');
+      setTelegramEnabled(updated.enabled ?? true);
+      setSpecialistTags(updated.specialistTags || {});
+    };
+    window.addEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
+    return () => window.removeEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
+  }, []);
 
+  // Telegram Bot config state
   const handleSaveTelegram = (e: React.FormEvent) => {
     e.preventDefault();
     const updated = saveTelegramConfig({
@@ -259,19 +279,89 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       enabled: telegramEnabled,
       notifyOnBooking: true,
       notifyOnCancellation: true,
+      specialistTags: specialistTags,
     });
     setTelegramConfig(updated);
     setTelegramSaveSuccess(true);
-    setTimeout(() => setTelegramSaveSuccess(false), 3000);
+    setTimeout(() => setTelegramSaveSuccess(false), 3500);
   };
 
   const handleTestTelegram = async () => {
+    if (!telegramToken.trim() || !telegramChatId.trim()) {
+      setTelegramTestResult({
+        success: false,
+        message: 'Por favor ingresa tanto el Token del Bot como el Chat ID (o ID del Grupo) antes de probar.',
+      });
+      return;
+    }
     setIsTestingTelegram(true);
     setTelegramTestResult(null);
-    const res = await testTelegramNotification(telegramToken, telegramChatId);
+    const res = await testTelegramNotification(telegramToken.trim(), telegramChatId.trim());
     setTelegramTestResult(res);
     setIsTestingTelegram(false);
+    if (res.success) {
+      setTelegramConfig(getStoredTelegramConfig());
+    }
   };
+
+  const handleUpdateSpecialistTag = (memberId: string, tag: string) => {
+    const updated = {
+      ...specialistTags,
+      [memberId]: tag,
+    };
+    setSpecialistTags(updated);
+  };
+
+  const handleSaveAllSpecialistTags = () => {
+    const updated = saveTelegramConfig({
+      specialistTags: specialistTags,
+    });
+    setTelegramConfig(updated);
+    setTagsSaveSuccess(true);
+    setTimeout(() => setTagsSaveSuccess(false), 3500);
+  };
+
+  const handleTestSpecificTag = async (member: TeamMember) => {
+    const tag = specialistTags[member.id] || '';
+    if (!tag.trim()) {
+      setSpecialistTagTestResult({
+        memberId: member.id,
+        success: false,
+        message: `Primero escribe el usuario de Telegram (ej: @usuario) para ${member.name}.`,
+      });
+      return;
+    }
+    if (!telegramToken.trim() || !telegramChatId.trim()) {
+      setSpecialistTagTestResult({
+        memberId: member.id,
+        success: false,
+        message: 'Debes guardar o ingresar el Token y el Chat ID de Telegram primero.',
+      });
+      return;
+    }
+    setTestingTagMemberId(member.id);
+    setSpecialistTagTestResult(null);
+    const res = await testTelegramSpecialistTagging(
+      telegramToken.trim(),
+      telegramChatId.trim(),
+      member.name,
+      tag,
+      member.role || member.specialty
+    );
+    setSpecialistTagTestResult({
+      memberId: member.id,
+      success: res.success,
+      message: res.message,
+    });
+    setTestingTagMemberId(null);
+  };
+  const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getCurrentSupabaseConfig());
+  const [supabaseUrl, setSupabaseUrl] = useState(supabaseConfig.url || '');
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState(supabaseConfig.anonKey || '');
+  const [isTestingSupabase, setIsTestingSupabase] = useState(false);
+  const [supabaseTestResult, setSupabaseTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [supabaseSaveSuccess, setSupabaseSaveSuccess] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
   const handleSaveSupabase = (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,15 +429,21 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     };
   }, [authenticatedUser]);
 
-  // Listen for live notification updates
+  // Listen for live notification updates & patient changes
   useEffect(() => {
     const handleNotifUpdate = () => {
       setNotifications(getStoredNotifications());
     };
+    const handlePatientsUpdate = () => {
+      setRegisteredPatients(getStoredPatients());
+    };
     window.addEventListener('equilibra_notifications_updated', handleNotifUpdate);
+    window.addEventListener('equilibra_patients_updated', handlePatientsUpdate);
     setNotifications(getStoredNotifications());
+    setRegisteredPatients(getStoredPatients());
     return () => {
       window.removeEventListener('equilibra_notifications_updated', handleNotifUpdate);
+      window.removeEventListener('equilibra_patients_updated', handlePatientsUpdate);
     };
   }, []);
 
@@ -534,16 +630,37 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     }
   };
 
+  // Filter visible notifications based on authenticated role
+  const visibleNotifications = notifications.filter((n) => {
+    if (!authenticatedUser) return false;
+    // Admins see all notifications
+    if (authenticatedUser.role === 'admin' || authenticatedUser.role === 'administrador_general') {
+      return true;
+    }
+    // Specialist only sees notifications specifically addressed to them or their specialty
+    if (n.specialistId) {
+      return n.specialistId === authenticatedUser.id;
+    }
+    // If notification mentions their name
+    if (n.specialistName && n.specialistName.toLowerCase().includes(authenticatedUser.name.toLowerCase())) {
+      return true;
+    }
+    if (n.message && n.message.toLowerCase().includes(authenticatedUser.name.toLowerCase())) {
+      return true;
+    }
+    // General notifications (no specialist attached)
+    return !n.specialistId && !n.specialistName;
+  });
+
   // Filter appointments
   const filteredAppointments = appointments.filter((app) => {
-    // If not admin, specialist sees only their appointments by default (or all if not tagged)
+    // If specialist, strictly isolate to their own appointments
     if (authenticatedUser?.role === 'specialist') {
-      const isAssigned =
-        !app.specialistId ||
-        app.specialistId === authenticatedUser.id ||
-        (authenticatedUser.relatedServiceId && app.serviceId === authenticatedUser.relatedServiceId) ||
-        (app.specialistName && app.specialistName.toLowerCase().includes(authenticatedUser.name.toLowerCase()));
-      if (!isAssigned) return false;
+      const matchesId = app.specialistId && app.specialistId === authenticatedUser.id;
+      const matchesName = app.specialistName && app.specialistName.toLowerCase().includes(authenticatedUser.name.toLowerCase());
+      const matchesService = authenticatedUser.relatedServiceId && app.serviceId === authenticatedUser.relatedServiceId;
+      const isAssignedToThem = matchesId || matchesName || matchesService;
+      if (!isAssignedToThem) return false;
     }
 
     const matchesSpecialist =
@@ -562,51 +679,132 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     const search = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !search ||
-      app.nombre.toLowerCase().includes(search) ||
-      app.apellido.toLowerCase().includes(search) ||
-      app.code.toLowerCase().includes(search) ||
-      app.telefono.toLowerCase().includes(search) ||
+      (app.nombre && app.nombre.toLowerCase().includes(search)) ||
+      (app.apellido && app.apellido.toLowerCase().includes(search)) ||
+      (app.code && app.code.toLowerCase().includes(search)) ||
+      (app.telefono && app.telefono.toLowerCase().includes(search)) ||
       (app.motivoConsulta && app.motivoConsulta.toLowerCase().includes(search));
 
     return matchesSpecialist && matchesDate && matchesStatus && matchesSearch;
   });
 
-  const totalConfirmed = appointments.filter((a) => a.status === 'confirmada' || a.status === 'completada').length;
-  const totalPending = appointments.filter((a) => a.status === 'pendiente_validacion').length;
-  const totalCancellations = appointments.filter((a) => a.status === 'cancelada');
-  const totalPenalties = appointments.reduce(
+  const totalConfirmed = filteredAppointments.filter((a) => a.status === 'confirmada' || a.status === 'completada').length;
+  const totalPending = filteredAppointments.filter((a) => a.status === 'pendiente_validacion').length;
+  const totalCancellations = filteredAppointments.filter((a) => a.status === 'cancelada');
+  const totalPenalties = filteredAppointments.reduce(
     (acc, a) => acc + (a.cancellationPenaltyFee || 0),
     0
   );
 
-  // Group unique patients
+  // Group unique patients (combining registered manual records + appointments)
   const uniquePatientsMap = new Map<string, {
+    id?: string;
+    isRegisteredRecord?: boolean;
     name: string;
+    nombre: string;
+    apellido: string;
+    cedula?: string;
+    fechaNacimiento?: string;
+    edad?: number;
+    genero?: string;
+    direccion?: string;
     phone: string;
     email: string;
+    bloodType?: string;
+    allergies?: string;
+    chronicConditions?: string;
+    currentMedication?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    notes?: string;
+    assignedSpecialistId?: string;
+    assignedSpecialistName?: string;
     totalVisits: number;
     lastVisitDate: string;
     lastSpecialist: string;
     lastReason?: string;
+    registeredAt?: string;
   }>();
 
+  // First seed with registered clinical patient records
+  registeredPatients.forEach((rp) => {
+    // If specialist, only show registered patients assigned to them or created without assignment
+    if (authenticatedUser?.role === 'specialist') {
+      if (rp.assignedSpecialistId && rp.assignedSpecialistId !== authenticatedUser.id && !rp.assignedSpecialistName?.toLowerCase().includes(authenticatedUser.name.toLowerCase())) {
+        return;
+      }
+    }
+
+    const pNombre = (rp.nombre || '').trim();
+    const pApellido = (rp.apellido || '').trim();
+    if (!pNombre && !pApellido) return;
+
+    const key = `${pNombre.toLowerCase()}_${pApellido.toLowerCase()}`;
+    uniquePatientsMap.set(key, {
+      id: rp.id,
+      isRegisteredRecord: true,
+      name: `${pNombre} ${pApellido}`.trim(),
+      nombre: pNombre,
+      apellido: pApellido,
+      cedula: rp.cedula,
+      fechaNacimiento: rp.fechaNacimiento,
+      edad: rp.edad,
+      genero: rp.genero,
+      direccion: rp.direccion,
+      phone: rp.telefono || '',
+      email: rp.email || '',
+      bloodType: rp.bloodType,
+      allergies: rp.alergias,
+      chronicConditions: rp.medicalConditions || rp.antecedentes,
+      currentMedication: rp.medicamentosActuales,
+      emergencyContactName: rp.contactoEmergencia?.nombre,
+      emergencyContactPhone: rp.contactoEmergencia?.telefono,
+      notes: rp.clinicalNotes,
+      assignedSpecialistId: rp.assignedSpecialistId,
+      assignedSpecialistName: rp.assignedSpecialistName,
+      totalVisits: rp.completedAppointments || rp.totalAppointments || 0,
+      lastVisitDate: rp.lastVisit || (rp.createdAt ? rp.createdAt.split('T')[0] : todayStr),
+      lastSpecialist: rp.assignedSpecialistName || 'Sin asignar',
+      lastReason: rp.clinicalNotes || 'Expediente clínico completo',
+      registeredAt: rp.createdAt || todayStr,
+    });
+  });
+
+  // Then augment/merge with appointments
   appointments.forEach((app) => {
-    const key = `${app.nombre.trim().toLowerCase()}_${app.apellido.trim().toLowerCase()}`;
+    if (authenticatedUser?.role === 'specialist') {
+      const matchesId = app.specialistId && app.specialistId === authenticatedUser.id;
+      const matchesName = app.specialistName && app.specialistName.toLowerCase().includes(authenticatedUser.name.toLowerCase());
+      const matchesService = authenticatedUser.relatedServiceId && app.serviceId === authenticatedUser.relatedServiceId;
+      if (!matchesId && !matchesName && !matchesService) {
+        return;
+      }
+    }
+
+    const appNombre = (app.nombre || '').trim();
+    const appApellido = (app.apellido || '').trim();
+    if (!appNombre && !appApellido) return;
+
+    const key = `${appNombre.toLowerCase()}_${appApellido.toLowerCase()}`;
     const existing = uniquePatientsMap.get(key);
     if (existing) {
       existing.totalVisits += 1;
-      if (app.fecha > existing.lastVisitDate) {
+      if (app.fecha && app.fecha >= existing.lastVisitDate) {
         existing.lastVisitDate = app.fecha;
-        existing.lastSpecialist = app.specialistName || 'Especialista';
-        existing.lastReason = app.motivoConsulta;
+        existing.lastSpecialist = app.specialistName || existing.lastSpecialist || 'Especialista';
+        existing.lastReason = app.motivoConsulta || existing.lastReason;
       }
+      if (!existing.phone && app.telefono) existing.phone = app.telefono;
+      if (!existing.email && app.email) existing.email = app.email;
     } else {
       uniquePatientsMap.set(key, {
-        name: `${app.nombre} ${app.apellido}`,
-        phone: app.telefono,
-        email: app.email,
+        name: `${appNombre} ${appApellido}`.trim(),
+        nombre: appNombre,
+        apellido: appApellido,
+        phone: app.telefono || '',
+        email: app.email || '',
         totalVisits: 1,
-        lastVisitDate: app.fecha,
+        lastVisitDate: app.fecha || todayStr,
         lastSpecialist: app.specialistName || 'Especialista',
         lastReason: app.motivoConsulta,
       });
@@ -615,7 +813,13 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
 
   const uniquePatients = Array.from(uniquePatientsMap.values()).filter((p) => {
     const search = searchQuery.toLowerCase().trim();
-    return !search || p.name.toLowerCase().includes(search) || p.phone.includes(search) || p.email.toLowerCase().includes(search);
+    return (
+      !search ||
+      p.name.toLowerCase().includes(search) ||
+      (p.phone && p.phone.toLowerCase().includes(search)) ||
+      (p.email && p.email.toLowerCase().includes(search)) ||
+      (p.cedula && p.cedula.toLowerCase().includes(search))
+    );
   });
 
   return (
@@ -670,9 +874,9 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                       title="Notificaciones de citas"
                     >
                       <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                      {notifications.filter((n) => !n.read).length > 0 && (
+                      {visibleNotifications.filter((n) => !n.read).length > 0 && (
                         <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-bounce">
-                          {notifications.filter((n) => !n.read).length}
+                          {visibleNotifications.filter((n) => !n.read).length}
                         </span>
                       )}
                     </button>
@@ -687,10 +891,11 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                               Notificaciones en Vivo
                             </h4>
                           </div>
-                          {notifications.filter((n) => !n.read).length > 0 && (
+                          {visibleNotifications.filter((n) => !n.read).length > 0 && (
                             <button
                               onClick={() => {
-                                const updated = notifications.map((n) => ({ ...n, read: true }));
+                                const visibleIds = new Set(visibleNotifications.map((n) => n.id));
+                                const updated = notifications.map((n) => (visibleIds.has(n.id) ? { ...n, read: true } : n));
                                 setNotifications(updated);
                                 saveStoredNotifications(updated);
                               }}
@@ -720,12 +925,12 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                         )}
 
                         <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
-                          {notifications.length === 0 ? (
+                          {visibleNotifications.length === 0 ? (
                             <p className="text-xs text-slate-400 py-6 text-center">
                               No hay notificaciones pendientes.
                             </p>
                           ) : (
-                            notifications.map((n) => (
+                            visibleNotifications.map((n) => (
                               <div
                                 key={n.id}
                                 onClick={() => {
@@ -978,7 +1183,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     }`}
                   >
                     <Users className="w-3.5 h-3.5" />
-                    <span>Pacientes ({Array.from(new Set(appointments.map(a => `${a.nombre}_${a.apellido}`))).length})</span>
+                    <span>Pacientes ({uniquePatients.length})</span>
                   </button>
 
                   <button
@@ -1017,34 +1222,39 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     <span>Cancelaciones ({totalCancellations.length})</span>
                   </button>
 
-                  <button
-                    onClick={() => setActiveTab('auditoria')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                      activeTab === 'auditoria'
-                        ? 'bg-amber-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Seguridad</span>
-                  </button>
+                  {/* ADMIN ONLY TABS */}
+                  {(authenticatedUser?.role === 'admin' || authenticatedUser?.role === 'administrador_general') && (
+                    <>
+                      <button
+                        onClick={() => setActiveTab('auditoria')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                          activeTab === 'auditoria'
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Seguridad</span>
+                      </button>
 
-                  <button
-                    onClick={() => setActiveTab('configuracion')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                      activeTab === 'configuracion'
-                        ? 'bg-amber-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                    <span>Configuración & Bot</span>
-                    {telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled ? (
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Bot de Telegram Activo" />
-                    ) : (
-                      <span className="w-2 h-2 rounded-full bg-amber-400" title="Bot pendiente de configuración" />
-                    )}
-                  </button>
+                      <button
+                        onClick={() => setActiveTab('configuracion')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                          activeTab === 'configuracion'
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                        <span>Configuración & Bot</span>
+                        {telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled ? (
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Bot de Telegram Activo" />
+                        ) : (
+                          <span className="w-2 h-2 rounded-full bg-amber-400" title="Bot pendiente de configuración" />
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Quick actions: Excel Export & Biometric Setup */}
@@ -1408,50 +1618,198 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
 
                 {/* 3. DIRECTORIO DE PACIENTES TAB */}
                 {activeTab === 'pacientes' && (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-4">
+                    {/* Header Banner with Add Patient Button */}
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <Users className="w-4 h-4 text-amber-500" />
+                          <span>Directorio & Expedientes de Pacientes</span>
+                        </h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                          Registra nuevos pacientes, completa su historia clínica o consulta sus antecedentes y citas médicas.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <button
+                          onClick={() => {
+                            setEditingPatient(null);
+                            setIsPatientModalOpen(true);
+                          }}
+                          className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                        >
+                          <Users className="w-4 h-4" />
+                          <span>+ Registrar Nuevo Paciente</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                       {uniquePatients.length === 0 ? (
-                        <div className="col-span-full p-8 text-center text-slate-500 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-300">
-                          No hay pacientes registrados con los filtros aplicados.
+                        <div className="col-span-full p-12 text-center text-slate-500 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
+                          <Users className="w-10 h-10 mx-auto text-slate-400 opacity-60" />
+                          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            No hay pacientes registrados con los filtros aplicados.
+                          </p>
+                          <button
+                            onClick={() => {
+                              setEditingPatient(null);
+                              setIsPatientModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-sm"
+                          >
+                            <span>Registrar Primer Paciente</span>
+                          </button>
                         </div>
                       ) : (
-                        uniquePatients.map((pat, idx) => (
-                          <div
-                            key={idx}
-                            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm"
-                          >
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-bold text-slate-900 dark:text-white text-sm">
-                                {pat.name}
-                              </h4>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                                {pat.totalVisits} {pat.totalVisits === 1 ? 'Cita' : 'Citas'}
-                              </span>
-                            </div>
+                        uniquePatients.map((pat, idx) => {
+                          const existingRecord = registeredPatients.find(
+                            (r) =>
+                              (pat.id && r.id === pat.id) ||
+                              ((r.nombre || '').toLowerCase() === (pat.nombre || '').toLowerCase() &&
+                                (r.apellido || '').toLowerCase() === (pat.apellido || '').toLowerCase())
+                          );
 
-                            <div className="text-xs text-slate-500 space-y-1">
-                              <p>📞 Teléfono: <strong className="text-slate-800 dark:text-slate-200">{pat.phone}</strong></p>
-                              <p>✉️ Correo: {pat.email}</p>
-                              <p>📅 Última sesión: {pat.lastVisitDate} (Con {pat.lastSpecialist})</p>
-                            </div>
-
-                            {pat.lastReason && (
-                              <p className="text-[11px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-xl">
-                                <strong>Historial Clínico:</strong> {pat.lastReason}
-                              </p>
-                            )}
-
-                            <a
-                              href={`https://wa.me/${pat.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Hola ${pat.name}, te contactamos de la clínica EQUILIBRA para hacer seguimiento a tu tratamiento clínico.`)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 font-bold pt-1"
+                          return (
+                            <div
+                              key={pat.id || idx}
+                              className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm hover:border-amber-400/50 transition-all flex flex-col justify-between"
                             >
-                              <MessageSquare className="w-3.5 h-3.5" />
-                              <span>Escribir al Paciente por WhatsApp</span>
-                            </a>
-                          </div>
-                        ))
+                              <div>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base truncate">
+                                      {pat.name}
+                                    </h4>
+                                    {pat.cedula && (
+                                      <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                                        C.I. / DNI: <span className="font-bold text-slate-700 dark:text-slate-300">{pat.cedula}</span>
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {pat.isRegisteredRecord && (
+                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                        EXPEDIENTE COMPLETO
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                                      {pat.totalVisits} {pat.totalVisits === 1 ? 'Cita' : 'Citas'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1.5 mt-2.5">
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <p>📞 Tel: <strong className="text-slate-800 dark:text-slate-200">{pat.phone || 'No registrado'}</strong></p>
+                                    {pat.email && <p>✉️ {pat.email}</p>}
+                                    {pat.bloodType && (
+                                      <span className="px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold text-[10px]">
+                                        🩸 {pat.bloodType}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                                    <span>📅 Última atención: <strong>{pat.lastVisitDate}</strong></span>
+                                    <span>👨‍⚕️ {pat.lastSpecialist}</span>
+                                  </div>
+                                </div>
+
+                                {/* Clinical Highlights if available */}
+                                {(pat.allergies || pat.chronicConditions || pat.currentMedication || pat.lastReason) && (
+                                  <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 text-[11px] space-y-1">
+                                    {pat.allergies && (
+                                      <p className="text-rose-600 dark:text-rose-400">
+                                        <strong>⚠️ Alergias:</strong> {pat.allergies}
+                                      </p>
+                                    )}
+                                    {pat.chronicConditions && (
+                                      <p className="text-amber-700 dark:text-amber-400">
+                                        <strong>🩺 Antecedentes:</strong> {pat.chronicConditions}
+                                      </p>
+                                    )}
+                                    {pat.currentMedication && (
+                                      <p className="text-slate-600 dark:text-slate-300">
+                                        <strong>💊 Medicación actual:</strong> {pat.currentMedication}
+                                      </p>
+                                    )}
+                                    {!pat.allergies && !pat.chronicConditions && !pat.currentMedication && pat.lastReason && (
+                                      <p className="text-slate-600 dark:text-slate-400">
+                                        <strong>Último motivo:</strong> {pat.lastReason}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Action Footer */}
+                              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 mt-2">
+                                <a
+                                  href={`https://wa.me/${pat.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Hola ${pat.name}, te contactamos del Centro Clínico EQUILIBRA para hacer seguimiento a tu atención médica y ficha clínica.`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-bold"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span>WhatsApp</span>
+                                </a>
+
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      if (existingRecord) {
+                                        setEditingPatient(existingRecord);
+                                      } else {
+                                        // Prefill with available data
+                                        setEditingPatient({
+                                          id: '',
+                                          nombre: pat.nombre || pat.name.split(' ')[0] || '',
+                                          apellido: pat.apellido || pat.name.split(' ').slice(1).join(' ') || '',
+                                          cedula: pat.cedula || '',
+                                          telefono: pat.phone || '',
+                                          email: pat.email || '',
+                                          totalAppointments: pat.totalVisits || 0,
+                                          completedAppointments: pat.totalVisits || 0,
+                                          lastVisit: pat.lastVisitDate || todayStr,
+                                          totalSpent: 0,
+                                          firstVisitDate: todayStr,
+                                          clinicalNotes: pat.lastReason || '',
+                                          medicalConditions: pat.chronicConditions || '',
+                                          alergias: pat.allergies || '',
+                                          antecedentes: pat.chronicConditions || '',
+                                          medicamentosActuales: pat.currentMedication || '',
+                                          createdAt: new Date().toISOString(),
+                                        });
+                                      }
+                                      setIsPatientModalOpen(true);
+                                    }}
+                                    className="px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 font-semibold text-[11px] flex items-center gap-1 transition-all cursor-pointer"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                    <span>{existingRecord ? 'Editar Ficha' : 'Completar Registro'}</span>
+                                  </button>
+
+                                  {existingRecord && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`¿Estás seguro de eliminar el expediente clínico de ${pat.name}?`)) {
+                                          deleteStoredPatient(existingRecord.id);
+                                          setRegisteredPatients(getStoredPatients());
+                                        }
+                                      }}
+                                      className="p-1 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all cursor-pointer"
+                                      title="Eliminar registro"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>
@@ -1875,16 +2233,22 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                           <span>Configuración de Integraciones, Telegram Bot & Base de Datos</span>
                         </h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          Conecta el bot de Telegram para recibir alertas en tu teléfono cada vez que un paciente agende una cita.
+                          Conecta el bot de Telegram y asigna a los especialistas para que el bot los etiquete automáticamente por su especialidad en cada cita agendada.
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-[11px] font-bold px-3 py-1 rounded-xl border ${
                           telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                            : telegramConfig.botToken && !telegramConfig.chatId
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                            : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'
                         }`}>
-                          {telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled ? '● Telegram Activo' : '● Telegram Pendiente'}
+                          {telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled
+                            ? '● Telegram Activo y Conectado'
+                            : telegramConfig.botToken && !telegramConfig.chatId
+                            ? '⚠️ Falta ingresar Chat ID'
+                            : '● Telegram Pendiente'}
                         </span>
                       </div>
                     </div>
@@ -1904,12 +2268,18 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                               <p className="text-[11px] text-slate-500">Alertas automáticas en tiempo real al agendar citas</p>
                             </div>
                           </div>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
                             telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                              : telegramConfig.botToken && !telegramConfig.chatId
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                               : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                           }`}>
-                            {telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled ? 'Conectado' : 'Inactivo'}
+                            {telegramConfig.botToken && telegramConfig.chatId && telegramConfig.enabled
+                              ? 'Activo'
+                              : telegramConfig.botToken && !telegramConfig.chatId
+                              ? 'Falta Chat ID'
+                              : 'Inactivo'}
                           </span>
                         </div>
 
@@ -1918,10 +2288,10 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                           <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 cursor-pointer">
                             <div>
                               <span className="font-bold text-slate-800 dark:text-slate-200 block">
-                                Notificaciones activas
+                                Notificaciones automáticas activas
                               </span>
                               <span className="text-[11px] text-slate-500">
-                                Despacha alertas a Telegram inmediatamente
+                                Despacha alertas a Telegram inmediatamente al recibir reservas
                               </span>
                             </div>
                             <input
@@ -1952,17 +2322,17 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                           {/* Chat ID Field */}
                           <div>
                             <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                              Chat ID o Canal ID:
+                              Chat ID o ID del Grupo/Canal:
                             </label>
                             <input
                               type="text"
-                              placeholder="Ej: 987654321 o -1001234567890"
+                              placeholder="Ej: -1001987654321 (para grupo) o 987654321 (chat personal)"
                               value={telegramChatId}
                               onChange={(e) => setTelegramChatId(e.target.value)}
                               className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white font-mono text-xs"
                             />
                             <p className="text-[10px] text-slate-400 mt-1">
-                              Tu ID de usuario personal o el ID del grupo/canal de la clínica (usa <strong>@userinfobot</strong> para ver tu ID).
+                              💡 <strong>Para grupos:</strong> Agrega tu bot como admin al grupo de Telegram y usa el ID del grupo (ej: <code>-1001234567890</code>).
                             </p>
                           </div>
 
@@ -1992,13 +2362,13 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                               className="flex-1 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
                             >
                               <Check className="w-4 h-4" />
-                              <span>Guardar Telegram</span>
+                              <span>Guardar Conexión</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={handleTestTelegram}
-                              disabled={isTestingTelegram || !telegramToken || !telegramChatId}
+                              disabled={isTestingTelegram || !telegramToken.trim() || !telegramChatId.trim()}
                               className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
                             >
                               <Send className="w-3.5 h-3.5" />
@@ -2108,6 +2478,119 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                       </div>
                     </div>
 
+                    {/* SPECIALIST TELEGRAM TAGS ASSIGNMENT SECTION */}
+                    <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Bot className="w-4 h-4 text-sky-500" />
+                            <span>Asignación de Usuarios de Telegram (@mentions por Especialista)</span>
+                          </h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            Asigna el usuario de Telegram (ej: <code>@isaac_fisio</code>) a cada especialista. El bot los etiquetará en el grupo cada vez que un paciente agende en su área.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleSaveAllSpecialistTags}
+                          className="py-2 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all shrink-0"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>Guardar Todas las Etiquetas</span>
+                        </button>
+                      </div>
+
+                      {/* Success banner for tags */}
+                      {tagsSaveSuccess && (
+                        <div className="p-3 rounded-xl bg-emerald-500 text-white font-bold flex items-center gap-2 text-xs">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>¡Etiquetas de Telegram de los especialistas guardadas con éxito!</span>
+                        </div>
+                      )}
+
+                      {/* Specialist Tag Test feedback */}
+                      {specialistTagTestResult && (
+                        <div className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-semibold ${
+                          specialistTagTestResult.success
+                            ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200'
+                            : 'bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-red-200'
+                        }`}>
+                          {specialistTagTestResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                          <span>{specialistTagTestResult.message}</span>
+                        </div>
+                      )}
+
+                      {/* Table / List of Specialists */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        {TEAM_MEMBERS.map((member) => {
+                          const tag = specialistTags[member.id] || '';
+                          const isTesting = testingTagMemberId === member.id;
+
+                          return (
+                            <div
+                              key={member.id}
+                              className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <img
+                                  src={member.image}
+                                  alt={member.name}
+                                  className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                      {member.name}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block truncate">
+                                    {member.role}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <div className="relative flex-1 sm:w-40">
+                                  <input
+                                    type="text"
+                                    placeholder="@usuario"
+                                    value={tag}
+                                    onChange={(e) => handleUpdateSpecialistTag(member.id, e.target.value)}
+                                    className="w-full py-1.5 px-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-mono dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                  />
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleTestSpecificTag(member)}
+                                  disabled={isTesting || !tag.trim()}
+                                  className="py-1.5 px-2.5 rounded-lg bg-sky-100 hover:bg-sky-200 dark:bg-sky-950/60 dark:hover:bg-sky-900 text-sky-700 dark:text-sky-300 font-bold text-[11px] flex items-center gap-1 disabled:opacity-40 transition-all shrink-0"
+                                  title="Enviar mención de prueba al grupo"
+                                >
+                                  <Send className={`w-3 h-3 ${isTesting ? 'animate-spin' : ''}`} />
+                                  <span>{isTesting ? 'Probando...' : 'Probar'}</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Commands guide box */}
+                      <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-xs text-sky-950 dark:text-sky-200 space-y-2">
+                        <div className="font-bold flex items-center gap-2 text-sky-900 dark:text-sky-300">
+                          <Bot className="w-4 h-4" />
+                          <span>¿Cómo funciona el etiquetado en Telegram?</span>
+                        </div>
+                        <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
+                          <li>Cuando un paciente agenda una cita en la web (ej: Fisioterapia Deportiva), el sistema busca al especialista asignado (ej: <strong>Isaac Jewsiejew</strong>).</li>
+                          <li>Si tiene configurado un usuario (ej: <code>@isaac_fisio</code>), el bot de Telegram enviará el mensaje al grupo etiquetándolo con <code>🔔 Atención Especialista: @isaac_fisio</code> para que le suene la notificación al profesional en su móvil.</li>
+                          <li>Si el especialista está en <strong>reposo médico o ausencia</strong> y tiene un suplente asignado, el bot mencionará automáticamente al suplente.</li>
+                        </ul>
+                      </div>
+                    </div>
+
                     {/* Clinic Information Card */}
                     <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-3">
                       <div className="flex items-center gap-2 font-bold text-xs text-slate-800 dark:text-slate-200">
@@ -2175,20 +2658,50 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                   <span>Equipo</span>
                 </button>
 
-                <button
-                  onClick={() => setActiveTab('configuracion')}
-                  className={`flex flex-col items-center py-1 px-2 rounded-xl text-[10px] font-bold ${
-                    activeTab === 'configuracion' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'
-                  }`}
-                >
-                  <Settings className="w-4 h-4 mb-0.5" />
-                  <span>Ajustes</span>
-                </button>
+                {(authenticatedUser?.role === 'admin' || authenticatedUser?.role === 'administrador_general') ? (
+                  <button
+                    onClick={() => setActiveTab('configuracion')}
+                    className={`flex flex-col items-center py-1 px-2 rounded-xl text-[10px] font-bold ${
+                      activeTab === 'configuracion' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'
+                    }`}
+                  >
+                    <Settings className="w-4 h-4 mb-0.5" />
+                    <span>Ajustes</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setActiveTab('servicios')}
+                    className={`flex flex-col items-center py-1 px-2 rounded-xl text-[10px] font-bold ${
+                      activeTab === 'servicios' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'
+                    }`}
+                  >
+                    <Package className="w-4 h-4 mb-0.5" />
+                    <span>Tarifas</span>
+                  </button>
+                )}
               </div>
             </div>
           )}
         </motion.div>
       </div>
+
+      {/* Patient Registration & Clinical Profile Modal */}
+      {isPatientModalOpen && (
+        <PatientRegistrationModal
+          editingPatient={editingPatient}
+          isOpen={isPatientModalOpen}
+          onClose={() => {
+            setIsPatientModalOpen(false);
+            setEditingPatient(null);
+          }}
+          onPatientSaved={(patient) => {
+            setRegisteredPatients(getStoredPatients());
+            setIsPatientModalOpen(false);
+            setEditingPatient(null);
+          }}
+          currentUserName={authenticatedUser?.name || 'Especialista'}
+        />
+      )}
     </AnimatePresence>
   );
 };

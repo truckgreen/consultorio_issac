@@ -62,6 +62,7 @@ export function playNotificationChime(): void {
 
 export function notifySpecialistNewAppointment(appointment: ConfirmedAppointment): void {
   const specialistName = appointment.specialistName || 'Especialista';
+  const specialistId = appointment.specialistId || '';
   const newNotif: AdminNotification = {
     id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     title: `🩺 Nueva Cita: ${appointment.nombre} ${appointment.apellido}`,
@@ -70,6 +71,8 @@ export function notifySpecialistNewAppointment(appointment: ConfirmedAppointment
     type: 'appointment',
     read: false,
     linkTab: 'citas',
+    specialistId: specialistId,
+    specialistName: specialistName,
   };
 
   const current = getStoredNotifications();

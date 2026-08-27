@@ -262,8 +262,8 @@ export const PatientsDirectoryView: React.FC<PatientsDirectoryViewProps> = ({
         {filteredPatients.map(patient => {
           const patientApps = appointments.filter(
             a =>
-              (a.nombre.toLowerCase().trim() === patient.nombre.toLowerCase().trim() &&
-               a.apellido.toLowerCase().trim() === patient.apellido.toLowerCase().trim()) ||
+              ((a.nombre || '').toLowerCase().trim() === (patient.nombre || '').toLowerCase().trim() &&
+               (a.apellido || '').toLowerCase().trim() === (patient.apellido || '').toLowerCase().trim()) ||
               (a.telefono && patient.telefono && a.telefono.replace(/\D/g, '') === patient.telefono.replace(/\D/g, ''))
           );
 

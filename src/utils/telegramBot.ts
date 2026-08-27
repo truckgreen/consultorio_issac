@@ -1,14 +1,25 @@
 import { ConfirmedAppointment, TelegramConfig } from '../types';
+import { TEAM_MEMBERS } from '../data/teamData';
 
 const TELEGRAM_CONFIG_STORAGE_KEY = 'equilibra_telegram_config';
 
-// Default / fallback configurations
+// Default / fallback configurations with default specialist tags
 export const DEFAULT_TELEGRAM_CONFIG: TelegramConfig = {
   botToken: '',
   chatId: '',
   enabled: true,
   notifyOnBooking: true,
   notifyOnCancellation: true,
+  specialistTags: {
+    'isaac-jewsiejew': '',
+    'marivid-requena': '',
+    'laury-torrealba': '',
+    'stephani-salina': '',
+    'ruben-torrealba': '',
+    'rebecca-triana': '',
+    'marianna-morales': '',
+    'gabriel-gonzalez': '',
+  },
 };
 
 export function getStoredTelegramConfig(): TelegramConfig {
@@ -16,7 +27,15 @@ export function getStoredTelegramConfig(): TelegramConfig {
   try {
     const raw = localStorage.getItem(TELEGRAM_CONFIG_STORAGE_KEY);
     if (!raw) return DEFAULT_TELEGRAM_CONFIG;
-    return { ...DEFAULT_TELEGRAM_CONFIG, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_TELEGRAM_CONFIG,
+      ...parsed,
+      specialistTags: {
+        ...DEFAULT_TELEGRAM_CONFIG.specialistTags,
+        ...(parsed.specialistTags || {}),
+      },
+    };
   } catch (e) {
     console.error('Error reading telegram config:', e);
     return DEFAULT_TELEGRAM_CONFIG;
@@ -27,7 +46,14 @@ export function saveTelegramConfig(config: Partial<TelegramConfig>): TelegramCon
   if (typeof window === 'undefined') return DEFAULT_TELEGRAM_CONFIG;
   try {
     const current = getStoredTelegramConfig();
-    const updated = { ...current, ...config };
+    const updated: TelegramConfig = {
+      ...current,
+      ...config,
+      specialistTags: {
+        ...(current.specialistTags || {}),
+        ...(config.specialistTags || {}),
+      },
+    };
     localStorage.setItem(TELEGRAM_CONFIG_STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('equilibra_telegram_config_updated', { detail: updated }));
     return updated;
@@ -38,8 +64,42 @@ export function saveTelegramConfig(config: Partial<TelegramConfig>): TelegramCon
 }
 
 /**
+ * Finds the Telegram @tag for a given specialist name or ID
+ */
+export function getSpecialistTelegramTag(
+  specialistIdOrName: string,
+  config?: TelegramConfig
+): string | null {
+  const currentConfig = config || getStoredTelegramConfig();
+  const tags = currentConfig.specialistTags || {};
+
+  if (!specialistIdOrName) return null;
+
+  // 1. Direct ID match
+  if (tags[specialistIdOrName] && tags[specialistIdOrName].trim()) {
+    const tag = tags[specialistIdOrName].trim();
+    return tag.startsWith('@') ? tag : `@${tag}`;
+  }
+
+  // 2. Name search in TEAM_MEMBERS
+  const member = TEAM_MEMBERS.find(
+    (m) =>
+      m.id === specialistIdOrName ||
+      m.name.toLowerCase().includes(specialistIdOrName.toLowerCase()) ||
+      specialistIdOrName.toLowerCase().includes(m.name.toLowerCase())
+  );
+
+  if (member && tags[member.id] && tags[member.id].trim()) {
+    const tag = tags[member.id].trim();
+    return tag.startsWith('@') ? tag : `@${tag}`;
+  }
+
+  return null;
+}
+
+/**
  * Formats and sends a real-time booking alert to the configured Telegram Bot & Channel/Chat.
- * Includes: Nombre, Apellido, Teléfono, Qué reservó (Evaluación, Sesión o Paquete), Especialista, Fecha, Hora, Código y Motivo.
+ * Includes: Nombre, Apellido, Teléfono, Qué reservó (Evaluación, Sesión o Paquete), Especialista, Etiqueta (@tag), Fecha, Hora, Código y Motivo.
  */
 export async function sendTelegramBookingAlert(
   appointment: ConfirmedAppointment,
@@ -55,11 +115,10 @@ export async function sendTelegramBookingAlert(
   const chatId = config.chatId || (typeof process !== 'undefined' ? process.env?.TELEGRAM_CHAT_ID : '') || '';
 
   if (!botToken || !chatId) {
-    // If no token/chatId is configured yet, record notice but don't crash
     console.warn('Telegram Bot Token o Chat ID no configurados aún en el panel de administración.');
     return {
       success: false,
-      message: 'Token o Chat ID de Telegram no configurados. Configúralos en el Panel de Administración > Ajustes.',
+      message: 'Token o Chat ID de Telegram no configurados. Configúralos en el Panel de Administración > Configuración & Bot.',
     };
   }
 
@@ -68,7 +127,12 @@ export async function sendTelegramBookingAlert(
   const packageName = appointment.selectedPackageName || (appointment.primeraVisita ? 'Evaluación Inicial' : 'Sesión Estándar');
   const price = appointment.selectedPackagePrice || appointment.servicePrice || appointment.service_price || 'Tarifa estándar';
   const specialist = appointment.specialistName || appointment.specialist_name || 'Especialista Asignado';
+  const specialistId = appointment.specialistId || appointment.specialist_id || '';
   const visitType = appointment.primeraVisita ? '✨ Primera Vez (Evaluación)' : '🔄 Paciente Recurrente';
+
+  // Specialist Telegram Tag
+  const specialistTag = getSpecialistTelegramTag(specialistId || specialist, config);
+  const tagMentionLine = specialistTag ? `🔔 *Atención Especialista:* ${specialistTag}` : '';
 
   const telegramMessage = 
 `🚨 *¡NUEVA CITA AGENDADA EN EQUILIBRA!* 🚨
@@ -79,25 +143,26 @@ export async function sendTelegramBookingAlert(
 🏷️ *Reserva:* *${packageName}*
 🩺 *Área:* ${serviceName}
 💵 *Tarifa:* ${price}
-👨‍⚕️ *Especialista Asignado:* ${specialist}
+👨‍⚕️ *Especialista Asignado:* ${specialist} ${specialistTag ? `(${specialistTag})` : ''}
 📅 *Fecha:* ${appointment.fecha}
 ⏰ *Horario:* ${appointment.hora}
 🔖 *Código de Cita:* \`${appointment.code}\`
 📍 *Sede:* Sabana Grande, Centro Profesional del Este
 📋 *Modalidad:* ${visitType}
 ${appointment.motivoConsulta || appointment.motivo ? `📝 *Motivo / Síntomas:* _${(appointment.motivoConsulta || appointment.motivo || '').replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}_` : '📝 *Motivo:* Sin especificar'}
+${tagMentionLine ? `━━━━━━━━━━━━━━━━━━━━━━\n${tagMentionLine}` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━
 ⏱️ _Registrada en tiempo real desde la Plataforma Web EQUILIBRA._`;
 
   try {
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const url = `https://api.telegram.org/bot${botToken.trim()}/sendMessage`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        chat_id: chatId,
+        chat_id: chatId.trim(),
         text: telegramMessage,
         parse_mode: 'Markdown',
         disable_web_page_preview: true,
@@ -107,7 +172,6 @@ ${appointment.motivoConsulta || appointment.motivo ? `📝 *Motivo / Síntomas:*
     const result = await response.json();
 
     if (result.ok) {
-      // Save audit timestamp
       saveTelegramConfig({ lastTestedAt: new Date().toISOString() });
       return { success: true, message: 'Alerta enviada a Telegram con éxito.', data: result };
     } else {
@@ -128,17 +192,17 @@ export async function testTelegramNotification(
   chatId: string
 ): Promise<{ success: boolean; message: string }> {
   if (!token.trim() || !chatId.trim()) {
-    return { success: false, message: 'Ingresa tanto el Token del Bot como el Chat ID para realizar la prueba.' };
+    return { success: false, message: 'Debes ingresar tanto el Telegram Bot Token como el Chat ID (ej: -1001234567890 o tu ID personal).' };
   }
 
   const testMessage = 
 `✅ *¡CONEXIÓN DE TELEGRAM EXITOSA CON EQUILIBRA!*
 ━━━━━━━━━━━━━━━━━━━━━━
-🤖 *Bot:* Activo y vinculado
+🤖 *Bot:* Activo y vinculado correctamente
 🏥 *Clínica:* EQUILIBRA Centro de Fisioterapia & Salud Integral
 ⏰ *Fecha y Hora:* ${new Date().toLocaleString('es-VE')}
 ━━━━━━━━━━━━━━━━━━━━━━
-_A partir de este momento recibirás en tiempo real todas las citas que se agenden en la página web con todos los datos del paciente (nombre, apellido, teléfono, qué reservó si evaluación/sesión/paquete, especialista y horario)._`;
+_A partir de este momento recibirás en tiempo real todas las citas que se agenden en la página web con todos los datos del paciente (nombre, apellido, teléfono, qué reservó si evaluación/sesión/paquete, especialista asignado y sus etiquetas @usuario)._`;
 
   try {
     const url = `https://api.telegram.org/bot${token.trim()}/sendMessage`;
@@ -157,11 +221,61 @@ _A partir de este momento recibirás en tiempo real todas las citas que se agend
     const result = await response.json();
     if (result.ok) {
       saveTelegramConfig({ botToken: token.trim(), chatId: chatId.trim(), enabled: true, lastTestedAt: new Date().toISOString() });
-      return { success: true, message: '¡Mensaje de prueba enviado exitosamente al canal/chat de Telegram!' };
+      return { success: true, message: '¡Mensaje de prueba recibido exitosamente en Telegram!' };
     } else {
-      return { success: false, message: `Telegram rechazó la solicitud: ${result.description}` };
+      return { success: false, message: `Telegram rechazó la solicitud: ${result.description || 'Verifica que el bot pertenezca al chat/grupo y tenga permisos de administrador'}` };
     }
   } catch (err: any) {
     return { success: false, message: `Error al conectar con la API de Telegram: ${err?.message || err}` };
+  }
+}
+
+/**
+ * Tests tagging a specific specialist with @tag in Telegram group
+ */
+export async function testTelegramSpecialistTagging(
+  token: string,
+  chatId: string,
+  specialistName: string,
+  specialistTag: string,
+  specialty: string
+): Promise<{ success: boolean; message: string }> {
+  if (!token.trim() || !chatId.trim()) {
+    return { success: false, message: 'Ingresa el Bot Token y el Chat ID primero.' };
+  }
+
+  const formattedTag = specialistTag.trim().startsWith('@') ? specialistTag.trim() : `@${specialistTag.trim()}`;
+
+  const demoMessage = 
+`🧪 *PRUEBA DE ETIQUETADO DE ESPECIALISTA* 🏷️
+━━━━━━━━━━━━━━━━━━━━━━
+👨‍⚕️ *Especialista:* ${specialistName}
+🩺 *Especialidad:* ${specialty}
+🏷️ *Usuario Telegram:* ${formattedTag}
+━━━━━━━━━━━━━━━━━━━━━━
+🔔 *Llamado de atención:* ${formattedTag} ¡Esta es una mención de prueba desde el sistema EQUILIBRA! Cuando un paciente reserve en tu área de ${specialty}, recibirás la notificación con tu etiqueta en este grupo.`;
+
+  try {
+    const url = `https://api.telegram.org/bot${token.trim()}/sendMessage`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: chatId.trim(),
+        text: demoMessage,
+        parse_mode: 'Markdown',
+      }),
+    });
+
+    const result = await response.json();
+    if (result.ok) {
+      return { success: true, message: `¡Mención de prueba enviada a ${formattedTag} en Telegram!` };
+    } else {
+      return { success: false, message: `Error de Telegram: ${result.description}` };
+    }
+  } catch (err: any) {
+    return { success: false, message: `Error: ${err?.message || err}` };
   }
 }

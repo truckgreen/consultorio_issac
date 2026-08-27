@@ -84,6 +84,7 @@ export interface TeamMember {
   inactiveFrom?: string;
   inactiveUntil?: string;
   absence?: SpecialistAbsence;
+  telegramUsername?: string;
 }
 
 export interface SpecialistUser {
@@ -102,6 +103,7 @@ export interface SpecialistUser {
   inactiveFrom?: string;
   inactiveUntil?: string;
   absence?: SpecialistAbsence;
+  telegramUsername?: string;
 }
 
 export interface TelegramConfig {
@@ -111,6 +113,7 @@ export interface TelegramConfig {
   notifyOnBooking: boolean;
   notifyOnCancellation?: boolean;
   lastTestedAt?: string;
+  specialistTags?: Record<string, string>;
 }
 
 export interface AdminUser {
@@ -267,6 +270,8 @@ export interface AdminNotification {
   type: 'appointment' | 'message' | 'system' | 'payment';
   read: boolean;
   linkTab?: 'citas' | 'mensajes' | 'pacientes' | 'dashboard';
+  specialistId?: string;
+  specialistName?: string;
 }
 
 export interface SupabaseConfig {
