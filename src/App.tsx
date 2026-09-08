@@ -70,7 +70,14 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] dark:bg-[#0f141c] text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950">
+    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0c1017] text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950 relative">
+      {/* Subtle global ambient background gradients */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-400/5 dark:bg-amber-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-amber-500/5 dark:bg-amber-400/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 left-1/4 w-80 h-80 bg-slate-400/5 dark:bg-amber-600/5 rounded-full blur-3xl" />
+      </div>
+
       {/* 1. Sticky Navigation Bar */}
       <Navbar
         darkMode={darkMode}

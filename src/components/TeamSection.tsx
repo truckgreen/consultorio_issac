@@ -43,6 +43,25 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
       ? TEAM_MEMBERS
       : TEAM_MEMBERS.filter((m) => m.category === selectedCategory);
 
+  const getCategoryBadgeClass = (category: string) => {
+    switch (category) {
+      case 'medicina':
+        return 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800';
+      case 'fisioterapia':
+        return 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800';
+      case 'entrenamiento':
+        return 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800';
+      case 'nutricion':
+        return 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800';
+      case 'psicologia':
+        return 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-950/70 dark:text-purple-300 dark:border-purple-800';
+      case 'asistencia':
+        return 'bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-950/70 dark:text-teal-300 dark:border-teal-800';
+      default:
+        return 'bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700';
+    }
+  };
+
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'fisioterapia':
@@ -130,35 +149,35 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
               transition={{ duration: 0.3, delay: index * 0.05 }}
               onClick={() => setSelectedMember(member)}
               id={`team-card-${member.id}`}
-              className="group cursor-pointer bg-slate-50 dark:bg-[#151c28] rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-amber-500/50 transition-all duration-300 flex flex-col justify-between"
+              className="group cursor-pointer bg-gradient-to-b from-slate-50/90 via-white to-slate-50/70 dark:from-[#151c28] dark:via-[#131924] dark:to-[#0f141e] rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-amber-500/10 hover:border-amber-400/60 dark:hover:border-amber-500/40 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
             >
               <div>
-                {/* Member Portrait Frame */}
-                <div className="relative aspect-[4/4.8] rounded-2xl overflow-hidden mb-4 bg-slate-200 dark:bg-slate-800">
+                {/* Member Portrait Frame with Animated Ring on Hover */}
+                <div className="relative aspect-[4/4.8] rounded-2xl overflow-hidden mb-4 bg-slate-200 dark:bg-slate-800 ring-2 ring-transparent group-hover:ring-amber-400/70 dark:group-hover:ring-amber-400/50 transition-all duration-300">
                   <img
                     src={member.image}
                     alt={member.name}
                     referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover object-top group-hover:scale-106 transition-transform duration-500"
                   />
                   {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-70 group-hover:opacity-40 transition-opacity" />
 
-                  {/* Discipline Badge */}
+                  {/* Discipline Badge with Category-Specific Styling */}
                   <div className="absolute top-3 left-3">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-slate-100 backdrop-blur-md shadow-sm">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold border backdrop-blur-md shadow-sm ${getCategoryBadgeClass(member.category)}`}>
                       {getCategoryIcon(member.category)}
                       <span className="capitalize">{member.category}</span>
                     </span>
                   </div>
                 </div>
 
-                {/* Name & Role (Exactly formatted as the reference image) */}
+                {/* Name & Role */}
                 <div className="text-center px-1">
-                  <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white font-heading group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white font-heading group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                     {member.name}
                   </h3>
-                  <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-400 mt-0.5">
                     {member.role}
                   </p>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 line-clamp-2 leading-relaxed">
@@ -173,7 +192,7 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
                   <span>Ver perfil y agendar</span>
                   <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                 </span>
-                <span className="text-[11px] text-slate-400">Sabana Grande</span>
+                <span className="text-[11px] text-slate-400 font-medium">Sabana Grande</span>
               </div>
             </motion.div>
           ))}
@@ -288,9 +307,9 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
                     setSelectedMember(null);
                     onOpenBooking(servId);
                   }}
-                  className="flex-1 py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all"
+                  className="flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-400/25 active:scale-95 transition-all btn-glow-amber"
                 >
-                  <Calendar className="w-4 h-4" />
+                  <Calendar className="w-4 h-4 text-slate-950" />
                   <span>Agendar Cita con {selectedMember.name.split(' ')[0]}</span>
                 </button>
               </div>
