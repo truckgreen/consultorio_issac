@@ -83,6 +83,11 @@ import {
   setBiometricRegisteredForUser,
 } from '../data/specialistsAuthData';
 import {
+  isUserAdmin,
+  isAppointmentAssignedToSpecialist,
+  matchesSpecialistFilter,
+} from '../utils/specialistUtils';
+import {
   isBiometricsSupported,
   authenticateWithBiometrics,
   registerBiometricCredential,
@@ -721,51 +726,72 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     }
   };
 
+  const handleReassignSpecialist = (appointmentId: string, newSpecialistId: string) => {
+    const targetSpec = SPECIALISTS_ACCOUNTS.find((s) => s.id === newSpecialistId);
+    if (!targetSpec) return;
+
+    const updated = appointments.map((a) => {
+      if (a.id === appointmentId) {
+        return {
+          ...a,
+          specialistId: targetSpec.id,
+          specialistName: targetSpec.name,
+        };
+      }
+      return a;
+    });
+
+    setAppointments(updated);
+    const target = updated.find((a) => a.id === appointmentId);
+    if (target) {
+      saveAppointmentToStorage(target);
+      recordSecurityEvent({
+        action: 'BOOKING_SUCCESS',
+        severity: 'INFO',
+        details: `Cita [${target.code}] reasignada al especialista ${targetSpec.name} por ${authenticatedUser?.name}.`,
+      });
+      setSecurityLogs(getSecurityLogs());
+    }
+  };
+
+  const isAdmin = isUserAdmin(authenticatedUser);
+  const isSpecialist = Boolean(authenticatedUser && !isAdmin);
+
   // Filter visible notifications based on authenticated role
   const visibleNotifications = notifications.filter((n) => {
     if (!authenticatedUser) return false;
     // Admins see all notifications
-    if (authenticatedUser.role === 'admin' || authenticatedUser.role === 'administrador_general') {
+    if (isAdmin) {
       return true;
     }
-    // Specialist only sees notifications specifically addressed to them or their specialty
+    // Specialist only sees notifications specifically addressed to them
     if (n.specialistId) {
       return n.specialistId === authenticatedUser.id;
     }
-    // If notification mentions their name
-    if (n.specialistName && n.specialistName.toLowerCase().includes(authenticatedUser.name.toLowerCase())) {
-      return true;
-    }
-    if (n.message && n.message.toLowerCase().includes(authenticatedUser.name.toLowerCase())) {
-      return true;
-    }
-    // General notifications (no specialist attached)
-    return !n.specialistId && !n.specialistName;
+    return isAppointmentAssignedToSpecialist(n as any, authenticatedUser as SpecialistUser);
   });
 
-  // Filter appointments
+  // Filter appointments with strict specialist isolation
   const filteredAppointments = appointments.filter((app) => {
-    // If specialist, strictly isolate to their own appointments
-    if (authenticatedUser?.role === 'specialist') {
-      const matchesId = app.specialistId && app.specialistId === authenticatedUser.id;
-      const matchesName = app.specialistName && app.specialistName.toLowerCase().includes(authenticatedUser.name.toLowerCase());
-      const matchesService = authenticatedUser.relatedServiceId && app.serviceId === authenticatedUser.relatedServiceId;
-      const isAssignedToThem = matchesId || matchesName || matchesService;
-      if (!isAssignedToThem) return false;
+    // 1. ISOLATION: If logged in as specialist, ONLY show this specialist's appointments
+    if (isSpecialist) {
+      const isMine = isAppointmentAssignedToSpecialist(app, authenticatedUser as SpecialistUser);
+      if (!isMine) return false;
+    } else if (isAdmin) {
+      // 2. ADMIN: Can view all appointments of all specialists, or filter by a specific specialist
+      if (specialistFilter !== 'TODOS') {
+        const matchesSelected = matchesSpecialistFilter(app, specialistFilter);
+        if (!matchesSelected) return false;
+      }
     }
-
-    const matchesSpecialist =
-      specialistFilter === 'TODOS' ||
-      app.specialistId === specialistFilter ||
-      app.specialistName?.toLowerCase().includes(specialistFilter.toLowerCase());
 
     const matchesDate = !selectedDateFilter || app.fecha === selectedDateFilter;
     const matchesStatus =
       statusFilter === 'TODAS' ||
-      (statusFilter === 'CONFIRMADAS' && app.status === 'confirmada') ||
-      (statusFilter === 'PENDIENTES' && app.status === 'pendiente_validacion') ||
-      (statusFilter === 'COMPLETADAS' && app.status === 'completada') ||
-      (statusFilter === 'CANCELADAS' && app.status === 'cancelada');
+      (statusFilter === 'CONFIRMADAS' && (app.status === 'confirmada' || app.status === 'CONFIRMADA')) ||
+      (statusFilter === 'PENDIENTES' && (app.status === 'pendiente_validacion' || app.status === 'pendiente' || app.status === 'PENDIENTE')) ||
+      (statusFilter === 'COMPLETADAS' && (app.status === 'completada' || app.status === 'COMPLETADA')) ||
+      (statusFilter === 'CANCELADAS' && (app.status === 'cancelada' || app.status === 'CANCELADA'));
 
     const search = searchQuery.toLowerCase().trim();
     const cleanSearch = search.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -787,7 +813,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       (app.email && app.email.toLowerCase().includes(search)) ||
       (app.motivoConsulta && app.motivoConsulta.toLowerCase().includes(search));
 
-    return matchesSpecialist && matchesDate && matchesStatus && matchesSearch;
+    return matchesDate && matchesStatus && matchesSearch;
   });
 
   const totalConfirmed = filteredAppointments.filter((a) => a.status === 'confirmada' || a.status === 'completada').length;
@@ -830,10 +856,43 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
 
   // First seed with registered clinical patient records
   registeredPatients.forEach((rp) => {
-    // If specialist, only show registered patients assigned to them or created without assignment
-    if (authenticatedUser?.role === 'specialist') {
-      if (rp.assignedSpecialistId && rp.assignedSpecialistId !== authenticatedUser.id && !rp.assignedSpecialistName?.toLowerCase().includes(authenticatedUser.name.toLowerCase())) {
+    // If specialist, only show registered patients assigned to them or who have appointments with them
+    if (isSpecialist) {
+      const isAssigned =
+        rp.assignedSpecialistId === authenticatedUser?.id ||
+        (rp.assignedSpecialistName &&
+          isAppointmentAssignedToSpecialist(
+            { specialistName: rp.assignedSpecialistName } as any,
+            authenticatedUser as SpecialistUser
+          ));
+      const hasAppWithSpecialist = appointments.some(
+        (a) =>
+          isAppointmentAssignedToSpecialist(a, authenticatedUser as SpecialistUser) &&
+          (a.email?.toLowerCase() === rp.email?.toLowerCase() ||
+            `${a.nombre} ${a.apellido}`.trim().toLowerCase() === `${rp.nombre} ${rp.apellido}`.trim().toLowerCase())
+      );
+      if (!isAssigned && !hasAppWithSpecialist) {
         return;
+      }
+    } else if (isAdmin && specialistFilter !== 'TODOS') {
+      const targetSpecialist = SPECIALISTS_ACCOUNTS.find((s) => s.id === specialistFilter);
+      if (targetSpecialist) {
+        const isAssigned =
+          rp.assignedSpecialistId === targetSpecialist.id ||
+          (rp.assignedSpecialistName &&
+            isAppointmentAssignedToSpecialist(
+              { specialistName: rp.assignedSpecialistName } as any,
+              targetSpecialist
+            ));
+        const hasAppWithSpecialist = appointments.some(
+          (a) =>
+            isAppointmentAssignedToSpecialist(a, targetSpecialist) &&
+            (a.email?.toLowerCase() === rp.email?.toLowerCase() ||
+              `${a.nombre} ${a.apellido}`.trim().toLowerCase() === `${rp.nombre} ${rp.apellido}`.trim().toLowerCase())
+        );
+        if (!isAssigned && !hasAppWithSpecialist) {
+          return;
+        }
       }
     }
 
@@ -874,11 +933,12 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
 
   // Then augment/merge with appointments
   appointments.forEach((app) => {
-    if (authenticatedUser?.role === 'specialist') {
-      const matchesId = app.specialistId && app.specialistId === authenticatedUser.id;
-      const matchesName = app.specialistName && app.specialistName.toLowerCase().includes(authenticatedUser.name.toLowerCase());
-      const matchesService = authenticatedUser.relatedServiceId && app.serviceId === authenticatedUser.relatedServiceId;
-      if (!matchesId && !matchesName && !matchesService) {
+    if (isSpecialist) {
+      if (!isAppointmentAssignedToSpecialist(app, authenticatedUser as SpecialistUser)) {
+        return;
+      }
+    } else if (isAdmin && specialistFilter !== 'TODOS') {
+      if (!matchesSpecialistFilter(app, specialistFilter)) {
         return;
       }
     }
@@ -949,11 +1009,11 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm sm:text-base md:text-lg font-bold font-heading truncate">
                     {authenticatedUser
-                      ? `${authenticatedUser.role === 'admin' || authenticatedUser.role === 'administrador_general' ? 'Panel de Dirección Médica' : 'Panel Clínico'}: ${authenticatedUser.name}`
+                      ? `${isAdmin ? 'Panel de Dirección Médica (Admin)' : 'Panel Clínico'}: ${authenticatedUser.name}`
                       : 'Acceso Clínico Profesional & Especialistas'}
                   </h2>
                   <span className="hidden sm:inline px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                    {authenticatedUser ? (authenticatedUser.role === 'administrador_general' ? 'SUPERADMIN' : 'ESPECIALISTA') : 'SEGURO'}
+                    {authenticatedUser ? (isAdmin ? 'ADMINISTRADOR GENERAL' : 'ESPECIALISTA') : 'SEGURO'}
                   </span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-slate-300 truncate">
@@ -1420,20 +1480,32 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                   </div>
 
                   {/* Filter by Specialist (for Admin) */}
-                  {activeTab === 'agenda' && (authenticatedUser.role === 'admin' || authenticatedUser.role === 'administrador_general') && (
+                  {isAdmin && (
                     <div className="flex items-center gap-1.5">
+                      <span className="hidden md:inline text-slate-500 font-semibold text-[11px]">Especialista:</span>
                       <select
                         value={specialistFilter}
                         onChange={(e) => setSpecialistFilter(e.target.value)}
-                        className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                        className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-medium"
                       >
-                        <option value="TODOS">Todos los Especialistas</option>
-                        {SPECIALISTS_ACCOUNTS.map((sp) => (
-                          <option key={sp.id} value={sp.id}>
-                            {sp.name}
-                          </option>
-                        ))}
+                        <option value="TODOS">Todos los Especialistas ({appointments.length} citas)</option>
+                        {SPECIALISTS_ACCOUNTS.map((sp) => {
+                          const count = appointments.filter((a) => isAppointmentAssignedToSpecialist(a, sp)).length;
+                          return (
+                            <option key={sp.id} value={sp.id}>
+                              {sp.name} ({count} {count === 1 ? 'cita' : 'citas'})
+                            </option>
+                          );
+                        })}
                       </select>
+                    </div>
+                  )}
+
+                  {/* Specialist Banner indicator if Specialist */}
+                  {isSpecialist && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 text-xs font-bold shrink-0">
+                      <Stethoscope className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <span>Perfil: {authenticatedUser.name} ({filteredAppointments.length} citas)</span>
                     </div>
                   )}
 
@@ -1473,7 +1545,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                   )}
 
                   {/* Clear All Appointments Button for Administrators */}
-                  {activeTab === 'agenda' && (authenticatedUser.role === 'admin' || authenticatedUser.role === 'administrador_general') && appointments.length > 0 && (
+                  {activeTab === 'agenda' && isAdmin && appointments.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setConfirmActionModal({
@@ -1557,7 +1629,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                           Total Citas
                         </span>
                         <span className="text-2xl sm:text-3xl font-extrabold text-amber-950 dark:text-amber-100">
-                          {appointments.length}
+                          {filteredAppointments.length}
                         </span>
                       </div>
 
@@ -1575,7 +1647,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                           Pacientes Únicos
                         </span>
                         <span className="text-2xl sm:text-3xl font-extrabold text-sky-950 dark:text-sky-100">
-                          {Array.from(new Set(appointments.map(a => `${a.nombre}_${a.apellido}`))).length}
+                          {uniquePatients.length}
                         </span>
                       </div>
 
@@ -1597,7 +1669,11 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                             <Calendar className="w-4 h-4 text-amber-500" />
                             <span>Próximas Citas en Agenda</span>
                           </h3>
-                          <p className="text-xs text-slate-500">Citas agendadas y alertas en tiempo real</p>
+                          <p className="text-xs text-slate-500">
+                            {isSpecialist
+                              ? `Citas agendadas exclusivamente para ${authenticatedUser.name}`
+                              : 'Citas agendadas y alertas en tiempo real de todos los especialistas'}
+                          </p>
                         </div>
                         <button
                           onClick={() => setActiveTab('agenda')}
@@ -1609,49 +1685,57 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                       </div>
 
                       <div className="space-y-2.5">
-                        {appointments.slice(0, 4).map((app) => (
-                          <div
-                            key={app.id}
-                            className="p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
-                          >
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                                  {app.code}
-                                </span>
-                                <span className="font-bold text-slate-900 dark:text-white text-sm">
-                                  {app.nombre} {app.apellido}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-500 mt-1">
-                                📅 {app.fecha} ({app.hora}) • 🩺 {app.selectedPackageName || app.serviceId} • 👨‍⚕️ {app.specialistName || 'Especialista'}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {/* WhatsApp Instant Notify Alert */}
-                              <a
-                                href={generateWhatsAppAlertUrl(app)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                                title="Enviar alerta WhatsApp al especialista"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5" />
-                                <span>WhatsApp</span>
-                              </a>
-
-                              {app.status !== 'confirmada' && (
-                                <button
-                                  onClick={() => handleUpdateStatus(app.id, 'confirmada')}
-                                  className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all"
-                                >
-                                  Validar
-                                </button>
-                              )}
-                            </div>
+                        {filteredAppointments.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-slate-500 bg-white dark:bg-slate-850 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
+                            {isSpecialist
+                              ? `No tienes citas registradas actualmente en tu perfil (${authenticatedUser.name}).`
+                              : 'No hay citas registradas en el sistema.'}
                           </div>
-                        ))}
+                        ) : (
+                          filteredAppointments.slice(0, 5).map((app) => (
+                            <div
+                              key={app.id}
+                              className="p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
+                            >
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                                    {app.code}
+                                  </span>
+                                  <span className="font-bold text-slate-900 dark:text-white text-sm">
+                                    {app.nombre} {app.apellido}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  📅 {app.fecha} ({app.hora}) • 🩺 {app.selectedPackageName || app.serviceId} • 👨‍⚕️ {app.specialistName || 'Sin asignar'}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {/* WhatsApp Instant Notify Alert */}
+                                <a
+                                  href={generateWhatsAppAlertUrl(app)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                                  title="Enviar alerta WhatsApp"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span>WhatsApp</span>
+                                </a>
+
+                                {app.status !== 'confirmada' && (
+                                  <button
+                                    onClick={() => handleUpdateStatus(app.id, 'confirmada')}
+                                    className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all"
+                                  >
+                                    Validar
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1701,8 +1785,25 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                                 🩺 <strong>{app.selectedPackageName || app.serviceId}</strong> ({app.selectedPackagePrice || app.servicePrice || '35 USD'})
                               </span>
                               <span>
-                                👨‍⚕️ Asignado: <strong>{app.specialistName || 'Lic. Isaac'}</strong>
+                                👨‍⚕️ Asignado: <strong>{app.specialistName || 'Sin asignar'}</strong>
                               </span>
+                              {isAdmin && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">Reasignar:</span>
+                                  <select
+                                    value={app.specialistId || SPECIALISTS_ACCOUNTS.find((s) => isAppointmentAssignedToSpecialist(app, s))?.id || ''}
+                                    onChange={(e) => handleReassignSpecialist(app.id, e.target.value)}
+                                    className="text-[11px] font-semibold py-0.5 px-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:ring-1 focus:ring-amber-500"
+                                  >
+                                    <option value="" disabled>-- Asignar Especialista --</option>
+                                    {SPECIALISTS_ACCOUNTS.map((sp) => (
+                                      <option key={sp.id} value={sp.id}>
+                                        {sp.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
                               <span>📞 {app.telefono}</span>
                             </div>
 

@@ -22,6 +22,7 @@ import { UploadMedicalRecordModal } from './components/admin/UploadMedicalRecord
 import { PdfViewerModal } from './components/admin/PdfViewerModal';
 import { SupabaseModal } from './components/SupabaseModal';
 import { SpecialistAuth } from './components/admin/SpecialistAuth';
+import { isAppointmentAssignedToSpecialist, isUserAdmin } from './utils/specialistUtils';
 
 import { 
   Appointment, 
@@ -403,21 +404,23 @@ export function App() {
 
   // Filter data for badges and views based on logged-in user
   const filteredAppointments = appointments.filter(app => {
-    if (!currentUser || currentUser.role === 'SUPERADMIN') return true;
-    return app.specialist_name === currentUser.name;
+    if (!currentUser || isUserAdmin(currentUser)) return true;
+    return isAppointmentAssignedToSpecialist(app, currentUser);
   });
 
   const filteredPatients = patients.filter(pat => {
-    if (!currentUser || currentUser.role === 'SUPERADMIN') return true;
-    const myPatientNames = appointments
-      .filter(a => a.specialist_name === currentUser.name)
-      .map(a => `${a.nombre.trim().toLowerCase()} ${a.apellido.trim().toLowerCase()}`)
-    const fullName = `${pat.nombre.trim().toLowerCase()} ${pat.apellido.trim().toLowerCase()}`;
-    return myPatientNames.includes(fullName);
+    if (!currentUser || isUserAdmin(currentUser)) return true;
+    const isDirectlyAssigned = pat.assigned_specialist_id === currentUser.id ||
+      (pat.assigned_specialist_name && isAppointmentAssignedToSpecialist({ specialist_name: pat.assigned_specialist_name }, currentUser));
+    const hasAppointmentWithMe = appointments.some(a =>
+      isAppointmentAssignedToSpecialist(a, currentUser) &&
+      `${a.nombre.trim().toLowerCase()} ${a.apellido.trim().toLowerCase()}` === `${pat.nombre.trim().toLowerCase()} ${pat.apellido.trim().toLowerCase()}`
+    );
+    return isDirectlyAssigned || hasAppointmentWithMe;
   });
 
   const filteredNotifications = notifications.filter(n => {
-    if (!currentUser || currentUser.role === 'SUPERADMIN') return true;
+    if (!currentUser || isUserAdmin(currentUser)) return true;
     return n.message.includes(currentUser.name) || n.type !== 'appointment';
   });
 
