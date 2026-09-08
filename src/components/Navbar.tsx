@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sun,
@@ -60,6 +61,30 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Prevent background scrolling while mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [mobileMenuOpen]);
+
+  // Close mobile drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    if (mobileMenuOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [mobileMenuOpen]);
+
   const navLinks = [
     { label: 'Inicio', href: '#inicio', id: 'inicio' },
     { label: 'Nosotros', href: '#sobre-nosotros', id: 'sobre-nosotros' },
@@ -70,8 +95,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header
-      id="main-navbar"
+    <>
+      <header
+        id="main-navbar"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled
           ? 'bg-white/95 dark:bg-[#0c1017]/95 backdrop-blur-md shadow-lg shadow-black/5 dark:shadow-black/20 py-2.5 border-b border-amber-500/15 dark:border-amber-500/10'
@@ -223,166 +249,184 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             <button
               id="mobile-menu-toggle-btn"
-              onClick={() => setMobileMenuOpen(true)}
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-              aria-label="Abrir menú"
+              aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
             >
-              <Menu className="w-6 h-6" />
+              {mobileMenuOpen ? <X className="w-6 h-6 text-amber-500" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
       </div>
-
-      {/* Slide-in Mobile Drawer with Backdrop */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 md:hidden flex justify-end">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm"
-            />
-
-            {/* Drawer Content */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-              className="relative w-4/5 max-w-sm h-full bg-white dark:bg-[#0f141c] shadow-2xl border-l border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between overflow-y-auto z-10"
-            >
-              <div>
-                {/* Drawer Header */}
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-amber-400 flex items-center justify-center text-slate-950 font-bold shadow-md">
-                      <Activity className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="font-extrabold text-base tracking-wider text-slate-900 dark:text-white uppercase font-heading block leading-none">
-                        EQUILIBRA
-                      </span>
-                      <span className="text-[9px] text-amber-600 dark:text-amber-400 font-bold uppercase">
-                        Menú de Navegación
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
-                    aria-label="Cerrar menú"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Nav Links */}
-                <div className="flex flex-col gap-1">
-                  {navLinks.map((link) => {
-                    const isActive = activeSection === link.id;
-                    return (
-                      <a
-                        key={link.label}
-                        href={link.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-2xl transition-colors ${
-                          isActive
-                            ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-300 font-bold'
-                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70'
-                        }`}
-                      >
-                        <span>{link.label}</span>
-                        <ChevronRight className={`w-4 h-4 ${isActive ? 'text-amber-500' : 'text-slate-400'}`} />
-                      </a>
-                    );
-                  })}
-                </div>
-
-                {/* Patient & Specialist Portals */}
-                <div className="grid grid-cols-2 gap-2 pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
-                  {onOpenPatientPortal && (
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        onOpenPatientPortal();
-                      }}
-                      className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs font-bold text-amber-900 dark:text-amber-300"
-                    >
-                      <Search className="w-3.5 h-3.5" />
-                      <span>Validar Cita</span>
-                    </button>
-                  )}
-
-                  {onOpenSpecialistAccess && (
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        onOpenSpecialistAccess();
-                      }}
-                      className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs font-bold text-indigo-800 dark:text-indigo-300"
-                    >
-                      <KeyRound className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>Portal Médico</span>
-                    </button>
-                  )}
-                </div>
-
-                {onOpenPrivacyModal && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onOpenPrivacyModal();
-                    }}
-                    className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-900 dark:text-emerald-300"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Privacidad & Cifrado ARCO</span>
-                  </button>
-                )}
-
-                {onOpenDeveloperSupport && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onOpenDeveloperSupport();
-                    }}
-                    className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300"
-                  >
-                    <Code2 className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Contacto Desarrollador</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Drawer Bottom CTAs */}
-              <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                <a
-                  href={`tel:${CLINIC_INFO.phoneRaw}`}
-                  className="flex items-center justify-center gap-2 w-full py-3 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl"
-                >
-                  <Phone className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <span>Llamar: {CLINIC_INFO.phoneDisplay}</span>
-                </a>
-
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onOpenBooking();
-                  }}
-                  className="flex items-center justify-center gap-2 w-full py-3.5 text-sm font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-md btn-glow-amber"
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span>Reserva tu cita ¡Ahora!</span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </header>
+
+    {/* Slide-in Mobile Navigation Drawer rendered in document.body via Portal to prevent header clipping */}
+    {typeof document !== 'undefined' &&
+      createPortal(
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <div
+              id="mobile-navigation-drawer"
+              className="fixed inset-0 z-[9999] md:hidden flex justify-end w-screen h-screen h-[100dvh] overflow-hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menú principal de navegación"
+            >
+              {/* Darkened Blur Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                onClick={() => setMobileMenuOpen(false)}
+                className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm cursor-pointer z-0"
+              />
+
+              {/* Full-Height Drawer Content */}
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+                className="relative w-[86vw] max-w-sm h-screen h-[100dvh] max-h-screen bg-white dark:bg-[#0f141c] shadow-2xl border-l border-slate-200 dark:border-slate-800 p-5 sm:p-6 flex flex-col justify-between overflow-y-auto overscroll-contain z-10"
+              >
+                <div>
+                  {/* Drawer Header */}
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80 mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-amber-500/20 shrink-0">
+                        <Activity className="w-5 h-5 stroke-[2.5]" />
+                      </div>
+                      <div>
+                        <span className="font-black text-base tracking-wider text-slate-900 dark:text-white uppercase font-heading block leading-none">
+                          EQUILIBRA
+                        </span>
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider mt-0.5 block">
+                          Menú de Navegación
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                      aria-label="Cerrar menú"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Nav Links */}
+                  <div className="flex flex-col gap-1">
+                    {navLinks.map((link) => {
+                      const isActive = activeSection === link.id;
+                      return (
+                        <a
+                          key={link.label}
+                          href={link.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-2xl transition-all ${
+                            isActive
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/20'
+                              : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                          }`}
+                        >
+                          <span>{link.label}</span>
+                          <ChevronRight className={`w-4 h-4 ${isActive ? 'text-amber-500' : 'text-slate-400'}`} />
+                        </a>
+                      );
+                    })}
+                  </div>
+
+                  {/* Patient & Specialist Portals */}
+                  <div className="grid grid-cols-2 gap-2 pt-4 mt-4 border-t border-slate-100 dark:border-slate-800/80">
+                    {onOpenPatientPortal && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          onOpenPatientPortal();
+                        }}
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs font-bold text-amber-900 dark:text-amber-300 active:scale-95 transition-transform shadow-sm"
+                      >
+                        <Search className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        <span>Validar Cita</span>
+                      </button>
+                    )}
+
+                    {onOpenSpecialistAccess && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          onOpenSpecialistAccess();
+                        }}
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs font-bold text-indigo-800 dark:text-indigo-300 active:scale-95 transition-transform shadow-sm"
+                      >
+                        <KeyRound className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Portal Médico</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {onOpenPrivacyModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onOpenPrivacyModal();
+                      }}
+                      className="w-full mt-2.5 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 text-xs font-bold text-emerald-900 dark:text-emerald-300 active:scale-95 transition-transform shadow-sm"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Privacidad & Cifrado ARCO</span>
+                    </button>
+                  )}
+
+                  {onOpenDeveloperSupport && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onOpenDeveloperSupport();
+                      }}
+                      className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <Code2 className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Contacto Desarrollador</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Drawer Bottom CTAs */}
+                <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-2 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+                  <a
+                    href={`tel:${CLINIC_INFO.phoneRaw}`}
+                    className="flex items-center justify-center gap-2 w-full py-3 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                  >
+                    <Phone className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>Llamar: {CLINIC_INFO.phoneDisplay}</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenBooking();
+                    }}
+                    className="flex items-center justify-center gap-2 w-full py-3.5 text-sm font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:scale-98 rounded-xl shadow-md shadow-amber-400/25 transition-all btn-glow-amber"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>Reserva tu cita ¡Ahora!</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
   );
 };
 
