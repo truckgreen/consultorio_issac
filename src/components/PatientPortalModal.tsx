@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search,
@@ -27,6 +27,7 @@ import {
   ChevronRight,
   ListFilter,
   ArrowLeft,
+  Sparkles,
 } from 'lucide-react';
 import { ConfirmedAppointment } from '../types';
 import {
@@ -51,19 +52,21 @@ interface PatientPortalModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenBooking?: (serviceId?: string) => void;
+  initialCode?: string;
 }
 
 export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
   isOpen,
   onClose,
   onOpenBooking,
+  initialCode,
 }) => {
   // Tabs: 'email_phone' or 'code'
-  const [searchTab, setSearchTab] = useState<'email_phone' | 'code'>('email_phone');
+  const [searchTab, setSearchTab] = useState<'email_phone' | 'code'>(initialCode ? 'code' : 'code');
 
   // Input states
   const [searchEmailOrPhone, setSearchEmailOrPhone] = useState('');
-  const [searchCode, setSearchCode] = useState('');
+  const [searchCode, setSearchCode] = useState(initialCode || '');
   const [searchValidatorOptional, setSearchValidatorOptional] = useState('');
 
   // Results & status
@@ -71,6 +74,8 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
   const [searchError, setSearchError] = useState<string | null>(null);
   const [appointmentsList, setAppointmentsList] = useState<ConfirmedAppointment[]>([]);
   const [foundAppointment, setFoundAppointment] = useState<ConfirmedAppointment | null>(null);
+  const [recentAppointments, setRecentAppointments] = useState<ConfirmedAppointment[]>([]);
+  const [suggestedCode, setSuggestedCode] = useState<string | null>(null);
 
   // Reschedule state
   const [isRescheduling, setIsRescheduling] = useState(false);
@@ -90,10 +95,88 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     isSecondOrMore?: boolean;
   } | null>(null);
 
-  if (!isOpen) return null;
+  // Robust Normalization & Matching Helpers
+  const cleanAlphaNum = useCallback((s: string) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''), []);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const matchesAppointmentCode = useCallback((app: ConfirmedAppointment, query: string): boolean => {
+    if (!query) return false;
+    const rawQ = query.trim().toUpperCase();
+    const cleanQ = cleanAlphaNum(rawQ);
+    const cleanQWithoutEq = cleanQ.replace(/^EQ/, '');
+
+    const rawCode = (app.code || '').trim().toUpperCase();
+    const cleanCode = cleanAlphaNum(rawCode);
+    const cleanCodeWithoutEq = cleanCode.replace(/^EQ/, '');
+
+    const rawId = (app.id || '').trim().toUpperCase();
+    const cleanId = cleanAlphaNum(rawId);
+
+    // 1. Exact raw match
+    if (rawCode === rawQ || rawId === rawQ) return true;
+
+    // 2. Exact clean alphanumeric match (e.g. "EQ8K3N7P2W" === "EQ8K3N7P2W")
+    if (cleanCode && cleanCode === cleanQ) return true;
+
+    // 3. Match without EQ prefix (e.g. user typed "8K3N-7P2W" without "EQ-", or vice versa)
+    if (cleanCodeWithoutEq.length >= 4 && cleanQWithoutEq.length >= 4) {
+      if (cleanCodeWithoutEq === cleanQWithoutEq) return true;
+      if (cleanCodeWithoutEq.includes(cleanQWithoutEq) || cleanQWithoutEq.includes(cleanCodeWithoutEq)) return true;
+    }
+
+    // 4. Clean code contains query
+    if (cleanCode.length >= 4 && cleanQ.length >= 4) {
+      if (cleanCode.includes(cleanQ) || cleanQ.includes(cleanCode)) return true;
+    }
+
+    // 5. App ID contains clean code
+    if (cleanId && (cleanId === cleanQ || cleanId.includes(cleanQ) || cleanId.includes(cleanQWithoutEq))) return true;
+
+    return false;
+  }, [cleanAlphaNum]);
+
+  const matchesAppointmentPhone = useCallback((app: ConfirmedAppointment, query: string): boolean => {
+    const qDigits = (query || '').replace(/[^\d]/g, '');
+    const appDigits = (app.telefono || '').replace(/[^\d]/g, '');
+    if (qDigits.length < 4 || appDigits.length < 4) return false;
+
+    // Direct includes
+    if (appDigits.includes(qDigits) || qDigits.includes(appDigits)) return true;
+
+    // Compare last 7 significant digits (immune to country code prefixes like +58, 0412, etc.)
+    const qLast7 = qDigits.slice(-7);
+    const appLast7 = appDigits.slice(-7);
+    if (qLast7.length === 7 && appLast7.length === 7 && qLast7 === appLast7) return true;
+
+    return false;
+  }, []);
+
+  const matchesAppointmentText = useCallback((app: ConfirmedAppointment, query: string): boolean => {
+    const normQ = (query || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    if (normQ.length < 3) return false;
+
+    const appEmail = (app.email || '').toLowerCase().trim();
+    if (normQ.includes('@') && appEmail.includes(normQ)) return true;
+    if (appEmail && (appEmail === normQ || (appEmail.length >= 3 && appEmail.includes(normQ)))) return true;
+
+    const fullName = `${app.nombre || ''} ${app.apellido || ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    if (fullName.includes(normQ) || normQ.includes(fullName)) return true;
+
+    return false;
+  }, []);
+
+  const performSearch = useCallback(async (queryParam?: string, validatorParam?: string) => {
+    const rawQuery = (queryParam !== undefined ? queryParam : (searchTab === 'code' ? searchCode : searchEmailOrPhone)).trim();
+    const rawValidator = (validatorParam !== undefined ? validatorParam : searchValidatorOptional).trim();
+
+    if (!rawQuery) {
+      setSearchError(
+        searchTab === 'code'
+          ? 'Por favor ingresa tu código de cita (ej. EQ-8K3N-7P2W).'
+          : 'Por favor ingresa tu correo, teléfono o código de cita.'
+      );
+      return;
+    }
+
     setSearchError(null);
     setFoundAppointment(null);
     setAppointmentsList([]);
@@ -101,136 +184,47 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     setIsCanceling(false);
     setCancellationResult(null);
     setRescheduleSuccessMessage(null);
-
     setIsSearching(true);
 
     try {
       const all = await getAppointmentsFromDatabase();
       const fallbackLocal = getSavedAppointments();
-      
+
       // Consolidate pool deduplicated by id & code
-      const seen = new Set<string>();
-      const pool: ConfirmedAppointment[] = [];
-      for (const app of [...all, ...fallbackLocal]) {
-        const key = app.id || app.code;
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          pool.push(app);
+      const map = new Map<string, ConfirmedAppointment>();
+      for (const item of [...fallbackLocal, ...all]) {
+        const key = item.id || item.code;
+        if (key && !map.has(key)) {
+          map.set(key, item);
         }
       }
+      const pool = Array.from(map.values());
 
-      const normalizeCode = (s: string) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^EQ/, '');
-      const normalizePhone = (s: string) => (s || '').replace(/[^\d]/g, '');
-      const normalizeText = (s: string) =>
-        (s || '')
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .trim();
+      let matches = pool.filter((app) => {
+        const isCode = matchesAppointmentCode(app, rawQuery);
+        const isPhone = matchesAppointmentPhone(app, rawQuery);
+        const isText = matchesAppointmentText(app, rawQuery);
+        return isCode || isPhone || isText;
+      });
 
-      let matches: ConfirmedAppointment[] = [];
-
-      if (searchTab === 'email_phone') {
-        const rawInput = searchEmailOrPhone.trim();
-        if (!rawInput) {
-          setSearchError('Por favor ingresa tu correo, teléfono o código de cita.');
-          setIsSearching(false);
-          return;
+      // If optional validator is provided AND multiple matches exist, narrow down safely
+      if (rawValidator && matches.length > 1) {
+        const filteredByValidator = matches.filter(
+          (app) => matchesAppointmentPhone(app, rawValidator) || matchesAppointmentText(app, rawValidator)
+        );
+        if (filteredByValidator.length > 0) {
+          matches = filteredByValidator;
         }
-
-        const textQ = normalizeText(rawInput);
-        const phoneQ = normalizePhone(rawInput);
-        const codeQ = normalizeCode(rawInput);
-
-        matches = pool.filter((app) => {
-          const appEmail = normalizeText(app.email || '');
-          const appName = normalizeText(`${app.nombre || ''} ${app.apellido || ''}`);
-          const appPhone = normalizePhone(app.telefono || '');
-          const appCode = normalizeCode(app.code || '');
-          const appId = normalizeCode(app.id || '');
-
-          // 1. Exact or partial email match
-          if (textQ.includes('@') && appEmail.includes(textQ)) return true;
-          if (appEmail && (appEmail === textQ || (textQ.length >= 3 && appEmail.includes(textQ)))) return true;
-
-          // 2. Phone match (check 4+ digits)
-          if (phoneQ.length >= 4 && (appPhone.includes(phoneQ) || phoneQ.includes(appPhone))) return true;
-
-          // 3. Code match in case user typed code in this field
-          if (codeQ.length >= 4 && (appCode === codeQ || appId === codeQ || appCode.includes(codeQ))) return true;
-
-          // 4. Name match (if 3+ characters)
-          if (textQ.length >= 3 && appName.includes(textQ)) return true;
-
-          return false;
-        });
-      } else {
-        // Search by Code (or omni search)
-        const rawCode = searchCode.trim();
-        if (!rawCode) {
-          setSearchError('Por favor ingresa tu código de cita (ej. EQ-8K3N-7P2W).');
-          setIsSearching(false);
-          return;
-        }
-
-        const codeQ = normalizeCode(rawCode);
-        const textQ = normalizeText(rawCode);
-        const phoneQ = normalizePhone(rawCode);
-
-        const optionalValidator = searchValidatorOptional.trim();
-        const validatorText = normalizeText(optionalValidator);
-        const validatorPhone = normalizePhone(optionalValidator);
-
-        matches = pool.filter((app) => {
-          const appCode = normalizeCode(app.code || '');
-          const appId = normalizeCode(app.id || '');
-          const rawAppCode = (app.code || '').toUpperCase();
-          const rawAppId = (app.id || '').toUpperCase();
-          const upperInput = rawCode.toUpperCase();
-
-          // Code match checks
-          const isDirectCodeMatch =
-            rawAppCode === upperInput ||
-            rawAppId === upperInput ||
-            (codeQ.length >= 3 && (appCode === codeQ || appId === codeQ || appCode.includes(codeQ) || codeQ.includes(appCode)));
-
-          // Omni fallback in case user typed email or phone in code box
-          const appEmail = normalizeText(app.email || '');
-          const appPhone = normalizePhone(app.telefono || '');
-          const appName = normalizeText(`${app.nombre || ''} ${app.apellido || ''}`);
-
-          const isEmailMatch = textQ.includes('@') && appEmail.includes(textQ);
-          const isPhoneMatch = phoneQ.length >= 6 && appPhone.includes(phoneQ);
-          const isNameMatch = textQ.length >= 4 && appName.includes(textQ);
-
-          const mainMatch = isDirectCodeMatch || isEmailMatch || isPhoneMatch || isNameMatch;
-          if (!mainMatch) return false;
-
-          // If optional validator is provided, use as verification check
-          if (optionalValidator) {
-            const valEmailMatch = appEmail.includes(validatorText);
-            const valPhoneMatch = validatorPhone.length >= 4 && appPhone.includes(validatorPhone);
-            const valNameMatch = appName.includes(validatorText);
-            return valEmailMatch || valPhoneMatch || valNameMatch;
-          }
-
-          return true;
-        });
       }
 
       if (matches.length === 0) {
-        setSearchError(
-          searchTab === 'email_phone'
-            ? 'No encontramos ninguna cita con esos datos. Verifica el correo, teléfono o código e intenta nuevamente.'
-            : 'No encontramos ninguna cita con el código ingresado. Verifica tu código (ej. EQ-XXXX-XXXX) e intenta nuevamente.'
-        );
+        setSearchError('No encontramos ninguna cita con esos datos. Verifica tu código (ej. EQ-XXXX-XXXX), correo o teléfono e intenta nuevamente.');
         recordSecurityEvent({
           action: 'AUTH_FAILED',
           severity: 'INFO',
-          details: `Búsqueda sin resultados en portal (${searchTab})`,
+          details: `Búsqueda sin resultados en portal: "${maskSensitiveData('name', rawQuery)}"`,
         });
       } else if (matches.length === 1) {
-        // Single appointment found -> open directly
         const single = matches[0];
         setFoundAppointment(single);
         setRescheduleDate(single.fecha);
@@ -241,8 +235,6 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
           details: `Consulta autorizada en portal para [${single.code}].`,
         });
       } else {
-        // Multiple appointments found -> show list
-        // Sort newest first
         matches.sort((a, b) => new Date(b.createdAt || b.fecha).getTime() - new Date(a.createdAt || a.fecha).getTime());
         setAppointmentsList(matches);
         recordSecurityEvent({
@@ -257,6 +249,39 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     } finally {
       setIsSearching(false);
     }
+  }, [searchTab, searchCode, searchEmailOrPhone, searchValidatorOptional, matchesAppointmentCode, matchesAppointmentPhone, matchesAppointmentText]);
+
+  // Load saved appointments & handle initialCode on modal open
+  useEffect(() => {
+    if (isOpen) {
+      const saved = getSavedAppointments();
+      setRecentAppointments(saved);
+
+      const lastCode = typeof window !== 'undefined' ? localStorage.getItem('equilibra_last_booked_code') : null;
+      if (lastCode) {
+        setSuggestedCode(lastCode);
+      }
+
+      if (initialCode && initialCode.trim()) {
+        const cleanCode = initialCode.trim().toUpperCase();
+        setSearchCode(cleanCode);
+        setSearchTab('code');
+        void performSearch(cleanCode);
+      }
+    } else {
+      setSearchError(null);
+      setFoundAppointment(null);
+      setAppointmentsList([]);
+      setIsRescheduling(false);
+      setIsCanceling(false);
+    }
+  }, [isOpen, initialCode, performSearch]);
+
+  if (!isOpen) return null;
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    void performSearch();
   };
 
   const handleSelectAppointmentFromList = (appointment: ConfirmedAppointment) => {
@@ -515,12 +540,59 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
               </div>
             </form>
 
+            {/* Quick Helper for recent appointments on this device */}
+            {!foundAppointment && appointmentsList.length === 0 && recentAppointments.length > 0 && (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-slate-800 dark:text-slate-200">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Citas recientes guardadas en este dispositivo:
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {recentAppointments.slice(0, 3).map((app) => (
+                    <button
+                      key={app.id || app.code}
+                      type="button"
+                      onClick={() => {
+                        setSearchCode(app.code);
+                        setSearchTab('code');
+                        void performSearch(app.code);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700/50 hover:bg-amber-50 dark:hover:bg-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white flex items-center gap-2 transition-all shadow-sm group"
+                    >
+                      <span className="text-amber-600 dark:text-amber-400">{app.code}</span>
+                      <span className="text-[11px] font-sans font-normal text-slate-500 dark:text-slate-400">
+                        ({app.fecha})
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {searchError && (
               <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs sm:text-sm flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                <div>
+                <div className="space-y-1">
                   <p className="font-semibold">No se encontraron resultados</p>
-                  <p className="mt-0.5">{searchError}</p>
+                  <p className="text-slate-600 dark:text-slate-300">{searchError}</p>
+                  {suggestedCode && (
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchCode(suggestedCode);
+                          setSearchTab('code');
+                          void performSearch(suggestedCode);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                      >
+                        <span>¿Intentar con tu último código agendado ({suggestedCode})?</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

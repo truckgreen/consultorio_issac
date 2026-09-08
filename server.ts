@@ -131,8 +131,37 @@ function getServerSupabaseClient(): SupabaseClient | null {
   return null;
 }
 
-// In-memory appointments fallback cache
-const serverAppointmentsCache: any[] = [];
+// In-memory appointments fallback cache with persistent disk backing
+const APPOINTMENTS_FILE = path.join(process.cwd(), 'data', 'appointments.json');
+
+function loadStoredAppointments(): any[] {
+  try {
+    if (fs.existsSync(APPOINTMENTS_FILE)) {
+      const data = fs.readFileSync(APPOINTMENTS_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[Server Appointments Disk] Error reading:', err);
+  }
+  return [];
+}
+
+function persistAppointmentsToDisk(list: any[]): void {
+  try {
+    const dir = path.dirname(APPOINTMENTS_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(APPOINTMENTS_FILE, JSON.stringify(list, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[Server Appointments Disk] Error saving:', err);
+  }
+}
+
+const serverAppointmentsCache: any[] = loadStoredAppointments();
 
 // Helper to sanitize telegram token
 function sanitizeTelegramToken(rawToken: string): string {
@@ -552,6 +581,7 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
     } else {
       serverAppointmentsCache.unshift(appointment);
     }
+    persistAppointmentsToDisk(serverAppointmentsCache);
 
     let supabaseSaved = false;
     let supabaseError: string | null = null;
@@ -686,6 +716,7 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
     const idx = serverAppointmentsCache.findIndex((a) => a.id === id || a.code === id);
     if (idx >= 0) {
       serverAppointmentsCache[idx] = { ...serverAppointmentsCache[idx], ...updates };
+      persistAppointmentsToDisk(serverAppointmentsCache);
     }
 
     const supabaseClient = getServerSupabaseClient();

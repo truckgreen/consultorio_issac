@@ -23,6 +23,7 @@ import {
   Layers,
   Award,
   MessageSquare,
+  Search,
 } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
@@ -51,6 +52,7 @@ interface BookingModalProps {
   onClose: () => void;
   initialServiceId?: string;
   onOpenPrivacyModal?: () => void;
+  onOpenPatientPortal?: (code?: string) => void;
 }
 
 export const BookingModal: React.FC<BookingModalProps> = ({
@@ -58,6 +60,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onClose,
   initialServiceId,
   onOpenPrivacyModal,
+  onOpenPatientPortal,
 }) => {
   const formRenderTimestampRef = useRef<number>(Date.now());
 
@@ -674,7 +677,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3 pt-2">
+              {onOpenPatientPortal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenPatientPortal(createdAppointment.code);
+                  }}
+                  className="py-3 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-slate-100 shadow-md transition-all active:scale-[0.98]"
+                >
+                  <Search className="w-4 h-4 text-amber-500" />
+                  <span>Ver en el Portal</span>
+                </button>
+              )}
+
               <a
                 href={generateWhatsAppAlertUrl(createdAppointment)}
                 target="_blank"

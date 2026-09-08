@@ -75,9 +75,64 @@ export function saveAppointmentToStorage(appointment: ConfirmedAppointment): voi
     const current = getSavedAppointments();
     const updated = [appointment, ...current.filter((a) => a.id !== appointment.id && a.code !== appointment.code)];
     localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(updated));
+    localStorage.setItem('equilibra_appointments', JSON.stringify(updated));
+    if (appointment.code) {
+      localStorage.setItem('equilibra_last_booked_code', appointment.code);
+    }
+    window.dispatchEvent(new CustomEvent('equilibra_appointment_saved', { detail: appointment }));
   } catch (e) {
     console.error('Error saving appointment:', e);
   }
+}
+
+/**
+ * Robustly extracts the real booking code or looks it up from local memory,
+ * NEVER inventing a new random code for an existing appointment record.
+ */
+function extractOrPreserveCode(row: any, fallbackList: ConfirmedAppointment[]): string {
+  // 1. Direct explicit code candidates
+  const candidates = [
+    row.code,
+    row.codigo,
+    row.booking_code,
+    row.bookingCode,
+    row.appointment_code,
+    row.appointmentCode,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) {
+      return sanitizeString(c.trim().toUpperCase());
+    }
+  }
+
+  // 2. Check localList by id
+  if (row.id) {
+    const localMatch = fallbackList.find((l) => l.id === String(row.id));
+    if (localMatch && localMatch.code) {
+      return localMatch.code;
+    }
+  }
+
+  // 3. Check if code is embedded in ID string (e.g. app_1725..._EQ8K3N7P2W)
+  if (typeof row.id === 'string' && row.id.includes('EQ')) {
+    const match = row.id.match(/EQ[A-Z0-9]{4,12}/i);
+    if (match) {
+      const pure = match[0].toUpperCase();
+      if (pure.length >= 10) {
+        return `EQ-${pure.slice(2, 6)}-${pure.slice(6, 10)}`;
+      }
+      return pure;
+    }
+  }
+
+  // 4. If an id exists without a code, generate deterministic code so it never changes
+  if (row.id) {
+    const cleanId = String(row.id).replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const token = cleanId.slice(-8).padEnd(8, '0');
+    return `EQ-${token.slice(0, 4)}-${token.slice(4, 8)}`;
+  }
+
+  return 'EQ-0000-0000';
 }
 
 export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointment[]> {
@@ -93,7 +148,7 @@ export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointmen
       if (json.success && Array.isArray(json.data)) {
         serverList = json.data.map((row: any) => ({
           id: String(row.id),
-          code: sanitizeString(row.code || generateSecureCode()),
+          code: extractOrPreserveCode(row, localList),
           serviceId: sanitizeString(row.service_id || row.serviceId || 'fisioterapia'),
           servicePrice: row.service_price || row.servicePrice || (row.amount ? `${row.amount} USD` : undefined),
           selectedPackageName: row.selected_package_name || row.package_name || row.selectedPackageName || undefined,
@@ -144,7 +199,7 @@ export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointmen
       if (!error && Array.isArray(data)) {
         supabaseList = data.map((row) => ({
           id: String(row.id),
-          code: sanitizeString(row.code || generateSecureCode()),
+          code: extractOrPreserveCode(row, localList),
           serviceId: sanitizeString(row.service_id || 'fisioterapia'),
           servicePrice: row.service_price || (row.amount ? `${row.amount} USD` : undefined),
           selectedPackageName: row.selected_package_name || row.package_name || undefined,
@@ -184,14 +239,54 @@ export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointmen
     }
   }
 
-  // Deduplicate and consolidate all sources
-  const seenKeys = new Set<string>();
-  const merged: ConfirmedAppointment[] = [];
+  // Deduplicate and consolidate all sources intelligently
+  // We prioritize localList for the user's current device while enriching with server/Supabase
+  const map = new Map<string, ConfirmedAppointment>();
 
-  for (const item of [...serverList, ...supabaseList, ...localList]) {
-    const key = String(item.id || item.code || '');
-    if (key && !seenKeys.has(key)) {
-      seenKeys.add(key);
+  const addOrMerge = (incoming: ConfirmedAppointment) => {
+    const idKey = incoming.id ? `id:${incoming.id}` : null;
+    const cleanCode = incoming.code ? incoming.code.toUpperCase().replace(/[^A-Z0-9]/g, '') : null;
+    const codeKey = cleanCode ? `code:${cleanCode}` : null;
+
+    let existing: ConfirmedAppointment | undefined;
+    if (idKey && map.has(idKey)) existing = map.get(idKey);
+    else if (codeKey && map.has(codeKey)) existing = map.get(codeKey);
+
+    if (!existing) {
+      const copy = { ...incoming };
+      if (idKey) map.set(idKey, copy);
+      if (codeKey) map.set(codeKey, copy);
+    } else {
+      const mergedItem: ConfirmedAppointment = {
+        ...existing,
+        ...incoming,
+        // Always preserve legitimate code
+        code: (existing.code && existing.code.startsWith('EQ-')) ? existing.code : (incoming.code || existing.code),
+        nombre: incoming.nombre || existing.nombre,
+        apellido: incoming.apellido || existing.apellido,
+        telefono: incoming.telefono || existing.telefono,
+        email: incoming.email || existing.email,
+        fecha: incoming.fecha || existing.fecha,
+        hora: incoming.hora || existing.hora,
+        selectedPackageName: incoming.selectedPackageName || existing.selectedPackageName,
+        servicePrice: incoming.servicePrice || existing.servicePrice,
+        specialistName: incoming.specialistName || existing.specialistName,
+      };
+      if (idKey) map.set(idKey, mergedItem);
+      if (codeKey) map.set(codeKey, mergedItem);
+    }
+  };
+
+  for (const item of localList) addOrMerge(item);
+  for (const item of serverList) addOrMerge(item);
+  for (const item of supabaseList) addOrMerge(item);
+
+  const seenUnique = new Set<string>();
+  const merged: ConfirmedAppointment[] = [];
+  for (const item of map.values()) {
+    const uKey = item.id || item.code;
+    if (uKey && !seenUnique.has(uKey)) {
+      seenUnique.add(uKey);
       merged.push(item);
     }
   }

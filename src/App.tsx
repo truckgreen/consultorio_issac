@@ -53,6 +53,7 @@ export function App() {
   const [selectedDetailService, setSelectedDetailService] = useState<ServiceItem | null>(null);
   
   const [isPatientPortalOpen, setIsPatientPortalOpen] = useState(false);
+  const [portalInitialCode, setPortalInitialCode] = useState<string | undefined>(undefined);
   const [isSpecialistAccessOpen, setIsSpecialistAccessOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isDeveloperSupportOpen, setIsDeveloperSupportOpen] = useState(false);
@@ -69,6 +70,11 @@ export function App() {
     setSelectedServiceIdForBooking(undefined);
   };
 
+  const handleOpenPatientPortal = (code?: string) => {
+    setPortalInitialCode(code);
+    setIsPatientPortalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0c1017] text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950 relative">
       {/* Subtle global ambient background gradients */}
@@ -83,7 +89,7 @@ export function App() {
         darkMode={darkMode}
         onToggleDarkMode={toggleDarkMode}
         onOpenBooking={handleOpenBooking}
-        onOpenPatientPortal={() => setIsPatientPortalOpen(true)}
+        onOpenPatientPortal={() => handleOpenPatientPortal()}
         onOpenSpecialistAccess={() => setIsSpecialistAccessOpen(true)}
         onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
         onOpenDeveloperSupport={() => setIsDeveloperSupportOpen(true)}
@@ -110,7 +116,10 @@ export function App() {
         
         <InteractiveAssessment onOpenBooking={handleOpenBooking} />
         
-        <BookingSection />
+        <BookingSection
+          onOpenPatientPortal={handleOpenPatientPortal}
+          onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
+        />
         
         <TestimonialsSection />
         
@@ -120,7 +129,7 @@ export function App() {
       {/* 3. Footer */}
       <ContactFooter
         onOpenBooking={() => handleOpenBooking()}
-        onOpenPatientPortal={() => setIsPatientPortalOpen(true)}
+        onOpenPatientPortal={() => handleOpenPatientPortal()}
         onOpenSpecialistAccess={() => setIsSpecialistAccessOpen(true)}
         onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
         onOpenDeveloperSupport={() => setIsDeveloperSupportOpen(true)}
@@ -131,6 +140,7 @@ export function App() {
         isOpen={isBookingModalOpen}
         onClose={handleCloseBooking}
         initialServiceId={selectedServiceIdForBooking}
+        onOpenPatientPortal={handleOpenPatientPortal}
       />
 
       <ServiceDetailModal
@@ -141,7 +151,12 @@ export function App() {
 
       <PatientPortalModal
         isOpen={isPatientPortalOpen}
-        onClose={() => setIsPatientPortalOpen(false)}
+        onClose={() => {
+          setIsPatientPortalOpen(false);
+          setPortalInitialCode(undefined);
+        }}
+        initialCode={portalInitialCode}
+        onOpenBooking={handleOpenBooking}
       />
 
       <SpecialistAccessModal

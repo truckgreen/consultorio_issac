@@ -25,6 +25,7 @@ import {
   Package,
   Layers,
   MessageSquare,
+  Search,
 } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
@@ -55,7 +56,7 @@ interface BookingSectionProps {
   preselectedServiceId?: string;
   onServiceSelect?: (serviceId: string) => void;
   onOpenPrivacyModal?: () => void;
-  onOpenPatientPortal?: () => void;
+  onOpenPatientPortal?: (initialCode?: string) => void;
 }
 
 export const BookingSection: React.FC<BookingSectionProps> = ({
@@ -1062,7 +1063,18 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-3 pt-2">
+                  {onOpenPatientPortal && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenPatientPortal(latestAppointment.code)}
+                      className="px-5 py-3 rounded-xl bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all"
+                    >
+                      <Search className="w-4 h-4 text-amber-500" />
+                      <span>Ver en el Portal de Citas</span>
+                    </button>
+                  )}
+
                   <a
                     href={generateWhatsAppAlertUrl(latestAppointment)}
                     target="_blank"

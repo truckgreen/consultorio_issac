@@ -699,12 +699,23 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       (statusFilter === 'CANCELADAS' && app.status === 'cancelada');
 
     const search = searchQuery.toLowerCase().trim();
+    const cleanSearch = search.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const cleanSearchNoEq = cleanSearch.replace(/^EQ/, '');
+    const appCodeClean = (app.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const appIdClean = (app.id || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const searchDigits = search.replace(/[^\d]/g, '');
+    const appPhoneDigits = (app.telefono || '').replace(/[^\d]/g, '');
+
     const matchesSearch =
       !search ||
       (app.nombre && app.nombre.toLowerCase().includes(search)) ||
       (app.apellido && app.apellido.toLowerCase().includes(search)) ||
       (app.code && app.code.toLowerCase().includes(search)) ||
-      (app.telefono && app.telefono.toLowerCase().includes(search)) ||
+      (app.id && app.id.toLowerCase().includes(search)) ||
+      (cleanSearch.length >= 3 && (appCodeClean.includes(cleanSearch) || cleanSearch.includes(appCodeClean) || appIdClean.includes(cleanSearch))) ||
+      (cleanSearchNoEq.length >= 4 && appCodeClean.includes(cleanSearchNoEq)) ||
+      (searchDigits.length >= 4 && appPhoneDigits.includes(searchDigits)) ||
+      (app.email && app.email.toLowerCase().includes(search)) ||
       (app.motivoConsulta && app.motivoConsulta.toLowerCase().includes(search));
 
     return matchesSpecialist && matchesDate && matchesStatus && matchesSearch;
