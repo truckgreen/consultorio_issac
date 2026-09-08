@@ -48,12 +48,15 @@ import {
   AlertCircle,
   Building2,
   Copy,
+  Trash2,
 } from 'lucide-react';
 import { ConfirmedAppointment, SpecialistUser, AdminUser, AdminNotification, TeamMember, SpecialistAbsence, TelegramConfig, SupabaseConfig, PatientRecord } from '../types';
 import {
   getAppointmentsFromDatabase,
   getSavedAppointments,
   saveAppointmentToStorage,
+  deleteAppointmentFromStorageAndServer,
+  clearAllAppointmentsFromSystem,
 } from '../utils/bookingUtils';
 import {
   getStoredPatients,
@@ -96,6 +99,7 @@ import { TEAM_MEMBERS } from '../data/teamData';
 import {
   getStoredNotifications,
   saveStoredNotifications,
+  clearAllStoredNotifications,
   requestBrowserNotificationPermission,
   generateWhatsAppAlertUrl,
   playNotificationChime,
@@ -162,6 +166,16 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     isSupabaseConfigured ? 'Supabase configurado' : 'Modo local (sin Supabase)'
   );
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
+
+  // Data Clearing & Maintenance State
+  const [confirmActionModal, setConfirmActionModal] = useState<{
+    isOpen: boolean;
+    type: 'appointments' | 'notifications' | 'all' | 'single_appointment';
+    targetId?: string;
+    targetTitle?: string;
+  } | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearFeedbackMsg, setClearFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Staff status and availability state
   const [specialistAvailabilities, setSpecialistAvailabilities] = useState<Record<string, SpecialistAbsence>>({});
@@ -652,6 +666,61 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     }
   };
 
+  const handleClearNotificationsDirectly = () => {
+    clearAllStoredNotifications();
+    setNotifications([]);
+    setClearFeedbackMsg({ type: 'success', text: 'Se ha vaciado todo el historial de notificaciones.' });
+    setTimeout(() => setClearFeedbackMsg(null), 4000);
+  };
+
+  const handleConfirmClearAction = async () => {
+    if (!confirmActionModal) return;
+    setIsClearing(true);
+    try {
+      if (confirmActionModal.type === 'single_appointment' && confirmActionModal.targetId) {
+        await deleteAppointmentFromStorageAndServer(confirmActionModal.targetId);
+        setAppointments((prev) => prev.filter((a) => a.id !== confirmActionModal.targetId && a.code !== confirmActionModal.targetId));
+        setClearFeedbackMsg({ type: 'success', text: 'Cita eliminada correctamente.' });
+        recordSecurityEvent({
+          action: 'BOOKING_SUCCESS',
+          severity: 'INFO',
+          details: `Cita [${confirmActionModal.targetId}] eliminada por ${authenticatedUser?.name}.`,
+        });
+      } else if (confirmActionModal.type === 'appointments') {
+        await clearAllAppointmentsFromSystem();
+        setAppointments([]);
+        setClearFeedbackMsg({ type: 'success', text: 'Todas las citas han sido eliminadas del servidor, disco y memoria.' });
+        recordSecurityEvent({
+          action: 'BOOKING_SUCCESS',
+          severity: 'INFO',
+          details: `Vaciado total de citas ejecutado por ${authenticatedUser?.name}.`,
+        });
+      } else if (confirmActionModal.type === 'notifications') {
+        clearAllStoredNotifications();
+        setNotifications([]);
+        setClearFeedbackMsg({ type: 'success', text: 'Todas las notificaciones han sido eliminadas.' });
+      } else if (confirmActionModal.type === 'all') {
+        await clearAllAppointmentsFromSystem();
+        clearAllStoredNotifications();
+        setAppointments([]);
+        setNotifications([]);
+        setClearFeedbackMsg({ type: 'success', text: 'Todas las citas y notificaciones han sido eliminadas por completo.' });
+        recordSecurityEvent({
+          action: 'BOOKING_SUCCESS',
+          severity: 'INFO',
+          details: `Restablecimiento total (citas y notificaciones) ejecutado por ${authenticatedUser?.name}.`,
+        });
+      }
+    } catch (err: any) {
+      console.error('Error during clear action:', err);
+      setClearFeedbackMsg({ type: 'error', text: 'Hubo un error al procesar la eliminación.' });
+    } finally {
+      setIsClearing(false);
+      setConfirmActionModal(null);
+      setTimeout(() => setClearFeedbackMsg(null), 4500);
+    }
+  };
+
   // Filter visible notifications based on authenticated role
   const visibleNotifications = notifications.filter((n) => {
     if (!authenticatedUser) return false;
@@ -924,19 +993,35 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                               Notificaciones en Vivo
                             </h4>
                           </div>
-                          {visibleNotifications.filter((n) => !n.read).length > 0 && (
-                            <button
-                              onClick={() => {
-                                const visibleIds = new Set(visibleNotifications.map((n) => n.id));
-                                const updated = notifications.map((n) => (visibleIds.has(n.id) ? { ...n, read: true } : n));
-                                setNotifications(updated);
-                                saveStoredNotifications(updated);
-                              }}
-                              className="text-[10px] text-amber-600 hover:underline font-semibold"
-                            >
-                              Marcar todas leídas
-                            </button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {visibleNotifications.filter((n) => !n.read).length > 0 && (
+                              <button
+                                onClick={() => {
+                                  const visibleIds = new Set(visibleNotifications.map((n) => n.id));
+                                  const updated = notifications.map((n) => (visibleIds.has(n.id) ? { ...n, read: true } : n));
+                                  setNotifications(updated);
+                                  saveStoredNotifications(updated);
+                                }}
+                                className="text-[10px] text-amber-600 hover:underline font-semibold"
+                              >
+                                Marcar leídas
+                              </button>
+                            )}
+                            {visibleNotifications.length > 0 && (
+                              <button
+                                onClick={() => setConfirmActionModal({
+                                  isOpen: true,
+                                  type: 'notifications',
+                                  targetTitle: 'todas las notificaciones',
+                                })}
+                                className="text-[10px] text-red-600 dark:text-red-400 hover:underline font-semibold flex items-center gap-1"
+                                title="Eliminar todas las notificaciones"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Vaciar</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {!browserNotifEnabled && (
@@ -1386,6 +1471,23 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                       )}
                     </div>
                   )}
+
+                  {/* Clear All Appointments Button for Administrators */}
+                  {activeTab === 'agenda' && (authenticatedUser.role === 'admin' || authenticatedUser.role === 'administrador_general') && appointments.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmActionModal({
+                        isOpen: true,
+                        type: 'appointments',
+                        targetTitle: 'todas las citas registradas en el sistema',
+                      })}
+                      className="ml-auto px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                      title="Eliminar todas las citas del sistema"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                      <span>Vaciar Citas ({appointments.length})</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1640,6 +1742,22 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                                 className="px-3 py-1.5 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-950/60 dark:text-red-300 text-xs font-bold transition-all"
                               >
                                 Cancelar
+                              </button>
+                            )}
+
+                            {(authenticatedUser.role === 'admin' || authenticatedUser.role === 'administrador_general') && (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmActionModal({
+                                  isOpen: true,
+                                  type: 'single_appointment',
+                                  targetId: app.id,
+                                  targetTitle: `${app.nombre} ${app.apellido} (${app.code})`,
+                                })}
+                                className="p-2 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 text-xs font-bold transition-all"
+                                title="Eliminar cita definitivamente"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             )}
                           </div>
@@ -2624,6 +2742,122 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                       </div>
                     </div>
 
+                    {/* MANTENIMIENTO, DEPURACIÓN Y VACIADO DE REGISTROS (Admin Only) */}
+                    {(authenticatedUser.role === 'admin' || authenticatedUser.role === 'administrador_general') && (
+                      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/40 shadow-sm space-y-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-red-100 dark:border-red-900/30">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center font-bold">
+                              <Trash2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                Mantenimiento, Depuración y Vaciado de Registros
+                              </h4>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                Elimina reservas de prueba, limpia el calendario o vacía el historial de notificaciones
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                              {appointments.length} {appointments.length === 1 ? 'Cita' : 'Citas'}
+                            </span>
+                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                              {notifications.length} {notifications.length === 1 ? 'Alerta' : 'Alertas'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {clearFeedbackMsg && (
+                          <div className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                            clearFeedbackMsg.type === 'success'
+                              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200'
+                              : 'bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-red-200'
+                          }`}>
+                            <CheckCircle2 className="w-4 h-4 shrink-0" />
+                            <span>{clearFeedbackMsg.text}</span>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                          {/* Option 1: Clear appointments */}
+                          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between gap-3">
+                            <div>
+                              <span className="font-bold text-xs text-slate-900 dark:text-white block mb-1">
+                                Eliminar Todas las Citas
+                              </span>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                                Borra permanentemente todas las reservas del servidor, archivo de disco (<code className="text-[10px]">data/appointments.json</code>), memoria local y Supabase.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={appointments.length === 0}
+                              onClick={() => setConfirmActionModal({
+                                isOpen: true,
+                                type: 'appointments',
+                                targetTitle: 'todas las citas registradas en el sistema',
+                              })}
+                              className="py-2 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all shadow-sm"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Vaciar Citas ({appointments.length})</span>
+                            </button>
+                          </div>
+
+                          {/* Option 2: Clear notifications */}
+                          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between gap-3">
+                            <div>
+                              <span className="font-bold text-xs text-slate-900 dark:text-white block mb-1">
+                                Vaciar Historial de Alertas
+                              </span>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                                Limpia el historial de notificaciones y alertas en vivo para especialistas en este dispositivo.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={notifications.length === 0}
+                              onClick={() => setConfirmActionModal({
+                                isOpen: true,
+                                type: 'notifications',
+                                targetTitle: 'todo el historial de alertas y notificaciones',
+                              })}
+                              className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all shadow-sm"
+                            >
+                              <Bell className="w-3.5 h-3.5" />
+                              <span>Vaciar Alertas ({notifications.length})</span>
+                            </button>
+                          </div>
+
+                          {/* Option 3: Total reset */}
+                          <div className="p-4 rounded-2xl bg-red-50/60 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 flex flex-col justify-between gap-3">
+                            <div>
+                              <span className="font-bold text-xs text-red-900 dark:text-red-300 block mb-1">
+                                Restablecimiento Total
+                              </span>
+                              <p className="text-[11px] text-red-700/80 dark:text-red-400/80 leading-relaxed">
+                                Elimina en un solo clic todas las citas registradas y todo el historial de alertas. Ideal para empezar de cero.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmActionModal({
+                                isOpen: true,
+                                type: 'all',
+                                targetTitle: 'todas las citas y todo el historial de notificaciones',
+                              })}
+                              className="py-2 px-3 rounded-xl bg-red-700 hover:bg-red-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              <span>Restablecer Todo</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Clinic Information Card */}
                     <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-3">
                       <div className="flex items-center gap-2 font-bold text-xs text-slate-800 dark:text-slate-200">
@@ -2734,6 +2968,52 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
           }}
           currentUserName={authenticatedUser?.name || 'Especialista'}
         />
+      )}
+
+      {/* Confirmation Modal for Clearing Data */}
+      {confirmActionModal?.isOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                ¿Confirmar eliminación permanente?
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Estás a punto de eliminar <strong>{confirmActionModal.targetTitle}</strong>.
+                Esta acción removerá los registros del servidor, archivo de disco, memoria local y base de datos.
+                <span className="block mt-1 text-red-600 dark:text-red-400 font-semibold">Esta acción no se puede deshacer.</span>
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isClearing}
+                onClick={() => setConfirmActionModal(null)}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isClearing}
+                onClick={handleConfirmClearAction}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all disabled:opacity-50"
+              >
+                {isClearing ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>{isClearing ? 'Eliminando...' : 'Sí, Eliminar'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AnimatePresence>
   );

@@ -731,6 +731,63 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
     res.json({ success: true, updated: updates });
   });
 
+  // 5c. Delete all appointments from server memory, disk, and Supabase
+  app.delete('/api/appointments/all', async (req, res) => {
+    try {
+      serverAppointmentsCache.length = 0;
+      persistAppointmentsToDisk([]);
+
+      const supabaseClient = getServerSupabaseClient();
+      let supabaseDeleted = false;
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient
+            .from('appointments')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000');
+          if (!error) supabaseDeleted = true;
+        } catch (err) {
+          console.warn('[Server DELETE ALL appointments Supabase]:', err);
+        }
+      }
+
+      console.log('[Server] Se han eliminado todas las citas del sistema.');
+      res.json({
+        success: true,
+        message: 'Todas las citas han sido eliminadas exitosamente.',
+        supabaseDeleted,
+      });
+    } catch (err: any) {
+      console.error('[Server DELETE ALL appointments error]:', err);
+      res.status(500).json({ success: false, error: err?.message || 'Error eliminando citas' });
+    }
+  });
+
+  // 5d. Delete single appointment by id or code
+  app.delete('/api/appointments/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const idx = serverAppointmentsCache.findIndex((a) => a.id === id || a.code === id);
+      if (idx >= 0) {
+        serverAppointmentsCache.splice(idx, 1);
+        persistAppointmentsToDisk(serverAppointmentsCache);
+      }
+
+      const supabaseClient = getServerSupabaseClient();
+      if (supabaseClient) {
+        try {
+          await supabaseClient.from('appointments').delete().or(`id.eq.${id},code.eq.${id}`);
+        } catch (err) {
+          console.warn('[Server DELETE appointment Supabase error]:', err);
+        }
+      }
+
+      res.json({ success: true, message: `Cita ${id} eliminada correctamente.` });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message || 'Error eliminando cita' });
+    }
+  });
+
   // 6. Patients API
   app.get('/api/patients', async (req, res) => {
     const supabaseClient = getServerSupabaseClient();

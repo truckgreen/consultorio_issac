@@ -24,6 +24,16 @@ export function saveStoredNotifications(notifications: AdminNotification[]): voi
   }
 }
 
+export function clearAllStoredNotifications(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
+    window.dispatchEvent(new CustomEvent('equilibra_notifications_updated'));
+  } catch (e) {
+    console.error('Error clearing notifications:', e);
+  }
+}
+
 export async function requestBrowserNotificationPermission(): Promise<boolean> {
   if (typeof window === 'undefined' || !('Notification' in window)) return false;
   if (Notification.permission === 'granted') return true;

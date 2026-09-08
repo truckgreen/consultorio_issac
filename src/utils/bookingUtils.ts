@@ -851,3 +851,92 @@ END:VCALENDAR`;
   link.click();
   document.body.removeChild(link);
 }
+
+/**
+ * Deletes a single appointment from localStorage, server disk/memory, and Supabase.
+ */
+export async function deleteAppointmentFromStorageAndServer(idOrCode: string): Promise<boolean> {
+  if (!idOrCode) return false;
+
+  // 1. Remove from local storage
+  if (typeof window !== 'undefined') {
+    try {
+      const current = getSavedAppointments();
+      const filtered = current.filter((a) => a.id !== idOrCode && a.code !== idOrCode);
+      localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(filtered));
+      localStorage.setItem('equilibra_appointments', JSON.stringify(filtered));
+      const lastCode = localStorage.getItem('equilibra_last_booked_code');
+      if (lastCode === idOrCode) {
+        localStorage.removeItem('equilibra_last_booked_code');
+      }
+      window.dispatchEvent(new CustomEvent('equilibra_appointment_deleted', { detail: { idOrCode } }));
+    } catch (e) {
+      console.error('Error removing appointment from localStorage:', e);
+    }
+  }
+
+  // 2. Remove from backend server
+  try {
+    await fetch(`/api/appointments/${encodeURIComponent(idOrCode)}`, {
+      method: 'DELETE',
+    });
+  } catch (err) {
+    console.warn('[deleteAppointment] Server call error:', err);
+  }
+
+  // 3. Remove from Supabase if configured
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('appointments').delete().or(`id.eq.${idOrCode},code.eq.${idOrCode}`);
+    } catch (err) {
+      console.warn('[deleteAppointment] Supabase delete error:', err);
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Permanently clears all appointments across localStorage, the server disk/memory cache, and Supabase.
+ */
+export async function clearAllAppointmentsFromSystem(): Promise<{ success: boolean; message: string }> {
+  // 1. Clear all localStorage appointment keys
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_APPOINTMENTS_KEY);
+      localStorage.removeItem('equilibra_appointments');
+      localStorage.removeItem('appointments');
+      localStorage.removeItem('equilibra_last_booked_code');
+      window.dispatchEvent(new CustomEvent('equilibra_appointments_cleared'));
+      window.dispatchEvent(new CustomEvent('equilibra_appointment_saved', { detail: null }));
+    } catch (e) {
+      console.error('Error clearing local appointments:', e);
+    }
+  }
+
+  // 2. Clear server memory and disk
+  try {
+    const res = await fetch('/api/appointments/all', {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      console.warn('[clearAllAppointments] Server returned status:', res.status);
+    }
+  } catch (err) {
+    console.warn('[clearAllAppointments] Server delete error:', err);
+  }
+
+  // 3. Clear Supabase table if configured
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('appointments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    } catch (err) {
+      console.warn('[clearAllAppointments] Supabase delete error:', err);
+    }
+  }
+
+  return {
+    success: true,
+    message: 'Todas las citas han sido eliminadas exitosamente.',
+  };
+}
