@@ -99,6 +99,8 @@ import {
   SecurityAuditEntry,
   recordSecurityEvent,
   maskSensitiveData,
+  setStaffSession,
+  clearStaffSession,
 } from '../utils/security';
 import { SERVICES_DATA } from '../data/servicesData';
 import { TEAM_MEMBERS } from '../data/teamData';
@@ -572,6 +574,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     const result = verifyUserPin(currentSelectedUser.id, pin);
     if (result.success && result.user) {
       setAuthenticatedUser(result.user);
+      setStaffSession(result.user);
       setPin('');
       recordSecurityEvent({
         action: 'AUTH_SUCCESS',
@@ -596,6 +599,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       const bioResult = await authenticateWithBiometrics(currentSelectedUser.id);
       if (bioResult.success) {
         setAuthenticatedUser(currentSelectedUser);
+        setStaffSession(currentSelectedUser);
         setBiometricRegisteredForUser(currentSelectedUser.id, true);
         recordSecurityEvent({
           action: 'AUTH_SUCCESS',
@@ -628,6 +632,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
 
   const handleLogout = () => {
     setAuthenticatedUser(null);
+    clearStaffSession();
     setPin('');
     if (sessionTimeoutRef.current) clearTimeout(sessionTimeoutRef.current);
   };
@@ -2497,21 +2502,22 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-transparent border border-amber-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <p className="text-[11px] uppercase tracking-widest font-extrabold text-amber-600 dark:text-amber-400">Notas de actualización</p>
-                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">EQUILIBRA V1.10</h3>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Cambios disponibles para especialistas y administración</p>
+                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">EQUILIBRA V1.11</h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Mejoras de seguridad, estabilidad del sistema y experiencia clínica</p>
                       </div>
                       <span className="px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">ACTUALIZACIÓN ACTIVA</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[
-                        ['Paquetes y sesiones', 'Un solo código por paquete, contador de sesiones y etiquetas como Paquete 1/10.'],
-                        ['Selección de días', 'Los pacientes pueden elegir varios días pendientes desde el portal con su código.'],
-                        ['Usuarios persistentes', 'Cada reserva crea o actualiza el paciente en Supabase sin duplicarlo.'],
-                        ['Cancelaciones', 'Se conservan motivo, fecha, recargo e historial de cancelaciones del paciente.'],
-                        ['Cierre mensual', 'El Excel incluye resumen mensual, citas, paquetes, cancelaciones, especialistas y auditoría.'],
-                        ['Seguridad', 'Los expedientes no se borran físicamente: se archivan para conservar su historial.'],
-                        ['Supabase', 'Se añadieron columnas para paquetes, sesiones, cancelaciones y estado archivado.'],
+                        ['Seguridad y accesos', 'Protección de accesos del personal médico y administración general.'],
+                        ['Privacidad de datos', 'Resguardo de la información y privacidad de las citas de los pacientes.'],
+                        ['Estabilidad y conexión', 'Optimización de enlaces y compatibilidad de navegación en tiempo real.'],
+                        ['Protección del sistema', 'Control de solicitudes y prevención de acciones no autorizadas.'],
+                        ['Paquetes y sesiones', 'Gestión de paquetes de tratamiento, contador de sesiones y portal de autoservicio.'],
+                        ['Fichas de pacientes', 'Sincronización fluida de pacientes y conservación segura de expedientes.'],
+                        ['Cancelaciones e historial', 'Registro de cancelaciones, reprogramaciones e historial del consultorio.'],
+                        ['Reportes y cierres', 'Exportación de métricas de agenda y cierres mensuales consolidados.'],
                       ].map(([title, description]) => (
                         <div key={title} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
                           <div className="flex items-start gap-2">
@@ -2526,7 +2532,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     </div>
 
                     <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
-                      <strong className="text-slate-900 dark:text-white">Importante:</strong> para que los usuarios, paquetes y cancelaciones se guarden en la nube, debe estar ejecutado en Supabase el esquema SQL de la V1.10 desde la pestaña Configuración.
+                      <strong className="text-slate-900 dark:text-white">Estado del sistema:</strong> Todas las funciones de reserva, portal de pacientes y panel administrativo están operativas y protegidas.
                     </div>
                   </div>
                 )}

@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Appointment, ContactMessage, SupabaseConfig, PatientRecord, MedicalRecordDocument } from '../types';
+import { getStaffAuthHeaders } from '../utils/security';
 
 const STORAGE_KEY_APPOINTMENTS = 'equilibra_saved_appointments';
 const STORAGE_KEY_MESSAGES = 'equilibra_local_messages';
@@ -254,7 +255,7 @@ export function saveSupabaseCredentials(url: string, key: string): boolean {
     // Persist to server config for all devices
     fetch('/api/config', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getStaffAuthHeaders(),
       body: JSON.stringify({ supabaseUrl: cleanUrl, supabaseAnonKey: cleanKey }),
     }).catch(err => console.warn('[saveSupabaseCredentials] Server sync note:', err));
 
@@ -666,7 +667,9 @@ export async function getPatientsFromDb(): Promise<PatientRecord[]> {
 
   // 1. Try server API
   try {
-    const res = await fetch('/api/patients');
+    const res = await fetch('/api/patients', {
+      headers: getStaffAuthHeaders(),
+    });
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data) && json.data.length > 0) {
@@ -742,7 +745,7 @@ export async function insertPatientInDb(patient: PatientRecord): Promise<{ succe
   try {
     const res = await fetch('/api/patients', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getStaffAuthHeaders(),
       body: JSON.stringify(patient),
     });
     if (res.ok) {

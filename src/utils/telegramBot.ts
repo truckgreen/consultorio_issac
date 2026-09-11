@@ -1,6 +1,7 @@
 import { ConfirmedAppointment, TelegramConfig } from '../types';
 import { TEAM_MEMBERS } from '../data/teamData';
 import { saveClinicSettingToSupabase } from '../lib/supabase';
+import { getStaffAuthHeaders } from './security';
 
 const TELEGRAM_CONFIG_STORAGE_KEY = 'equilibra_telegram_config';
 
@@ -72,7 +73,7 @@ export function saveTelegramConfig(config: Partial<TelegramConfig>): TelegramCon
     // Persist to server config and Supabase Cloud Database for all devices
     fetch('/api/config', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getStaffAuthHeaders(),
       body: JSON.stringify({
         telegramToken: updated.botToken,
         telegramChatId: updated.chatId,
@@ -144,7 +145,7 @@ export async function sendTelegramBookingAlert(
   try {
     const res = await fetch('/api/telegram/notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getStaffAuthHeaders(),
       body: JSON.stringify({
         appointment,
         customToken: config.botToken || undefined,
@@ -268,7 +269,7 @@ export async function testTelegramNotification(
   try {
     const res = await fetch('/api/telegram/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getStaffAuthHeaders(),
       body: JSON.stringify({ token: cleanToken, chatId: cleanChatId }),
     });
     if (res.ok) {

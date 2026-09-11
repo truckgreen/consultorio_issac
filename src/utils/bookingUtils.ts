@@ -6,6 +6,7 @@ import {
   generateSecureCode,
   recordSecurityEvent,
   maskSensitiveData,
+  getStaffAuthHeaders,
 } from './security';
 import { notifySpecialistNewAppointment } from './notificationUtils';
 import { sendTelegramBookingAlert } from './telegramBot';
@@ -142,7 +143,9 @@ export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointmen
 
   // 1. Try server API first
   try {
-    const res = await fetch('/api/appointments');
+    const res = await fetch('/api/appointments', {
+      headers: getStaffAuthHeaders(),
+    });
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -952,6 +955,7 @@ export async function deleteAppointmentFromStorageAndServer(idOrCode: string): P
   try {
     await fetch(`/api/appointments/${encodeURIComponent(idOrCode)}`, {
       method: 'DELETE',
+      headers: getStaffAuthHeaders(),
     });
   } catch (err) {
     console.warn('[deleteAppointment] Server call error:', err);
@@ -991,6 +995,7 @@ export async function clearAllAppointmentsFromSystem(): Promise<{ success: boole
   try {
     const res = await fetch('/api/appointments/all', {
       method: 'DELETE',
+      headers: getStaffAuthHeaders(),
     });
     if (!res.ok) {
       console.warn('[clearAllAppointments] Server returned status:', res.status);

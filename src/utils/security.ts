@@ -458,3 +458,56 @@ export function purgeLocalPatientData(): boolean {
     return false;
   }
 }
+
+/**
+ * Staff and Administrative Session Security Management
+ */
+const STAFF_AUTH_SESSION_KEY = 'equilibra_staff_auth_session';
+
+export function setStaffSession(user: { id: string; role?: string; name?: string }): string {
+  if (typeof window === 'undefined') return '';
+  const payload = {
+    userId: user.id,
+    role: user.role || 'staff',
+    name: user.name || '',
+    issuedAt: Date.now(),
+    expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24-hour validity
+  };
+  const token = btoa(JSON.stringify(payload));
+  try {
+    sessionStorage.setItem(STAFF_AUTH_SESSION_KEY, token);
+    localStorage.setItem(STAFF_AUTH_SESSION_KEY, token);
+  } catch (e) {
+    console.warn('Storage warning for staff session:', e);
+  }
+  return token;
+}
+
+export function getStaffSessionToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return sessionStorage.getItem(STAFF_AUTH_SESSION_KEY) || localStorage.getItem(STAFF_AUTH_SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function clearStaffSession(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(STAFF_AUTH_SESSION_KEY);
+    localStorage.removeItem(STAFF_AUTH_SESSION_KEY);
+  } catch {}
+}
+
+export function getStaffAuthHeaders(): Record<string, string> {
+  const token = getStaffSessionToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['x-equilibra-auth'] = token;
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
