@@ -77,7 +77,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState<string>(
     initialServiceId || 'fisioterapia'
   );
-  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string>('isaac-jewsiejew');
+  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<ServicePricingTier>({
     name: 'Sesión de fisioterapia',
     description: 'Evaluación + tratamiento personalizado',
@@ -125,10 +125,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       });
     }
 
-    // Automatically match specialist for selected service
-    const assignedSpec = getAssignedSpecialistForService(selectedServiceId);
-    if (assignedSpec) {
-      setSelectedSpecialistId(assignedSpec.id);
+    if (selectedServiceId === 'fisioterapia') {
+      setSelectedSpecialistId(null);
+    } else {
+      setSelectedSpecialistId(getAssignedSpecialistForService(selectedServiceId).id);
     }
   }, [selectedServiceId, currentService]);
 
@@ -173,10 +173,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
     if (!selectedDate) errors.fecha = 'Selecciona una fecha en el calendario.';
     if (!selectedTime) errors.hora = 'Selecciona un horario disponible.';
+    if (selectedServiceId === 'fisioterapia' && !selectedSpecialistId) {
+      errors.especialista = 'Selecciona el especialista que atenderá tu sesión.';
+    }
     if (!privacyConsent) errors.privacy = 'Debes aceptar los términos de confidencialidad médica.';
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  const handleContinueToCalendar = () => {
+    if (selectedServiceId === 'fisioterapia' && !selectedSpecialistId) {
+      setFormErrors({ especialista: 'Selecciona Isaac o Gabriela antes de continuar.' });
+      return;
+    }
+    setFormErrors({});
+    setStep(2);
   };
 
   const handleFinalSubmit = async (e: React.FormEvent) => {
@@ -220,7 +232,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         packageTotalSessions,
         packageSessionNumber: 1,
         specialistId: chosenSpecialist ? chosenSpecialist.id : undefined,
-        specialistName: chosenSpecialist ? chosenSpecialist.name : 'Lic. Isaac Jewsiejew',
+        specialistName: chosenSpecialist?.name || '',
         nombre: sanitizeString(nombre, 60),
         apellido: sanitizeString(apellido, 60),
         telefono: sanitizeString(telefono, 30),
@@ -356,17 +368,36 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
             </div>
 
-            {/* Specialist Automatically Assigned Card */}
+            {/* Specialist selection */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  2. Especialista Asignado (Automático):
+                  2. Especialista:
                 </label>
-                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Asignado por especialidad
-                </span>
+                {selectedServiceId !== 'fisioterapia' && <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Asignado por especialidad</span>}
               </div>
-              {(() => {
+              {selectedServiceId === 'fisioterapia' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {SPECIALISTS_ACCOUNTS.filter((specialist) => ['isaac-jewsiejew', 'gabriela-rodriguez'].includes(specialist.id)).map((specialist) => {
+                    const isSelected = selectedSpecialistId === specialist.id;
+                    return (
+                      <button
+                        key={specialist.id}
+                        type="button"
+                        onClick={() => setSelectedSpecialistId(specialist.id)}
+                        className={`p-3 rounded-xl border text-left flex items-center gap-3 transition-all ${isSelected ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-500/30' : 'border-slate-200 dark:border-slate-800 hover:border-amber-300 bg-slate-50 dark:bg-slate-900/40'}`}
+                      >
+                        <img src={specialist.avatarUrl} alt={specialist.name} className="w-11 h-11 rounded-full object-cover border border-slate-300 shrink-0" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-bold text-sm text-slate-900 dark:text-white truncate">{specialist.name}</span>
+                          <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">{specialist.role}</span>
+                        </span>
+                        {isSelected && <Check className="w-4 h-4 text-amber-600 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (() => {
                 const assignedSpec = getAssignedSpecialistForService(selectedServiceId);
                 return (
                   <div className="p-3 sm:p-3.5 rounded-xl border border-amber-500/50 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-950/40 dark:via-amber-950/20 dark:to-transparent flex items-center justify-between gap-3 shadow-sm">
@@ -401,6 +432,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   </div>
                 );
               })()}
+              {formErrors.especialista && <p className="text-xs text-red-500 mt-2">{formErrors.especialista}</p>}
             </div>
 
             {/* Packages / Pricing Tiers selector */}
@@ -460,12 +492,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   );
                 })}
               </div>
+              {Number(selectedPackage.name.match(/(\d+)\s*sesiones?/i)?.[1] || 1) > 1 && (
+                <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2">
+                  Después de confirmar la cita recibirás un código. Con ese código podrás elegir los días restantes de tu paquete.
+                </p>
+              )}
+              {formErrors.especialista && <p className="text-xs text-red-500 mt-2">{formErrors.especialista}</p>}
             </div>
 
             <div className="flex items-center justify-end pt-3 sm:pt-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
               <button
                 type="button"
-                onClick={() => setStep(2)}
+                onClick={handleContinueToCalendar}
                 className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20 transition-all"
               >
                 <span>Continuar a Calendario</span>
@@ -497,7 +535,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   {currentService.title} • {selectedPackage.name}
                 </span>
                 <span className="text-slate-500 dark:text-slate-400 text-[11px] block truncate">
-                  Especialista: {SPECIALISTS_ACCOUNTS.find((s) => s.id === selectedSpecialistId)?.name || 'Lic. Isaac Jewsiejew'}
+                  Especialista: {SPECIALISTS_ACCOUNTS.find((s) => s.id === selectedSpecialistId)?.name || 'Por elegir'}
                 </span>
               </div>
               <span className="font-extrabold text-xs sm:text-sm text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900 px-3 py-1 rounded-xl border border-amber-200 dark:border-amber-900 self-start sm:self-auto shrink-0 shadow-sm">
@@ -659,7 +697,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-left space-y-2">
               <div className="flex justify-between items-center pb-2 border-b border-amber-200/60 dark:border-amber-800">
                 <span className="text-xs text-amber-800 dark:text-amber-300 font-semibold">Código de Cita:</span>
-                <span className="font-mono font-bold text-base sm:text-lg text-amber-950 dark:text-amber-200">{createdAppointment.code}</span>
+                <span className="font-mono font-bold text-base sm:text-lg text-amber-950 dark:text-amber-200">{createdAppointment.packageCode || createdAppointment.code}</span>
               </div>
               <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 text-xs pt-1">
                 <div>
@@ -687,7 +725,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   type="button"
                   onClick={() => {
                     onClose();
-                    onOpenPatientPortal(createdAppointment.code);
+                    onOpenPatientPortal(createdAppointment.packageCode || createdAppointment.code);
                   }}
                   className="py-3 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-slate-100 shadow-md transition-all active:scale-[0.98]"
                 >

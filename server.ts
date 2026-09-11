@@ -464,7 +464,9 @@ async function startServer() {
       const email = appointment.email || 'Sin email';
       const date = appointment.fecha || 'Fecha por confirmar';
       const time = appointment.hora || 'Horario por confirmar';
-      const code = appointment.code || 'EQUILIBRA';
+      const totalSessions = Number(appointment.packageTotalSessions || appointment.package_total_sessions || packageName.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
+      const sessionNumber = Number(appointment.packageSessionNumber || appointment.package_session_number || 1);
+      const packageCode = appointment.packageCode || appointment.package_code || appointment.code || 'EQUILIBRA';
       const motivo = (appointment.motivoConsulta || appointment.motivo || 'Consulta general')
         .replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&');
 
@@ -475,12 +477,13 @@ async function startServer() {
 📞 *Teléfono:* \`${phone}\`
 📧 *Email:* \`${email}\`
 🏷️ *Reserva:* *${packageName}*
+📊 *Sesión:* ${sessionNumber}/${totalSessions}
 🩺 *Área:* ${serviceName}
 💵 *Tarifa:* ${price}
 👨‍⚕️ *Especialista Asignado:* ${specialist}
 📅 *Fecha:* ${date}
 ⏰ *Horario:* ${time}
-🔖 *Código de Cita:* \`${code}\`
+🔖 *Código de paquete:* \`${packageCode}\`
 📍 *Sede:* Sabana Grande, Centro Profesional del Este
 📝 *Motivo / Síntomas:* _${motivo}_
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -604,7 +607,6 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
           telefono: appointment.telefono,
           email: appointment.email,
           motivo_consulta: appointment.motivoConsulta || appointment.motivo || '',
-          motivo: appointment.motivoConsulta || appointment.motivo || '',
           primera_visita: appointment.primera_visita ?? appointment.primeraVisita ?? true,
           status: (appointment.status || 'CONFIRMADA').toUpperCase(),
           specialist_id: appointment.specialist_id || appointment.specialistId || 'isaac-jewsiejew',
@@ -672,6 +674,9 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
       try {
         const serviceName = appointment.service_title || appointment.serviceTitle || appointment.service_id || 'Fisioterapia';
         const packageName = appointment.selectedPackageName || appointment.selected_package_name || (appointment.primeraVisita ? 'Evaluación Inicial' : 'Sesión Estándar');
+        const totalSessions = Number(appointment.packageTotalSessions || appointment.package_total_sessions || packageName.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
+        const sessionNumber = Number(appointment.packageSessionNumber || appointment.package_session_number || 1);
+        const packageCode = appointment.packageCode || appointment.package_code || appointment.code || 'EQUILIBRA';
         const price = appointment.selectedPackagePrice || appointment.servicePrice || '35 USD';
         const specialist = appointment.specialistName || appointment.specialist_name || 'Lic. Isaac Jewsiejew';
         const patientName = `${appointment.nombre} ${appointment.apellido}`;
@@ -684,12 +689,13 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
 📞 *Teléfono:* \`${appointment.telefono}\`
 📧 *Email:* \`${appointment.email}\`
 🏷️ *Reserva:* *${packageName}*
+📊 *Sesión:* ${sessionNumber}/${totalSessions}
 🩺 *Área:* ${serviceName}
 💵 *Tarifa:* ${price}
 👨‍⚕️ *Especialista Asignado:* ${specialist}
 📅 *Fecha:* ${appointment.fecha}
 ⏰ *Horario:* ${appointment.hora}
-🔖 *Código de Cita:* \`${appointment.code}\`
+🔖 *Código de paquete:* \`${packageCode}\`
 📍 *Sede:* Sabana Grande, Centro Profesional del Este
 📝 *Motivo / Síntomas:* _${motivo}_
 ━━━━━━━━━━━━━━━━━━━━━━

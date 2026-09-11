@@ -49,6 +49,16 @@ import {
   maskSensitiveData,
 } from '../utils/security';
 
+const getPackageTotalSessions = (appointment: ConfirmedAppointment): number => {
+  const packageName = String(appointment.selectedPackageName || '').replace(/\s+/g, ' ').trim();
+  const nameTotal = Number(packageName.match(/(\d+)\s*sesiones?/i)?.[1] || 0);
+  return Math.max(appointment.packageTotalSessions || 0, nameTotal, /paquete/i.test(packageName) ? 10 : 1);
+};
+
+const getPackageAccessCode = (appointment: ConfirmedAppointment): string => {
+  return appointment.packageCode || appointment.code;
+};
+
 interface PatientPortalModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -98,6 +108,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
 
   const [packageDate, setPackageDate] = useState('');
   const [packageTime, setPackageTime] = useState('');
+  const [selectedPackageDays, setSelectedPackageDays] = useState<Array<{ date: string; time: string }>>([]);
   const [isAddingPackageDay, setIsAddingPackageDay] = useState(false);
 
   // Robust Normalization & Matching Helpers
@@ -185,6 +196,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     setSearchError(null);
     setFoundAppointment(null);
     setAppointmentsList([]);
+    setSelectedPackageDays([]);
     setIsRescheduling(false);
     setIsCanceling(false);
     setCancellationResult(null);
@@ -209,9 +221,9 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
         return matchesAppointmentCode(app, rawQuery);
       });
 
-      const packageAccessMatch = matches.find((app) => app.packageCode);
-      if (packageAccessMatch?.packageCode) {
-        matches = pool.filter((app) => app.packageCode === packageAccessMatch.packageCode);
+      const packageAccessMatch = matches.find((app) => getPackageTotalSessions(app) > 1);
+      if (packageAccessMatch) {
+        matches = pool.filter((app) => getPackageAccessCode(app) === getPackageAccessCode(packageAccessMatch));
       }
 
       // If optional validator is provided AND multiple matches exist, narrow down safely
@@ -247,14 +259,12 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
       } else {
         matches.sort((a, b) => new Date(b.createdAt || b.fecha).getTime() - new Date(a.createdAt || a.fecha).getTime());
         const exactCodeMatches = matches.filter((app) => matchesAppointmentCode(app, rawQuery));
-        const packageMatches = exactCodeMatches.length > 0 && exactCodeMatches.some((app) => (app.packageTotalSessions || 1) > 1)
-          ? exactCodeMatches
-          : matches;
-        setAppointmentsList(packageMatches);
-        if (packageMatches !== matches) {
-          setFoundAppointment(packageMatches[0]);
-          setPackageDate(packageMatches[0].fecha);
-          setPackageTime(packageMatches[0].hora);
+        const isPackageSearch = exactCodeMatches.length > 0 && exactCodeMatches.some((app) => getPackageTotalSessions(app) > 1);
+        setAppointmentsList(matches);
+        if (isPackageSearch) {
+          setFoundAppointment(matches[0]);
+          setPackageDate(matches[0].fecha);
+          setPackageTime(matches[0].hora);
         }
         recordSecurityEvent({
           action: 'BOOKING_SUCCESS',
@@ -291,6 +301,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
       setSearchError(null);
       setFoundAppointment(null);
       setAppointmentsList([]);
+      setSelectedPackageDays([]);
       setIsRescheduling(false);
       setIsCanceling(false);
     }
@@ -317,38 +328,58 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
 
   const handleAddPackageDay = async () => {
     if (!foundAppointment || !packageDate || !packageTime) return;
-    const totalSessions = foundAppointment.packageTotalSessions || 1;
+    const totalSessions = getPackageTotalSessions(foundAppointment);
     const packageAppointments = appointmentsList.filter(
-      (appointment) => (appointment.packageCode || appointment.code) === (foundAppointment.packageCode || foundAppointment.code)
+      (appointment) => getPackageAccessCode(appointment) === getPackageAccessCode(foundAppointment)
     );
     const activeAppointments = packageAppointments.filter((appointment) => appointment.status !== 'cancelada' && appointment.status !== 'CANCELADA');
     if (totalSessions <= 1 || activeAppointments.length >= totalSessions) return;
-    if (activeAppointments.some((appointment) => appointment.fecha === packageDate && appointment.hora === packageTime)) {
+    if (activeAppointments.some((appointment) => appointment.fecha === packageDate && appointment.hora === packageTime) || selectedPackageDays.some((day) => day.date === packageDate && day.time === packageTime)) {
       setSearchError('Ese día y horario ya forman parte de tu paquete. Elige otro horario.');
       return;
     }
+    if (selectedPackageDays.length >= totalSessions - activeAppointments.length) {
+      setSearchError('Ya seleccionaste todos los días disponibles para guardar.');
+      return;
+    }
+    setSelectedPackageDays((previous) => [...previous, { date: packageDate, time: packageTime }]);
+    setSearchError(null);
+    setRescheduleSuccessMessage('Día añadido a tu selección. Puedes elegir más días antes de confirmar.');
+  };
 
+  const handleConfirmPackageDays = async () => {
+    if (!foundAppointment || selectedPackageDays.length === 0) return;
+    const totalSessions = getPackageTotalSessions(foundAppointment);
+    const packageAppointments = appointmentsList.filter(
+      (appointment) => getPackageAccessCode(appointment) === getPackageAccessCode(foundAppointment)
+    );
+    const activeAppointments = packageAppointments.filter((appointment) => appointment.status !== 'cancelada' && appointment.status !== 'CANCELADA');
     setIsAddingPackageDay(true);
     setSearchError(null);
     try {
-      const nextSessionNumber = activeAppointments.length + 1;
-      const newAppointment: ConfirmedAppointment = {
-        ...foundAppointment,
-        id: `app_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        fecha: packageDate,
-        hora: packageTime,
-        code: `${foundAppointment.code}-${nextSessionNumber}`,
-        packageCode: foundAppointment.packageCode || foundAppointment.code,
-        packageSessionNumber: nextSessionNumber,
-        createdAt: new Date().toISOString(),
-        status: 'confirmada',
-      };
-      await saveAppointmentToDatabase(newAppointment);
-      setAppointmentsList((previous) => [...previous, newAppointment]);
-      setRescheduleSuccessMessage(`Día ${nextSessionNumber} de ${totalSessions} agregado correctamente.`);
+      const newAppointments: ConfirmedAppointment[] = [];
+      for (const [index, day] of selectedPackageDays.entries()) {
+        const sessionNumber = activeAppointments.length + index + 1;
+        const newAppointment: ConfirmedAppointment = {
+          ...foundAppointment,
+          id: `app_${Date.now()}_${sessionNumber}_${Math.random().toString(36).slice(2, 8)}`,
+          fecha: day.date,
+          hora: day.time,
+          code: `${foundAppointment.code}-${sessionNumber}`,
+          packageCode: getPackageAccessCode(foundAppointment),
+          packageSessionNumber: sessionNumber,
+          createdAt: new Date().toISOString(),
+          status: 'confirmada',
+        };
+        await saveAppointmentToDatabase(newAppointment);
+        newAppointments.push(newAppointment);
+      }
+      setAppointmentsList((previous) => [...previous, ...newAppointments]);
+      setSelectedPackageDays([]);
+      setRescheduleSuccessMessage(`${newAppointments.length} día(s) de tu paquete guardado(s) correctamente.`);
     } catch (error) {
-      console.error('Error adding package day:', error);
-      setSearchError('No se pudo guardar ese día del paquete. Intenta nuevamente.');
+      console.error('Error saving package days:', error);
+      setSearchError('No se pudieron guardar todos los días seleccionados. Intenta nuevamente.');
     } finally {
       setIsAddingPackageDay(false);
     }
@@ -442,10 +473,11 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     : 0;
   const packageAppointments = foundAppointment
     ? appointmentsList.filter(
-        (appointment) => (appointment.packageCode || appointment.code) === (foundAppointment.packageCode || foundAppointment.code)
+        (appointment) => getPackageAccessCode(appointment) === getPackageAccessCode(foundAppointment)
       )
     : [];
-  const packageTotalSessions = foundAppointment?.packageTotalSessions || 1;
+  const packageTotalSessions = foundAppointment ? getPackageTotalSessions(foundAppointment) : 1;
+  const isPackageAppointment = Boolean(foundAppointment && getPackageTotalSessions(foundAppointment) > 1);
   const packageUsedSessions = packageAppointments.filter(
     (appointment) => appointment.status !== 'cancelada' && appointment.status !== 'CANCELADA'
   ).length;
@@ -464,7 +496,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ duration: 0.2 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-2xl bg-white dark:bg-[#121824] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-8"
+          className="relative w-full max-w-2xl max-h-[calc(100vh-1.5rem)] flex flex-col bg-white dark:bg-[#121824] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-3"
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 p-5 sm:p-6 text-white border-b border-slate-800 flex items-center justify-between">
@@ -497,7 +529,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
             </button>
           </div>
 
-          <div className="p-5 sm:p-6 space-y-6">
+          <div className="p-5 sm:p-6 space-y-6 overflow-y-auto flex-1 min-h-0 overscroll-contain">
             {/* Search Box */}
             <form
               onSubmit={handleSearch}
@@ -757,11 +789,16 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
                   <div>
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-400">
-                      Pase Oficial de Atención Clínica · {foundAppointment.code}
+                      Pase Oficial de Atención Clínica · {getPackageAccessCode(foundAppointment)}
                     </span>
                     <h3 className="text-xl font-extrabold text-slate-900 dark:text-white font-heading">
                       {foundAppointment.selectedPackageName || service?.title || foundAppointment.serviceId}
                     </h3>
+                    {isPackageAppointment && (
+                      <p className="text-xs font-bold text-amber-600 dark:text-amber-400 mt-1">
+                        Sesión {foundAppointment.packageSessionNumber || 1}/{packageTotalSessions}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -849,7 +886,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                   </div>
                 </div>
 
-                {packageTotalSessions > 1 && (
+                {isPackageAppointment && (
                   <div className="space-y-4 p-4 rounded-2xl bg-slate-900 text-white border border-slate-700">
                     <div className="grid grid-cols-2 gap-3 text-center">
                       <div className="rounded-xl bg-emerald-500/15 border border-emerald-400/30 p-3">
@@ -865,7 +902,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                     {packageRemainingSessions > 0 ? (
                       <div className="space-y-3">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">
-                          Elige tu próximo día
+                          Elige uno o varios días
                         </h4>
                         <BookingCalendar
                           selectedDate={packageDate}
@@ -877,12 +914,38 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                         <button
                           type="button"
                           onClick={() => void handleAddPackageDay()}
-                          disabled={isAddingPackageDay || !packageDate || !packageTime}
-                          className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                          disabled={isAddingPackageDay || !packageDate || !packageTime || selectedPackageDays.length >= packageRemainingSessions}
+                          className="w-full py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                         >
-                          {isAddingPackageDay ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CalendarCheck className="w-4 h-4" />}
-                          {isAddingPackageDay ? 'Guardando día...' : 'Guardar este día'}
+                          <CalendarCheck className="w-4 h-4" />
+                          Añadir día a la selección
                         </button>
+                        {selectedPackageDays.length > 0 && (
+                          <div className="space-y-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
+                            <p className="text-xs font-bold text-amber-200">Días seleccionados: {selectedPackageDays.length}</p>
+                            {selectedPackageDays.map((day, index) => (
+                              <div key={`${day.date}-${day.time}`} className="flex items-center justify-between gap-2 text-xs text-slate-200">
+                                <span>{index + 1}. {day.date} · {day.time}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedPackageDays((previous) => previous.filter((_, dayIndex) => dayIndex !== index))}
+                                  className="text-red-300 hover:text-red-200 font-bold"
+                                >
+                                  Quitar
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => void handleConfirmPackageDays()}
+                              disabled={isAddingPackageDay}
+                              className="w-full mt-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                              {isAddingPackageDay ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                              {isAddingPackageDay ? 'Guardando días...' : `Confirmar ${selectedPackageDays.length} día(s)`}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-center text-sm font-semibold text-emerald-300">

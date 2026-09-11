@@ -104,6 +104,9 @@ export function notifySpecialistNewAppointment(appointment: ConfirmedAppointment
 }
 
 export function generateWhatsAppAlertUrl(appointment: ConfirmedAppointment, specialistPhone = '584126388484'): string {
+  const totalSessions = appointment.packageTotalSessions || Number(appointment.selectedPackageName?.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
+  const sessionNumber = appointment.packageSessionNumber || 1;
+  const packageCode = appointment.packageCode || appointment.code;
   const text = `🔔 *NUEVA CITA AGENDADA - EQUILIBRA* 🔔\n\n` +
     `👤 *Paciente:* ${appointment.nombre} ${appointment.apellido}\n` +
     `📅 *Fecha:* ${appointment.fecha}\n` +
@@ -111,7 +114,8 @@ export function generateWhatsAppAlertUrl(appointment: ConfirmedAppointment, spec
     `🩺 *Servicio / Paquete:* ${appointment.selectedPackageName || appointment.serviceId} (${appointment.selectedPackagePrice || appointment.servicePrice || 'Tarifa estándar'})\n` +
     `👨‍⚕️ *Especialista:* ${appointment.specialistName || 'Asignado'}\n` +
     `📞 *Teléfono Paciente:* ${appointment.telefono}\n` +
-    `🔑 *Código de Cita:* ${appointment.code}\n` +
+    `📊 *Sesión:* ${sessionNumber}/${totalSessions}\n` +
+    `🔑 *Código de paquete:* ${packageCode}\n` +
     (appointment.motivoConsulta ? `📝 *Motivo:* ${appointment.motivoConsulta}\n` : '') +
     `\n✅ _Cita registrada en tiempo real en la plataforma EQUILIBRA._`;
 

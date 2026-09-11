@@ -81,7 +81,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState<string>(
     preselectedServiceId || 'fisioterapia'
   );
-  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string>('isaac-jewsiejew');
+  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<ServicePricingTier>({
     name: 'Sesión de fisioterapia',
     description: 'Evaluación + tratamiento personalizado',
@@ -154,10 +154,10 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
       });
     }
 
-    // Automatically match specialist for selected service
-    const assignedSpec = getAssignedSpecialistForService(selectedServiceId);
-    if (assignedSpec) {
-      setSelectedSpecialistId(assignedSpec.id);
+    if (selectedServiceId === 'fisioterapia') {
+      setSelectedSpecialistId(null);
+    } else {
+      setSelectedSpecialistId(getAssignedSpecialistForService(selectedServiceId).id);
     }
   }, [selectedServiceId, currentServiceObj]);
 
@@ -205,6 +205,10 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
 
     if (!selectedTime) {
       errors.hora = 'Por favor selecciona un horario disponible.';
+    }
+
+    if (selectedServiceId === 'fisioterapia' && !selectedSpecialistId) {
+      errors.especialista = 'Selecciona el especialista que atenderá tu sesión.';
     }
 
     if (!privacyConsent) {
@@ -258,7 +262,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
         packageTotalSessions,
         packageSessionNumber: 1,
         specialistId: chosenSpecialist ? chosenSpecialist.id : undefined,
-        specialistName: chosenSpecialist ? chosenSpecialist.name : 'Lic. Isaac Jewsiejew',
+        specialistName: chosenSpecialist?.name || '',
         nombre: sanitizeString(nombre, 60),
         apellido: sanitizeString(apellido, 60),
         telefono: sanitizeString(telefono, 30),
@@ -470,19 +474,38 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                 })}
               </div>
 
-              {/* Specialist Automatically Assigned Subsection */}
+              {/* Specialist selection */}
               <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Especialista Clínico Responsable (Asignado Automáticamente)</span>
+                    <span>Especialista Clínico Responsable</span>
                   </h4>
-                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Vinculación directa
-                  </span>
+                  {selectedServiceId !== 'fisioterapia' && <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Asignado por especialidad</span>}
                 </div>
 
-                {(() => {
+                {selectedServiceId === 'fisioterapia' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {SPECIALISTS_ACCOUNTS.filter((specialist) => ['isaac-jewsiejew', 'gabriela-rodriguez'].includes(specialist.id)).map((specialist) => {
+                      const isSelected = selectedSpecialistId === specialist.id;
+                      return (
+                        <button
+                          key={specialist.id}
+                          type="button"
+                          onClick={() => setSelectedSpecialistId(specialist.id)}
+                          className={`p-3 rounded-2xl border text-left flex items-center gap-3 transition-all ${isSelected ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-500/30' : 'border-slate-200 dark:border-slate-800 hover:border-amber-300 bg-slate-50 dark:bg-slate-900/40'}`}
+                        >
+                          <img src={specialist.avatarUrl} alt={specialist.name} className="w-12 h-12 rounded-full object-cover border border-slate-300 shrink-0" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-bold text-sm text-slate-900 dark:text-white truncate">{specialist.name}</span>
+                            <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">{specialist.role}</span>
+                          </span>
+                          {isSelected && <Check className="w-4 h-4 text-amber-600 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (() => {
                   const assignedSpec = getAssignedSpecialistForService(selectedServiceId);
                   return (
                     <div className="p-4 rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-950/40 dark:via-amber-950/20 dark:to-transparent flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
@@ -517,6 +540,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                     </div>
                   );
                 })()}
+                {formErrors.especialista && <p className="text-xs text-red-500 mt-2">{formErrors.especialista}</p>}
               </div>
 
               {/* Package / Pricing Tiers Subsection */}
@@ -578,6 +602,11 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                     );
                   })}
                 </div>
+                {Number(selectedPackage.name.match(/(\d+)\s*sesiones?/i)?.[1] || 1) > 1 && (
+                  <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2">
+                    Al confirmar recibirás un código para entrar al portal y elegir los días restantes de tu paquete.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -981,12 +1010,12 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                       Código de reserva / comprobante:
                     </span>
                     <span className="text-xl sm:text-2xl font-mono font-extrabold text-amber-950 dark:text-amber-200">
-                      {latestAppointment.code}
+                      {latestAppointment.packageCode || latestAppointment.code}
                     </span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleCopyCode(latestAppointment.code)}
+                    onClick={() => handleCopyCode(latestAppointment.packageCode || latestAppointment.code)}
                     className="p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-700/60 transition-all flex items-center gap-1.5 text-xs font-semibold"
                   >
                     {copiedCode ? (
@@ -1071,7 +1100,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   {onOpenPatientPortal && (
                     <button
                       type="button"
-                      onClick={() => onOpenPatientPortal(latestAppointment.code)}
+                      onClick={() => onOpenPatientPortal(latestAppointment.packageCode || latestAppointment.code)}
                       className="px-5 py-3 rounded-xl bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all"
                     >
                       <Search className="w-4 h-4 text-amber-500" />
