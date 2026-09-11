@@ -638,6 +638,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       const result = exportAppointmentsToExcel({
         appointments,
         specialistFilterId: specialistFilter,
+        filenamePrefix: 'EQUILIBRA_Cierre_Mensual',
       });
       if (result.success) {
         setExportMessage(`¡Base de datos exportada a Excel (${result.filename}) correctamente!`);

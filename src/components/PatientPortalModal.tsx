@@ -33,6 +33,7 @@ import { ConfirmedAppointment } from '../types';
 import {
   getAppointmentsFromDatabase,
   getSavedAppointments,
+  saveAppointmentToDatabase,
   generateIcsCalendar,
   rescheduleAppointmentInDatabase,
   cancelAppointmentInDatabase,
@@ -94,6 +95,10 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     message: string;
     isSecondOrMore?: boolean;
   } | null>(null);
+
+  const [packageDate, setPackageDate] = useState('');
+  const [packageTime, setPackageTime] = useState('');
+  const [isAddingPackageDay, setIsAddingPackageDay] = useState(false);
 
   // Robust Normalization & Matching Helpers
   const cleanAlphaNum = useCallback((s: string) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''), []);
@@ -201,11 +206,13 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
       const pool = Array.from(map.values());
 
       let matches = pool.filter((app) => {
-        const isCode = matchesAppointmentCode(app, rawQuery);
-        const isPhone = matchesAppointmentPhone(app, rawQuery);
-        const isText = matchesAppointmentText(app, rawQuery);
-        return isCode || isPhone || isText;
+        return matchesAppointmentCode(app, rawQuery);
       });
+
+      const packageAccessMatch = matches.find((app) => app.packageCode);
+      if (packageAccessMatch?.packageCode) {
+        matches = pool.filter((app) => app.packageCode === packageAccessMatch.packageCode);
+      }
 
       // If optional validator is provided AND multiple matches exist, narrow down safely
       if (rawValidator && matches.length > 1) {
@@ -226,7 +233,10 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
         });
       } else if (matches.length === 1) {
         const single = matches[0];
+        setAppointmentsList(matches);
         setFoundAppointment(single);
+        setPackageDate(single.fecha);
+        setPackageTime(single.hora);
         setRescheduleDate(single.fecha);
         setRescheduleTime(single.hora);
         recordSecurityEvent({
@@ -236,7 +246,16 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
         });
       } else {
         matches.sort((a, b) => new Date(b.createdAt || b.fecha).getTime() - new Date(a.createdAt || a.fecha).getTime());
-        setAppointmentsList(matches);
+        const exactCodeMatches = matches.filter((app) => matchesAppointmentCode(app, rawQuery));
+        const packageMatches = exactCodeMatches.length > 0 && exactCodeMatches.some((app) => (app.packageTotalSessions || 1) > 1)
+          ? exactCodeMatches
+          : matches;
+        setAppointmentsList(packageMatches);
+        if (packageMatches !== matches) {
+          setFoundAppointment(packageMatches[0]);
+          setPackageDate(packageMatches[0].fecha);
+          setPackageTime(packageMatches[0].hora);
+        }
         recordSecurityEvent({
           action: 'BOOKING_SUCCESS',
           severity: 'INFO',
@@ -292,6 +311,47 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     setIsCanceling(false);
     setCancellationResult(null);
     setRescheduleSuccessMessage(null);
+    setPackageDate(appointment.fecha);
+    setPackageTime(appointment.hora);
+  };
+
+  const handleAddPackageDay = async () => {
+    if (!foundAppointment || !packageDate || !packageTime) return;
+    const totalSessions = foundAppointment.packageTotalSessions || 1;
+    const packageAppointments = appointmentsList.filter(
+      (appointment) => (appointment.packageCode || appointment.code) === (foundAppointment.packageCode || foundAppointment.code)
+    );
+    const activeAppointments = packageAppointments.filter((appointment) => appointment.status !== 'cancelada' && appointment.status !== 'CANCELADA');
+    if (totalSessions <= 1 || activeAppointments.length >= totalSessions) return;
+    if (activeAppointments.some((appointment) => appointment.fecha === packageDate && appointment.hora === packageTime)) {
+      setSearchError('Ese día y horario ya forman parte de tu paquete. Elige otro horario.');
+      return;
+    }
+
+    setIsAddingPackageDay(true);
+    setSearchError(null);
+    try {
+      const nextSessionNumber = activeAppointments.length + 1;
+      const newAppointment: ConfirmedAppointment = {
+        ...foundAppointment,
+        id: `app_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        fecha: packageDate,
+        hora: packageTime,
+        code: `${foundAppointment.code}-${nextSessionNumber}`,
+        packageCode: foundAppointment.packageCode || foundAppointment.code,
+        packageSessionNumber: nextSessionNumber,
+        createdAt: new Date().toISOString(),
+        status: 'confirmada',
+      };
+      await saveAppointmentToDatabase(newAppointment);
+      setAppointmentsList((previous) => [...previous, newAppointment]);
+      setRescheduleSuccessMessage(`Día ${nextSessionNumber} de ${totalSessions} agregado correctamente.`);
+    } catch (error) {
+      console.error('Error adding package day:', error);
+      setSearchError('No se pudo guardar ese día del paquete. Intenta nuevamente.');
+    } finally {
+      setIsAddingPackageDay(false);
+    }
   };
 
   const handleDownloadIcs = () => {
@@ -380,6 +440,16 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
   const pastCancellations = foundAppointment
     ? getPatientCancellationCount(foundAppointment.email || foundAppointment.telefono)
     : 0;
+  const packageAppointments = foundAppointment
+    ? appointmentsList.filter(
+        (appointment) => (appointment.packageCode || appointment.code) === (foundAppointment.packageCode || foundAppointment.code)
+      )
+    : [];
+  const packageTotalSessions = foundAppointment?.packageTotalSessions || 1;
+  const packageUsedSessions = packageAppointments.filter(
+    (appointment) => appointment.status !== 'cancelada' && appointment.status !== 'CANCELADA'
+  ).length;
+  const packageRemainingSessions = Math.max(packageTotalSessions - packageUsedSessions, 0);
 
   return (
     <AnimatePresence>
@@ -413,7 +483,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-slate-300">
-                  Consulta tus citas por correo, teléfono o código de reservación
+                  Introduce el código que recibiste al agendar tu paquete
                 </p>
               </div>
             </div>
@@ -428,66 +498,29 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
           </div>
 
           <div className="p-5 sm:p-6 space-y-6">
-            {/* Search Mode Tabs */}
-            <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTab('email_phone');
-                  setSearchError(null);
-                }}
-                className={`flex-1 py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
-                  searchTab === 'email_phone'
-                    ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Mail className="w-4 h-4 text-amber-500" />
-                <span>Buscar por Correo o Teléfono</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTab('code');
-                  setSearchError(null);
-                }}
-                className={`flex-1 py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
-                  searchTab === 'code'
-                    ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Search className="w-4 h-4 text-amber-500" />
-                <span>Buscar por Código de Cita</span>
-              </button>
-            </div>
-
             {/* Search Box */}
             <form
               onSubmit={handleSearch}
               className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-4"
             >
-              {searchTab === 'email_phone' ? (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Correo Electrónico o Teléfono Registrado *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Ej. tu@correo.com o 04126388484"
-                      value={searchEmailOrPhone}
-                      onChange={(e) => setSearchEmailOrPhone(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    />
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                    Encontraremos todas las citas activas e históricas asociadas a tu cuenta.
-                  </p>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  Código de acceso del paquete *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Ej. EQ-8K3N-7P2W"
+                    value={searchCode}
+                    onChange={(e) => setSearchCode(e.target.value.toUpperCase())}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
                 </div>
-              ) : (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  El código es tu acceso para consultar y elegir los días pendientes.
+                </p>
+              </div>
+              {false && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
@@ -533,7 +566,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                   ) : (
                     <>
                       <Search className="w-4 h-4" />
-                      <span>Consultar Citas</span>
+                      <span>Entrar al paquete</span>
                     </>
                   )}
                 </button>
@@ -815,6 +848,49 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {packageTotalSessions > 1 && (
+                  <div className="space-y-4 p-4 rounded-2xl bg-slate-900 text-white border border-slate-700">
+                    <div className="grid grid-cols-2 gap-3 text-center">
+                      <div className="rounded-xl bg-emerald-500/15 border border-emerald-400/30 p-3">
+                        <p className="text-2xl font-black text-emerald-300">{packageUsedSessions}</p>
+                        <p className="text-[10px] uppercase tracking-wider text-slate-300">Días elegidos</p>
+                      </div>
+                      <div className="rounded-xl bg-amber-500/15 border border-amber-400/30 p-3">
+                        <p className="text-2xl font-black text-amber-300">{packageRemainingSessions}</p>
+                        <p className="text-[10px] uppercase tracking-wider text-slate-300">Días disponibles</p>
+                      </div>
+                    </div>
+
+                    {packageRemainingSessions > 0 ? (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                          Elige tu próximo día
+                        </h4>
+                        <BookingCalendar
+                          selectedDate={packageDate}
+                          selectedTime={packageTime}
+                          onSelectDate={setPackageDate}
+                          onSelectTime={setPackageTime}
+                          serviceId={foundAppointment.serviceId}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void handleAddPackageDay()}
+                          disabled={isAddingPackageDay || !packageDate || !packageTime}
+                          className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {isAddingPackageDay ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CalendarCheck className="w-4 h-4" />}
+                          {isAddingPackageDay ? 'Guardando día...' : 'Guardar este día'}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-center text-sm font-semibold text-emerald-300">
+                        Ya elegiste todos los días de tu paquete.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Policy Notice Box */}
                 <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-[11px] text-amber-900 dark:text-amber-200">

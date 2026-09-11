@@ -244,6 +244,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
       const selectedService = SERVICES_DATA.find((s) => s.id === selectedServiceId);
       const chosenSpecialist = SPECIALISTS_ACCOUNTS.find((s) => s.id === selectedSpecialistId);
       const secureCode = generateSecureCode();
+      const packageTotalSessions = Number(selectedPackage.name.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
 
       const newAppointment: ConfirmedAppointment = {
         id: `app_${Date.now()}_${secureCode.replace(/[^a-zA-Z0-9]/g, '')}`,
@@ -253,6 +254,9 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
         selectedPackageName: sanitizeString(selectedPackage.name),
         selectedPackagePrice: sanitizeString(selectedPackage.price),
         selectedPackageDescription: selectedPackage.description ? sanitizeString(selectedPackage.description) : undefined,
+        packageCode: packageTotalSessions > 1 ? secureCode : undefined,
+        packageTotalSessions,
+        packageSessionNumber: 1,
         specialistId: chosenSpecialist ? chosenSpecialist.id : undefined,
         specialistName: chosenSpecialist ? chosenSpecialist.name : 'Lic. Isaac Jewsiejew',
         nombre: sanitizeString(nombre, 60),

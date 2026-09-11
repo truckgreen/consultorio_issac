@@ -886,6 +886,9 @@ CREATE TABLE IF NOT EXISTS appointments (
   service_price TEXT DEFAULT '35 USD',
   selected_package_name TEXT,
   selected_package_price TEXT,
+  package_code TEXT,
+  package_total_sessions INTEGER DEFAULT 1,
+  package_session_number INTEGER DEFAULT 1,
   fecha TEXT NOT NULL,
   hora TEXT NOT NULL,
   nombre TEXT NOT NULL,
@@ -909,6 +912,9 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS motivo_consulta TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS service_price TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS selected_package_name TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS selected_package_price TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS package_code TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS package_total_sessions INTEGER DEFAULT 1;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS package_session_number INTEGER DEFAULT 1;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'PENDIENTE';
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 35;

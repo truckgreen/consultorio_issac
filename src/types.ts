@@ -171,6 +171,9 @@ export interface Appointment {
   selectedPackageName?: string;
   selectedPackagePrice?: string;
   selectedPackageDescription?: string;
+  packageCode?: string;
+  packageTotalSessions?: number;
+  packageSessionNumber?: number;
   fecha: string; // YYYY-MM-DD
   hora: string; // e.g. "09:00 AM - 10:00 AM"
   nombre: string;

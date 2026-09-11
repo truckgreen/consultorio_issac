@@ -58,6 +58,9 @@ export function exportAppointmentsToExcel({
         app.serviceId || app.service_id || '',
         app.selectedPackageName || 'Sesión Estándar',
         app.selectedPackagePrice || app.servicePrice || app.service_price || '35 USD',
+        app.packageSessionNumber || 1,
+        app.packageTotalSessions || 1,
+        app.packageCode || app.code || '',
         app.specialistName || app.specialist_name || 'Lic. Isaac Jewsiejew',
         app.primeraVisita || app.primera_visita ? 'SÍ' : 'NO',
         app.motivoConsulta || app.motivo || 'N/A',
@@ -85,6 +88,9 @@ export function exportAppointmentsToExcel({
       'Servicio ID',
       'Paquete Seleccionado',
       'Precio / Monto',
+      'Sesión N°',
+      'Total Sesiones',
+      'Código de Paquete',
       'Especialista Asignado',
       'Primera Visita',
       'Motivo Consulta',
@@ -169,6 +175,38 @@ export function exportAppointmentsToExcel({
       log.fingerprintHash || 'browser-hash',
     ]);
 
+    // Monthly closing keeps the operational totals visible without losing the detailed sheets.
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const monthAppointments = filteredList.filter((app) => (app.fecha || '').startsWith(currentMonth));
+    const activeMonthAppointments = monthAppointments.filter((app) => app.status !== 'cancelada' && app.status !== 'CANCELADA');
+    const monthlyTotal = monthAppointments.reduce((sum, app) => {
+      const amount = Number(String(app.amount ?? app.selectedPackagePrice ?? app.servicePrice ?? app.service_price ?? '0').replace(',', '.').replace(/[^\d.-]/g, ''));
+      return sum + (Number.isFinite(amount) ? amount : 0);
+    }, 0);
+    const monthlyPackageCodes = new Set(monthAppointments.filter((app) => (app.packageTotalSessions || 1) > 1).map((app) => app.packageCode || app.code));
+    const monthlySummaryRows = [
+      ['Mes de cierre', currentMonth],
+      ['Citas registradas', monthAppointments.length],
+      ['Citas activas', activeMonthAppointments.length],
+      ['Citas completadas', monthAppointments.filter((app) => app.status === 'completada' || app.status === 'COMPLETADA').length],
+      ['Citas canceladas', monthAppointments.filter((app) => app.status === 'cancelada' || app.status === 'CANCELADA').length],
+      ['Paquetes con actividad', monthlyPackageCodes.size],
+      ['Sesiones de paquetes elegidas', monthAppointments.filter((app) => (app.packageTotalSessions || 1) > 1).length],
+      ['Importe registrado', `${monthlyTotal.toFixed(2)} EUR`],
+    ];
+    const monthlyDetailRows = monthAppointments.map((app, index) => [
+      index + 1,
+      app.packageCode || app.code || '',
+      `${app.nombre || ''} ${app.apellido || ''}`.trim(),
+      app.fecha || '',
+      app.hora || '',
+      app.selectedPackageName || app.serviceId || '',
+      app.packageSessionNumber || 1,
+      app.packageTotalSessions || 1,
+      (app.status || '').toUpperCase(),
+      app.selectedPackagePrice || app.servicePrice || '',
+    ]);
+
     // Build XML Spreadsheet 2003 format
     const renderTableXml = (headers: string[], rows: (string | number)[][]) => {
       let xml = '<Table>\n';
@@ -240,6 +278,10 @@ export function exportAppointmentsToExcel({
  </Styles>
  <Worksheet ss:Name="Citas Clínicas">
   ${renderTableXml(appointmentsHeaders, appointmentsRows)}
+ </Worksheet>
+ <Worksheet ss:Name="Cierre Mensual">
+  ${renderTableXml(['Indicador', 'Valor'], monthlySummaryRows)}
+  ${renderTableXml(['#', 'Código Paquete', 'Paciente', 'Fecha', 'Hora', 'Servicio / Paquete', 'Sesión N°', 'Total Sesiones', 'Estado', 'Importe'], monthlyDetailRows)}
  </Worksheet>
  <Worksheet ss:Name="Control Cancelaciones">
   ${renderTableXml(cancellationsHeaders, cancellationsRows)}

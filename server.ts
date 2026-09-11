@@ -620,6 +620,11 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
         if (appointment.selectedPackagePrice || appointment.selected_package_price) {
           payload.selected_package_price = appointment.selectedPackagePrice || appointment.selected_package_price;
         }
+        if (appointment.packageCode || appointment.package_code) {
+          payload.package_code = appointment.packageCode || appointment.package_code;
+          payload.package_total_sessions = appointment.packageTotalSessions || appointment.package_total_sessions || 1;
+          payload.package_session_number = appointment.packageSessionNumber || appointment.package_session_number || 1;
+        }
 
         const { data, error } = await supabaseClient.from('appointments').upsert([payload]).select();
 
