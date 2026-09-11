@@ -163,6 +163,65 @@ function persistAppointmentsToDisk(list: any[]): void {
 
 const serverAppointmentsCache: any[] = loadStoredAppointments();
 
+function patientStableId(appointment: any): string {
+  const identity = String(appointment.email || appointment.telefono || `${appointment.nombre}-${appointment.apellido}`)
+    .trim()
+    .toLowerCase();
+  const encoded = Buffer.from(identity).toString('base64url').replace(/[^a-z0-9]/gi, '').slice(0, 32);
+  return `pat_${encoded || Date.now()}`;
+}
+
+async function upsertPatientFromAppointment(appointment: any, client: SupabaseClient): Promise<void> {
+  const identityEmail = String(appointment.email || '').trim().toLowerCase();
+  const identityPhone = String(appointment.telefono || '').replace(/[^0-9]/g, '');
+  const filter = identityEmail
+    ? `email.eq.${encodeURIComponent(identityEmail)}`
+    : `telefono.eq.${encodeURIComponent(appointment.telefono || '')}`;
+  const { data: existingRows } = await client.from('patients').select('*').or(filter).limit(1);
+  const existing = Array.isArray(existingRows) ? existingRows[0] : null;
+  const packageName = appointment.selectedPackageName || appointment.selected_package_name || '';
+  const packageTotal = Number(appointment.packageTotalSessions || appointment.package_total_sessions || packageName.match(/(\d+)\s*sesiones?/i)?.[1] || 0);
+  const packageCode = appointment.packageCode || appointment.package_code || (packageTotal > 1 ? appointment.code : null);
+  const payload = {
+    id: existing?.id || patientStableId(appointment),
+    nombre: appointment.nombre || existing?.nombre || '',
+    apellido: appointment.apellido || existing?.apellido || '',
+    telefono: appointment.telefono || existing?.telefono || '',
+    email: identityEmail || existing?.email || '',
+    total_appointments: Number(existing?.total_appointments || 0) + 1,
+    completed_appointments: Number(existing?.completed_appointments || 0),
+    last_visit: appointment.fecha || existing?.last_visit || null,
+    first_visit_date: existing?.first_visit_date || appointment.fecha || null,
+    total_spent: Number(existing?.total_spent || 0) + Number(appointment.amount || String(appointment.selectedPackagePrice || '0').replace(/[^\d.]/g, '') || 0),
+    has_package: Boolean(existing?.has_package || packageTotal > 1),
+    package_name: packageName || existing?.package_name || null,
+    package_code: packageCode || existing?.package_code || null,
+    package_total_sessions: Math.max(Number(existing?.package_total_sessions || 0), packageTotal),
+    package_used_sessions: Number(existing?.package_used_sessions || 0) + (packageTotal > 1 ? 1 : 0),
+    cancellation_count: Number(existing?.cancellation_count || 0),
+    cancellation_history: existing?.cancellation_history || [],
+    archived: false,
+    created_at: existing?.created_at || new Date().toISOString(),
+  };
+  const { error } = await client.from('patients').upsert([payload]);
+  if (error) console.warn('[Patients] No se pudo sincronizar usuario:', error.message);
+}
+
+async function recordPatientCancellation(appointment: any, updates: any, client: SupabaseClient): Promise<void> {
+  const email = String(appointment.email || '').trim().toLowerCase();
+  const phone = String(appointment.telefono || '').replace(/[^0-9]/g, '');
+  const filter = email ? `email.eq.${encodeURIComponent(email)}` : `telefono.eq.${encodeURIComponent(appointment.telefono || '')}`;
+  const { data: rows } = await client.from('patients').select('*').or(filter).limit(1);
+  const patient = Array.isArray(rows) ? rows[0] : null;
+  if (!patient) return;
+  const history = Array.isArray(patient.cancellation_history) ? patient.cancellation_history : [];
+  history.push({ appointmentId: appointment.id, date: updates.canceled_at || new Date().toISOString(), reason: updates.cancellation_reason, feeAmount: updates.cancellation_fee_amount || 0 });
+  await client.from('patients').update({
+    cancellation_count: Number(patient.cancellation_count || 0) + 1,
+    cancellation_history: history,
+  }).eq('id', patient.id);
+}
+
 // Helper to sanitize telegram token
 function sanitizeTelegramToken(rawToken: string): string {
   if (!rawToken) return '';
@@ -577,7 +636,7 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
 
     // Always store in server memory cache
     const existingIdx = serverAppointmentsCache.findIndex(
-      (a) => a.id === appointment.id || (a.code && a.code === appointment.code)
+      (a) => a.id === appointment.id
     );
     if (existingIdx >= 0) {
       serverAppointmentsCache[existingIdx] = { ...serverAppointmentsCache[existingIdx], ...appointment };
@@ -592,6 +651,7 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
     const supabaseClient = getServerSupabaseClient();
     if (supabaseClient) {
       try {
+        await upsertPatientFromAppointment(appointment, supabaseClient);
         // Attempt full insert with flexible columns
         const payload: Record<string, any> = {
           id: appointment.id,
@@ -733,7 +793,12 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
     const supabaseClient = getServerSupabaseClient();
     if (supabaseClient) {
       try {
-        await supabaseClient.from('appointments').update(updates).eq('id', id);
+        const { error } = await supabaseClient.from('appointments').update(updates).eq('id', id);
+        if (error) console.warn('[Server PUT appointment warning]:', error.message);
+        if (String(updates.status || '').toUpperCase() === 'CANCELADA') {
+          const appointment = serverAppointmentsCache.find((item) => item.id === id || item.code === id);
+          if (appointment) await recordPatientCancellation(appointment, updates, supabaseClient);
+        }
       } catch (err) {
         console.warn('[Server PUT appointment error]:', err);
       }
@@ -826,7 +891,40 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
     }
 
     try {
-      const { data, error } = await supabaseClient.from('patients').upsert([patient]).select();
+      const payload = {
+        id: patient.id,
+        cedula: patient.cedula || null,
+        nombre: patient.nombre,
+        apellido: patient.apellido,
+        telefono: patient.telefono,
+        email: patient.email,
+        fecha_nacimiento: patient.fechaNacimiento || null,
+        edad: patient.edad || null,
+        genero: patient.genero || 'M',
+        direccion: patient.direccion || null,
+        contacto_emergencia: patient.contactoEmergencia || null,
+        total_appointments: patient.totalAppointments || 0,
+        completed_appointments: patient.completedAppointments || 0,
+        last_visit: patient.lastVisit || null,
+        total_spent: patient.totalSpent || 0,
+        first_visit_date: patient.firstVisitDate || null,
+        clinical_notes: patient.clinicalNotes || null,
+        medical_conditions: patient.medicalConditions || null,
+        alergias: patient.alergias || null,
+        antecedentes: patient.antecedentes || null,
+        medicamentos_actuales: patient.medicamentosActuales || null,
+        has_package: patient.hasPackage || false,
+        package_name: patient.packageName || null,
+        package_code: patient.packageCode || null,
+        package_total_sessions: patient.packageTotalSessions || 0,
+        package_used_sessions: patient.packageUsedSessions || 0,
+        cancellation_count: patient.cancellationCount || 0,
+        cancellation_history: patient.cancellationHistory || [],
+        archived: false,
+        documents: patient.documents || [],
+        created_at: patient.createdAt || new Date().toISOString(),
+      };
+      const { data, error } = await supabaseClient.from('patients').upsert([payload]).select();
       if (error) {
         return res.status(400).json({ success: false, error: error.message });
       }

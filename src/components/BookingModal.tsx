@@ -9,6 +9,7 @@ import {
   Mail,
   FileText,
   CheckCircle,
+  CheckCircle2,
   Sparkles,
   AlertCircle,
   ArrowRight,
@@ -24,6 +25,8 @@ import {
   Award,
   MessageSquare,
   Search,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
@@ -37,6 +40,10 @@ import {
   getSavedAppointments,
 } from '../utils/bookingUtils';
 import { generateWhatsAppAlertUrl } from '../utils/notificationUtils';
+import {
+  generateGoogleCalendarUrl,
+  downloadAppointmentVoucherPdf
+} from '../utils/calendarExportUtils';
 import {
   validateAndSanitizeName,
   validateAndSanitizeEmail,
@@ -171,8 +178,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const emailVal = validateAndSanitizeEmail(email);
     if (!emailVal.isValid) errors.email = emailVal.errorMessage || 'Ingresa un correo electrónico válido.';
 
-    if (!selectedDate) errors.fecha = 'Selecciona una fecha en el calendario.';
-    if (!selectedTime) errors.hora = 'Selecciona un horario disponible.';
+    const isPackageSelected = Boolean(
+      selectedPackage.name.toLowerCase().includes('paquete') ||
+      selectedPackage.name.toLowerCase().includes('sesiones')
+    );
+
+    if (!isPackageSelected) {
+      if (!selectedDate) errors.fecha = 'Selecciona una fecha en el calendario.';
+      if (!selectedTime) errors.hora = 'Selecciona un horario disponible.';
+    }
     if (selectedServiceId === 'fisioterapia' && !selectedSpecialistId) {
       errors.especialista = 'Selecciona el especialista que atenderá tu sesión.';
     }
@@ -218,7 +232,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     try {
       const secureCode = generateSecureCode();
       const chosenSpecialist = SPECIALISTS_ACCOUNTS.find((sp) => sp.id === selectedSpecialistId);
-      const packageTotalSessions = Number(selectedPackage.name.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
+      const isPackageSelected = Boolean(
+        selectedPackage.name.toLowerCase().includes('paquete') ||
+        selectedPackage.name.toLowerCase().includes('sesiones')
+      );
+      const packageTotalSessions = isPackageSelected ? 10 : 1;
 
       const newAppointment: ConfirmedAppointment = {
         id: `app_${Date.now()}_${secureCode.replace(/[^a-zA-Z0-9]/g, '')}`,
@@ -228,7 +246,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         selectedPackageName: sanitizeString(selectedPackage.name),
         selectedPackagePrice: sanitizeString(selectedPackage.price),
         selectedPackageDescription: selectedPackage.description ? sanitizeString(selectedPackage.description) : undefined,
-        packageCode: packageTotalSessions > 1 ? secureCode : undefined,
+        packageCode: isPackageSelected ? secureCode : undefined,
         packageTotalSessions,
         packageSessionNumber: 1,
         specialistId: chosenSpecialist ? chosenSpecialist.id : undefined,
@@ -237,8 +255,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         apellido: sanitizeString(apellido, 60),
         telefono: sanitizeString(telefono, 30),
         email: sanitizeString(email, 100).toLowerCase(),
-        fecha: sanitizeString(selectedDate),
-        hora: sanitizeString(selectedTime),
+        fecha: isPackageSelected ? 'Por programar en Portal' : sanitizeString(selectedDate),
+        hora: isPackageSelected ? 'Por programar en Portal' : sanitizeString(selectedTime),
         motivoConsulta: sanitizeString(motivoConsulta, 600),
         primeraVisita,
         createdAt: new Date().toISOString(),
@@ -543,21 +561,51 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </span>
             </div>
 
-            {/* Calendar */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
-                Selecciona Fecha y Horario:
-              </label>
-              <BookingCalendar
-                selectedDate={selectedDate}
-                selectedTime={selectedTime}
-                onSelectDate={(d) => setSelectedDate(d)}
-                onSelectTime={(t) => setSelectedTime(t)}
-                serviceId={selectedServiceId}
-              />
-              {formErrors.fecha && <p className="text-xs text-red-500 mt-1">{formErrors.fecha}</p>}
-              {formErrors.hora && <p className="text-xs text-red-500 mt-1">{formErrors.hora}</p>}
-            </div>
+            {/* Calendar or Package Mode Notice */}
+            {Boolean(
+              selectedPackage.name.toLowerCase().includes('paquete') ||
+              selectedPackage.name.toLowerCase().includes('sesiones')
+            ) ? (
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-900/40 border-2 border-amber-500/40 text-left space-y-3 shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
+                    <Package className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white font-heading">
+                      Modalidad de Paquete Seleccionada (Hasta 10 Sesiones)
+                    </h4>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                      Selección de días en el horario mediante código único
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Al elegir la opción de paquete, <strong>no necesitas elegir los días en este formulario</strong>. Al confirmar tus datos, recibirás un <strong>único código de reserva</strong>. Con ese código ingresarás al Portal del Paciente para multiseleccionar tus días (con límite de 10 sesiones) y verlos resaltados automáticamente en tu horario en tiempo real.
+                </p>
+                <div className="p-2.5 rounded-xl bg-amber-100/70 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 flex items-center gap-2 text-[11px] text-amber-900 dark:text-amber-200">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>
+                    Un solo código para todas tus sesiones · Contador de días elegidos y restantes
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+                  Selecciona Fecha y Horario:
+                </label>
+                <BookingCalendar
+                  selectedDate={selectedDate}
+                  selectedTime={selectedTime}
+                  onSelectDate={(d) => setSelectedDate(d)}
+                  onSelectTime={(t) => setSelectedTime(t)}
+                  serviceId={selectedServiceId}
+                />
+                {formErrors.fecha && <p className="text-xs text-red-500 mt-1">{formErrors.fecha}</p>}
+                {formErrors.hora && <p className="text-xs text-red-500 mt-1">{formErrors.hora}</p>}
+              </div>
+            )}
 
             {/* Patient Form Fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
@@ -659,7 +707,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
               <button
                 type="submit"
-                disabled={isSubmitting || !selectedTime}
+                disabled={
+                  isSubmitting ||
+                  (!Boolean(
+                    selectedPackage.name.toLowerCase().includes('paquete') ||
+                    selectedPackage.name.toLowerCase().includes('sesiones')
+                  ) && !selectedTime)
+                }
                 className="px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-600/25 transition-all disabled:opacity-50"
               >
                 {isSubmitting ? (
@@ -669,7 +723,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   </>
                 ) : (
                   <>
-                    <span>Confirmar y Guardar Cita</span>
+                    <span>
+                      {Boolean(
+                        selectedPackage.name.toLowerCase().includes('paquete') ||
+                        selectedPackage.name.toLowerCase().includes('sesiones')
+                      )
+                        ? 'Confirmar Paquete y Generar Código'
+                        : 'Confirmar y Guardar Cita'}
+                    </span>
                     <CheckCircle className="w-4 h-4" />
                   </>
                 )}
@@ -687,16 +748,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             <div>
               <span className="text-[11px] sm:text-xs uppercase font-extrabold tracking-widest text-emerald-600 block mb-1">
-                Comprobante Clínico Verificado
+                {createdAppointment.packageCode ? 'Paquete Terapéutico Activado' : 'Comprobante Clínico Verificado'}
               </span>
               <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-                ¡Tu Cita ha sido Agendada!
+                {createdAppointment.packageCode
+                  ? '¡Código Único de Paquete Generado!'
+                  : '¡Tu Cita ha sido Agendada!'}
               </h3>
+              {createdAppointment.packageCode && (
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1.5 max-w-md mx-auto">
+                  Con este único código podrás seleccionar tus 10 días en el calendario del portal y verlos resaltados en tu horario en tiempo real.
+                </p>
+              )}
             </div>
 
             <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-left space-y-2">
               <div className="flex justify-between items-center pb-2 border-b border-amber-200/60 dark:border-amber-800">
-                <span className="text-xs text-amber-800 dark:text-amber-300 font-semibold">Código de Cita:</span>
+                <span className="text-xs text-amber-800 dark:text-amber-300 font-semibold">
+                  {createdAppointment.packageCode ? 'Código Único de Paquete:' : 'Código de Cita:'}
+                </span>
                 <span className="font-mono font-bold text-base sm:text-lg text-amber-950 dark:text-amber-200">{createdAppointment.packageCode || createdAppointment.code}</span>
               </div>
               <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 text-xs pt-1">
@@ -709,8 +779,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <span className="font-bold text-slate-800 dark:text-slate-200">{createdAppointment.specialistName || 'Lic. Isaac Jewsiejew'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[11px]">Fecha y Hora:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{createdAppointment.fecha} ({createdAppointment.hora})</span>
+                  <span className="text-slate-500 block text-[11px]">Estado de Horario:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {createdAppointment.packageCode
+                      ? 'Multiselección en Portal (10 días)'
+                      : `${createdAppointment.fecha} (${createdAppointment.hora})`}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[11px]">Paquete / Precio:</span>
@@ -727,10 +801,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     onClose();
                     onOpenPatientPortal(createdAppointment.packageCode || createdAppointment.code);
                   }}
-                  className="py-3 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-slate-100 shadow-md transition-all active:scale-[0.98]"
+                  className={`py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] ${
+                    createdAppointment.packageCode
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white flex-1 sm:flex-none sm:px-6 ring-2 ring-amber-400/50'
+                      : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100'
+                  }`}
                 >
-                  <Search className="w-4 h-4 text-amber-500" />
-                  <span>Ver en el Portal</span>
+                  <Search className={`w-4 h-4 ${createdAppointment.packageCode ? 'text-white' : 'text-amber-500'}`} />
+                  <span>
+                    {createdAppointment.packageCode
+                      ? 'Elegir Días en el Portal Ahora'
+                      : 'Ver en el Portal'}
+                  </span>
                 </button>
               )}
 
@@ -738,11 +820,32 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 href={generateWhatsAppAlertUrl(createdAppointment)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all"
+                className="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all"
               >
                 <MessageSquare className="w-4 h-4" />
-                <span>Notificar al Especialista por WhatsApp</span>
+                <span>WhatsApp Especialista</span>
               </a>
+
+              {!createdAppointment.packageCode && (
+                <a
+                  href={generateGoogleCalendarUrl(createdAppointment)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 transition-all"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Google Calendar</span>
+                </a>
+              )}
+
+              <button
+                type="button"
+                onClick={() => downloadAppointmentVoucherPdf(createdAppointment)}
+                className="py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
+              >
+                <Download className="w-4 h-4 text-amber-500" />
+                <span>Comprobante PDF</span>
+              </button>
 
               <button
                 type="button"

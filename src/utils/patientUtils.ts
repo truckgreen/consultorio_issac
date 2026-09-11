@@ -51,7 +51,7 @@ export function deleteStoredPatient(patientId: string): PatientRecord[] {
   if (typeof window === 'undefined') return [];
   try {
     const current = getStoredPatients();
-    const updated = current.filter((p) => p.id !== patientId);
+    const updated = current.map((p) => p.id === patientId ? { ...p, archived: true } : p);
     localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('equilibra_patients_updated', { detail: updated }));
     return updated;

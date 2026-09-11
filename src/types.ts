@@ -204,6 +204,11 @@ export interface Appointment {
   rescheduledFromDate?: string;
   rescheduledFromTime?: string;
   rescheduledAt?: string;
+  // Clinical Evolution & Pain Scale (EVA 1-10)
+  painScore?: number; // 0 (sin dolor) a 10 (dolor severo)
+  evolutionNotes?: string;
+  homeExercises?: string[];
+  sessionCompleted?: boolean;
 }
 
 export type ConfirmedAppointment = Appointment;
@@ -250,6 +255,14 @@ export interface PatientRecord {
   antecedentes?: string;
   medicamentosActuales?: string;
   documents?: MedicalRecordDocument[];
+  hasPackage?: boolean;
+  packageName?: string;
+  packageCode?: string;
+  packageTotalSessions?: number;
+  packageUsedSessions?: number;
+  cancellationCount?: number;
+  cancellationHistory?: Array<{ appointmentId: string; date: string; reason?: string; feeAmount?: number }>;
+  archived?: boolean;
   createdAt?: string;
 }
 

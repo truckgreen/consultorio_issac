@@ -28,6 +28,11 @@ import {
   ListFilter,
   ArrowLeft,
   Sparkles,
+  ExternalLink,
+  Activity,
+  HeartPulse,
+  Dumbbell,
+  FileCheck,
 } from 'lucide-react';
 import { ConfirmedAppointment } from '../types';
 import {
@@ -38,7 +43,13 @@ import {
   rescheduleAppointmentInDatabase,
   cancelAppointmentInDatabase,
   getPatientCancellationCount,
+  updateAppointmentClinicalEvolution,
 } from '../utils/bookingUtils';
+import {
+  generateGoogleCalendarUrl,
+  downloadAppointmentVoucherPdf,
+  generateWhatsAppReminderMessage,
+} from '../utils/calendarExportUtils';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
 import { BookingCalendar } from './BookingCalendar';
@@ -110,6 +121,36 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
   const [packageTime, setPackageTime] = useState('');
   const [selectedPackageDays, setSelectedPackageDays] = useState<Array<{ date: string; time: string }>>([]);
   const [isAddingPackageDay, setIsAddingPackageDay] = useState(false);
+
+  // Clinical Evolution & Pain Scale (EVA 1-10) State
+  const [patientPainScore, setPatientPainScore] = useState<number | null>(null);
+  const [painSavedFeedback, setPainSavedFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (foundAppointment && foundAppointment.painScore !== undefined) {
+      setPatientPainScore(foundAppointment.painScore);
+    } else {
+      setPatientPainScore(null);
+    }
+  }, [foundAppointment]);
+
+  const handleUpdatePainScore = async (score: number) => {
+    if (!foundAppointment) return;
+    setPatientPainScore(score);
+    const codeOrId = foundAppointment.code || foundAppointment.id;
+    const res = await updateAppointmentClinicalEvolution(codeOrId, score);
+    if (res.success && res.updatedAppointment) {
+      setFoundAppointment(res.updatedAppointment);
+      setPainSavedFeedback(`Nivel de dolor registrado: ${score}/10. Tu fisioterapeuta podrá ver tu evolución.`);
+      setTimeout(() => setPainSavedFeedback(null), 4000);
+    }
+  };
+
+  const handleDownloadVoucher = () => {
+    if (foundAppointment) {
+      downloadAppointmentVoucherPdf(foundAppointment);
+    }
+  };
 
   // Robust Normalization & Matching Helpers
   const cleanAlphaNum = useCallback((s: string) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''), []);
@@ -326,60 +367,132 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     setPackageTime(appointment.hora);
   };
 
+  const handleTogglePackageSlot = (slot: { date: string; time: string }) => {
+    if (!foundAppointment) return;
+    const currentCode = getPackageAccessCode(foundAppointment);
+    const existingConfirmed = appointmentsList.filter(
+      (app) =>
+        getPackageAccessCode(app) === currentCode &&
+        app.status !== 'cancelada' &&
+        app.status !== 'CANCELADA' &&
+        app.fecha &&
+        !app.fecha.toLowerCase().includes('por programar')
+    );
+
+    // Check if slot already exists in confirmed appointments
+    const isAlreadyConfirmed = existingConfirmed.some(
+      (app) => app.fecha === slot.date && app.hora === slot.time
+    );
+    if (isAlreadyConfirmed) {
+      setSearchError(`El día ${slot.date} a las ${slot.time} ya está confirmado en tu horario.`);
+      return;
+    }
+
+    // Check if slot is in selectedPackageDays
+    const existingIndex = selectedPackageDays.findIndex(
+      (d) => d.date === slot.date && d.time === slot.time
+    );
+
+    if (existingIndex >= 0) {
+      // Toggle off
+      setSelectedPackageDays((prev) => prev.filter((_, i) => i !== existingIndex));
+      setSearchError(null);
+      setRescheduleSuccessMessage(`Has quitado el día ${slot.date} (${slot.time}) de tu horario.`);
+    } else {
+      // Check 10 limit
+      const currentTotal = existingConfirmed.length + selectedPackageDays.length;
+      if (currentTotal >= 10) {
+        setSearchError('Has alcanzado el límite máximo de 10 días para este paquete.');
+        return;
+      }
+      setSelectedPackageDays((prev) => [...prev, { date: slot.date, time: slot.time }]);
+      setSearchError(null);
+      setRescheduleSuccessMessage(`Día añadido a tu horario (${currentTotal + 1} de 10). Puedes seleccionar más días o confirmar.`);
+    }
+  };
+
   const handleAddPackageDay = async () => {
     if (!foundAppointment || !packageDate || !packageTime) return;
-    const totalSessions = getPackageTotalSessions(foundAppointment);
-    const packageAppointments = appointmentsList.filter(
-      (appointment) => getPackageAccessCode(appointment) === getPackageAccessCode(foundAppointment)
-    );
-    const activeAppointments = packageAppointments.filter((appointment) => appointment.status !== 'cancelada' && appointment.status !== 'CANCELADA');
-    if (totalSessions <= 1 || activeAppointments.length >= totalSessions) return;
-    if (activeAppointments.some((appointment) => appointment.fecha === packageDate && appointment.hora === packageTime) || selectedPackageDays.some((day) => day.date === packageDate && day.time === packageTime)) {
-      setSearchError('Ese día y horario ya forman parte de tu paquete. Elige otro horario.');
-      return;
-    }
-    if (selectedPackageDays.length >= totalSessions - activeAppointments.length) {
-      setSearchError('Ya seleccionaste todos los días disponibles para guardar.');
-      return;
-    }
-    setSelectedPackageDays((previous) => [...previous, { date: packageDate, time: packageTime }]);
-    setSearchError(null);
-    setRescheduleSuccessMessage('Día añadido a tu selección. Puedes elegir más días antes de confirmar.');
+    handleTogglePackageSlot({ date: packageDate, time: packageTime });
   };
 
   const handleConfirmPackageDays = async () => {
     if (!foundAppointment || selectedPackageDays.length === 0) return;
-    const totalSessions = getPackageTotalSessions(foundAppointment);
-    const packageAppointments = appointmentsList.filter(
-      (appointment) => getPackageAccessCode(appointment) === getPackageAccessCode(foundAppointment)
-    );
-    const activeAppointments = packageAppointments.filter((appointment) => appointment.status !== 'cancelada' && appointment.status !== 'CANCELADA');
     setIsAddingPackageDay(true);
     setSearchError(null);
     try {
+      const currentCode = getPackageAccessCode(foundAppointment);
+      const existingConfirmed = appointmentsList.filter(
+        (app) =>
+          getPackageAccessCode(app) === currentCode &&
+          app.status !== 'cancelada' &&
+          app.status !== 'CANCELADA' &&
+          app.fecha &&
+          !app.fecha.toLowerCase().includes('por programar')
+      );
+
+      const placeholderRecord = appointmentsList.find(
+        (app) =>
+          getPackageAccessCode(app) === currentCode &&
+          (!app.fecha || app.fecha.toLowerCase().includes('por programar') || app.fecha.toLowerCase().includes('por definir'))
+      );
+
       const newAppointments: ConfirmedAppointment[] = [];
-      for (const [index, day] of selectedPackageDays.entries()) {
-        const sessionNumber = activeAppointments.length + index + 1;
-        const newAppointment: ConfirmedAppointment = {
-          ...foundAppointment,
-          id: `app_${Date.now()}_${sessionNumber}_${Math.random().toString(36).slice(2, 8)}`,
-          fecha: day.date,
-          hora: day.time,
-          code: `${foundAppointment.code}-${sessionNumber}`,
-          packageCode: getPackageAccessCode(foundAppointment),
-          packageSessionNumber: sessionNumber,
-          createdAt: new Date().toISOString(),
-          status: 'confirmada',
-        };
-        await saveAppointmentToDatabase(newAppointment);
-        newAppointments.push(newAppointment);
+      let updatedPlaceholder = false;
+
+      for (let index = 0; index < selectedPackageDays.length; index++) {
+        const day = selectedPackageDays[index];
+
+        if (!updatedPlaceholder && placeholderRecord) {
+          const updated: ConfirmedAppointment = {
+            ...placeholderRecord,
+            fecha: day.date,
+            hora: day.time,
+            code: currentCode, // STRICTLY ONE CODE
+            packageCode: currentCode,
+            packageTotalSessions: 10,
+            packageSessionNumber: 1,
+            status: 'confirmada',
+          };
+          await saveAppointmentToDatabase(updated);
+          newAppointments.push(updated);
+          updatedPlaceholder = true;
+        } else {
+          const sessionNumber = existingConfirmed.length + (updatedPlaceholder ? index : index + 1);
+          const newAppointment: ConfirmedAppointment = {
+            ...foundAppointment,
+            id: `app_${Date.now()}_${sessionNumber}_${Math.random().toString(36).slice(2, 8)}`,
+            fecha: day.date,
+            hora: day.time,
+            code: currentCode, // STRICTLY ONE SINGLE CODE FOR ALL SESSIONS
+            packageCode: currentCode,
+            packageTotalSessions: 10,
+            packageSessionNumber: sessionNumber,
+            createdAt: new Date().toISOString(),
+            status: 'confirmada',
+          };
+          await saveAppointmentToDatabase(newAppointment);
+          newAppointments.push(newAppointment);
+        }
       }
-      setAppointmentsList((previous) => [...previous, ...newAppointments]);
+
+      setAppointmentsList((previous) => {
+        const withoutPlaceholder = placeholderRecord && updatedPlaceholder
+          ? previous.filter((app) => app.id !== placeholderRecord.id)
+          : previous;
+        return [...withoutPlaceholder, ...newAppointments];
+      });
+
+      if (newAppointments.length > 0) {
+        setFoundAppointment(newAppointments[0]);
+      }
       setSelectedPackageDays([]);
-      setRescheduleSuccessMessage(`${newAppointments.length} día(s) de tu paquete guardado(s) correctamente.`);
+      setRescheduleSuccessMessage(
+        `¡Horario guardado con éxito! Se han registrado ${newAppointments.length} día(s) con tu código único ${currentCode}.`
+      );
     } catch (error) {
       console.error('Error saving package days:', error);
-      setSearchError('No se pudieron guardar todos los días seleccionados. Intenta nuevamente.');
+      setSearchError('No se pudieron guardar los días seleccionados. Intenta nuevamente.');
     } finally {
       setIsAddingPackageDay(false);
     }
@@ -471,17 +584,32 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
   const pastCancellations = foundAppointment
     ? getPatientCancellationCount(foundAppointment.email || foundAppointment.telefono)
     : 0;
+  const isSessionScheduled = (appointment: ConfirmedAppointment): boolean => {
+    const f = String(appointment.fecha || '').toLowerCase();
+    return Boolean(f && !f.includes('por programar') && !f.includes('por definir'));
+  };
+
+  const isPackageAppointment = Boolean(foundAppointment && getPackageTotalSessions(foundAppointment) > 1);
+  const packageCode = foundAppointment ? getPackageAccessCode(foundAppointment) : '';
+  const packageLimit = 10;
+
   const packageAppointments = foundAppointment
     ? appointmentsList.filter(
-        (appointment) => getPackageAccessCode(appointment) === getPackageAccessCode(foundAppointment)
+        (appointment) =>
+          getPackageAccessCode(appointment) === packageCode &&
+          appointment.status !== 'cancelada' &&
+          appointment.status !== 'CANCELADA'
       )
     : [];
-  const packageTotalSessions = foundAppointment ? getPackageTotalSessions(foundAppointment) : 1;
-  const isPackageAppointment = Boolean(foundAppointment && getPackageTotalSessions(foundAppointment) > 1);
-  const packageUsedSessions = packageAppointments.filter(
-    (appointment) => appointment.status !== 'cancelada' && appointment.status !== 'CANCELADA'
-  ).length;
-  const packageRemainingSessions = Math.max(packageTotalSessions - packageUsedSessions, 0);
+
+  const confirmedScheduledSessions = packageAppointments.filter(isSessionScheduled);
+  const alreadySavedDaysCount = confirmedScheduledSessions.length;
+  const newlySelectedDaysCount = selectedPackageDays.length;
+  const totalDaysChosen = alreadySavedDaysCount + newlySelectedDaysCount;
+  const daysRemainingToChoose = Math.max(0, packageLimit - totalDaysChosen);
+  const packageTotalSessions = isPackageAppointment ? packageLimit : 1;
+  const packageUsedSessions = totalDaysChosen;
+  const packageRemainingSessions = daysRemainingToChoose;
 
   return (
     <AnimatePresence>
@@ -887,71 +1015,238 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                 </div>
 
                 {isPackageAppointment && (
-                  <div className="space-y-4 p-4 rounded-2xl bg-slate-900 text-white border border-slate-700">
-                    <div className="grid grid-cols-2 gap-3 text-center">
-                      <div className="rounded-xl bg-emerald-500/15 border border-emerald-400/30 p-3">
-                        <p className="text-2xl font-black text-emerald-300">{packageUsedSessions}</p>
-                        <p className="text-[10px] uppercase tracking-wider text-slate-300">Días elegidos</p>
+                  <div className="space-y-5 p-5 sm:p-6 rounded-3xl bg-slate-900 text-white border border-slate-700 shadow-xl">
+                    {/* Header with single package code reminder */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Package className="w-5 h-5 text-amber-400" />
+                          <h4 className="text-base font-extrabold text-white font-heading">
+                            Gestión de Paquete (Límite 10 Sesiones)
+                          </h4>
+                        </div>
+                        <p className="text-xs text-slate-300 mt-0.5">
+                          Un solo código para todas tus sesiones: <strong className="font-mono text-amber-400">{packageCode}</strong>
+                        </p>
                       </div>
-                      <div className="rounded-xl bg-amber-500/15 border border-amber-400/30 p-3">
-                        <p className="text-2xl font-black text-amber-300">{packageRemainingSessions}</p>
-                        <p className="text-[10px] uppercase tracking-wider text-slate-300">Días disponibles</p>
+
+                      <span className="self-start sm:self-auto px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        {totalDaysChosen === packageLimit ? 'Paquete Completo' : 'Multiselección Activa'}
+                      </span>
+                    </div>
+
+                    {/* Counter of Days Chosen vs Remaining */}
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-3 text-center">
+                        <div className="rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 p-3 sm:p-4 shadow-inner">
+                          <p className="text-2xl sm:text-3xl font-black text-emerald-300">
+                            {totalDaysChosen} <span className="text-sm font-semibold text-emerald-400/80">/ {packageLimit}</span>
+                          </p>
+                          <p className="text-[11px] uppercase tracking-wider font-bold text-emerald-200 mt-0.5">
+                            Días Elegidos
+                          </p>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                            ({alreadySavedDaysCount} guardados + {newlySelectedDaysCount} seleccionados)
+                          </span>
+                        </div>
+
+                        <div className="rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 p-3 sm:p-4 shadow-inner">
+                          <p className="text-2xl sm:text-3xl font-black text-amber-300">
+                            {daysRemainingToChoose}
+                          </p>
+                          <p className="text-[11px] uppercase tracking-wider font-bold text-amber-200 mt-0.5">
+                            Días que te quedan por elegir
+                          </p>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                            {daysRemainingToChoose === 0 ? '¡Límite alcanzado!' : `Cupos disponibles: ${daysRemainingToChoose}`}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Visual progress bar */}
+                      <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-amber-500 to-emerald-500 h-2.5 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, (totalDaysChosen / packageLimit) * 100)}%` }}
+                        />
                       </div>
                     </div>
 
-                    {packageRemainingSessions > 0 ? (
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">
-                          Elige uno o varios días
-                        </h4>
+                    {/* Calendar for Multi-selection & Real-Time Schedule Visualization */}
+                    <div className="space-y-3">
+                      <div className="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <h5 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                            <CalendarCheck className="w-4 h-4 text-amber-400" />
+                            <span>Multiselección de días en el calendario</span>
+                          </h5>
+                          <p className="text-[11px] text-slate-300 mt-0.5">
+                            {daysRemainingToChoose > 0
+                              ? `Haz clic directamente en los horarios disponibles para seleccionar varios días a la vez (puedes elegir hasta ${daysRemainingToChoose} día(s) más). Los días se resaltarán automáticamente en el calendario.`
+                              : 'Has alcanzado los 10 días de tu paquete. Todos tus días aparecen resaltados en verde en el calendario. Puedes hacer clic en un día para deseleccionarlo y cambiarlo.'}
+                          </p>
+                        </div>
+                        <span className="font-mono text-xs font-black text-amber-300 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-700 shrink-0 self-start sm:self-auto">
+                          {totalDaysChosen} de {packageLimit} días
+                        </span>
+                      </div>
+
+                      {daysRemainingToChoose === 0 && (
+                        <div className="p-3.5 rounded-2xl bg-emerald-950/50 border border-emerald-500/50 flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                          <div className="text-xs">
+                            <p className="font-bold text-emerald-200">
+                              ¡Límite máximo de 10 días completado!
+                            </p>
+                            <p className="text-emerald-300/80 text-[11px]">
+                              Tus 10 sesiones se encuentran resaltadas en verde en el calendario inferior bajo tu código único {packageCode}.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="bg-slate-950 p-2 sm:p-4 rounded-2xl border border-slate-800">
                         <BookingCalendar
                           selectedDate={packageDate}
                           selectedTime={packageTime}
                           onSelectDate={setPackageDate}
                           onSelectTime={setPackageTime}
                           serviceId={foundAppointment.serviceId}
+                          multiSelectedDays={selectedPackageDays}
+                          packageSavedDays={confirmedScheduledSessions.map((s, idx) => ({
+                            date: s.fecha,
+                            time: s.hora,
+                            sessionNumber: s.packageSessionNumber || idx + 1,
+                          }))}
+                          packageTotalLimit={packageLimit}
+                          packageChosenCount={totalDaysChosen}
+                          packageCode={packageCode}
+                          onToggleSlotMultiSelect={handleTogglePackageSlot}
+                          isMultiSelectMode={true}
+                          appointments={appointmentsList}
                         />
-                        <button
-                          type="button"
-                          onClick={() => void handleAddPackageDay()}
-                          disabled={isAddingPackageDay || !packageDate || !packageTime || selectedPackageDays.length >= packageRemainingSessions}
-                          className="w-full py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                          <CalendarCheck className="w-4 h-4" />
-                          Añadir día a la selección
-                        </button>
-                        {selectedPackageDays.length > 0 && (
-                          <div className="space-y-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
-                            <p className="text-xs font-bold text-amber-200">Días seleccionados: {selectedPackageDays.length}</p>
-                            {selectedPackageDays.map((day, index) => (
-                              <div key={`${day.date}-${day.time}`} className="flex items-center justify-between gap-2 text-xs text-slate-200">
-                                <span>{index + 1}. {day.date} · {day.time}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedPackageDays((previous) => previous.filter((_, dayIndex) => dayIndex !== index))}
-                                  className="text-red-300 hover:text-red-200 font-bold"
-                                >
-                                  Quitar
-                                </button>
-                              </div>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() => void handleConfirmPackageDays()}
-                              disabled={isAddingPackageDay}
-                              className="w-full mt-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                              {isAddingPackageDay ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                              {isAddingPackageDay ? 'Guardando días...' : `Confirmar ${selectedPackageDays.length} día(s)`}
-                            </button>
-                          </div>
-                        )}
                       </div>
-                    ) : (
-                      <p className="text-center text-sm font-semibold text-emerald-300">
-                        Ya elegiste todos los días de tu paquete.
-                      </p>
-                    )}
+
+                      {/* Fallback button if user selected via dropdown */}
+                      {daysRemainingToChoose > 0 && (
+                        <div className="flex flex-col sm:flex-row items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleAddPackageDay()}
+                            disabled={isAddingPackageDay || !packageDate || !packageTime || totalDaysChosen >= packageLimit}
+                            className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-40 transition-colors"
+                          >
+                            <CalendarCheck className="w-4 h-4 text-amber-400" />
+                            <span>Añadir fecha/hora seleccionada ({packageDate} {packageTime || ''})</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Timetable / Horario Completo del Paquete */}
+                    <div className="space-y-3 pt-4 border-t border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-amber-400" />
+                          <span>Tu Horario de Sesiones ({totalDaysChosen} de {packageLimit})</span>
+                        </h4>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          Código: {packageCode}
+                        </span>
+                      </div>
+
+                      {totalDaysChosen === 0 ? (
+                        <div className="p-4 rounded-2xl bg-slate-800/60 border border-dashed border-slate-700 text-center text-xs text-slate-400">
+                          Aún no has elegido días en tu horario. Selecciona tus días arriba en el calendario (hasta 10 sesiones).
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {/* 1. Confirmed / Saved appointments */}
+                          {confirmedScheduledSessions.map((session, idx) => (
+                            <div
+                              key={session.id || `${session.fecha}-${session.hora}`}
+                              className="p-3 rounded-2xl bg-slate-800/90 border border-emerald-500/30 flex items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 font-bold flex items-center justify-center text-[11px] shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <div>
+                                  <p className="font-bold text-white flex items-center gap-2">
+                                    <span>{session.fecha}</span>
+                                    <span className="text-amber-400">· {session.hora}</span>
+                                  </p>
+                                  <p className="text-[10px] text-slate-400">
+                                    {session.specialistName ? `Dr(a). ${session.specialistName}` : 'Especialista asignado'}
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0 flex items-center gap-1">
+                                <Check className="w-3 h-3" />
+                                <span>Confirmada</span>
+                              </span>
+                            </div>
+                          ))}
+
+                          {/* 2. Newly multi-selected days (pending confirmation) */}
+                          {selectedPackageDays.map((day, idx) => (
+                            <div
+                              key={`pending-${day.date}-${day.time}`}
+                              className="p-3 rounded-2xl bg-amber-500/10 border-2 border-amber-400/40 flex items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="w-6 h-6 rounded-full bg-amber-500/30 text-amber-200 font-bold flex items-center justify-center text-[11px] shrink-0">
+                                  {alreadySavedDaysCount + idx + 1}
+                                </span>
+                                <div>
+                                  <p className="font-bold text-amber-200 flex items-center gap-2">
+                                    <span>{day.date}</span>
+                                    <span className="text-white">· {day.time}</span>
+                                  </p>
+                                  <p className="text-[10px] text-amber-300/70">
+                                    ★ En tu selección (Por guardar en tu horario)
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePackageSlot(day)}
+                                className="px-2.5 py-1 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 border border-red-500/40 font-bold text-[11px] shrink-0 transition-colors"
+                              >
+                                Quitar
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Confirmation CTA button when multi-selected days exist */}
+                      {selectedPackageDays.length > 0 && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleConfirmPackageDays()}
+                            disabled={isAddingPackageDay}
+                            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 transition-all disabled:opacity-50"
+                          >
+                            {isAddingPackageDay ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                <span>Guardando horario del paquete...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Check className="w-4 h-4" />
+                                <span>Confirmar y Guardar {selectedPackageDays.length} Día(s) en tu Horario</span>
+                              </>
+                            )}
+                          </button>
+                          <p className="text-[11px] text-slate-400 text-center mt-2">
+                            Se guardarán bajo tu único código de paquete <strong className="text-amber-300 font-mono">{packageCode}</strong> (sin generar códigos adicionales).
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -1067,20 +1362,124 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                   </motion.div>
                 )}
 
+                {/* Clinical Evolution & Pain Scale (EVA) Section */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                          Seguimiento Clínico y Escala de Dolor (EVA 0 - 10)
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Registra cómo te sientes hoy para que tu fisioterapeuta monitoree tu progreso
+                        </p>
+                      </div>
+                    </div>
+                    {patientPainScore !== null && (
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                        patientPainScore === 0
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : patientPainScore <= 3
+                          ? 'bg-lime-100 text-lime-800 dark:bg-lime-950 dark:text-lime-300'
+                          : patientPainScore <= 6
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                      }`}>
+                        EVA actual: {patientPainScore} / 10
+                      </span>
+                    )}
+                  </div>
+
+                  {/* EVA Interactive Scale 0 to 10 */}
+                  <div className="pt-1">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 mb-1.5">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">0 = Sin dolor</span>
+                      <span className="text-amber-500 font-bold">5 = Moderado</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-bold">10 = Severo</span>
+                    </div>
+                    <div className="grid grid-cols-11 gap-1 sm:gap-1.5">
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                        const isSelected = patientPainScore === num;
+                        let colorClass = 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+                        if (isSelected) {
+                          if (num === 0) colorClass = 'bg-emerald-600 text-white font-black border-emerald-600 ring-2 ring-emerald-400 shadow-sm';
+                          else if (num <= 3) colorClass = 'bg-lime-600 text-white font-black border-lime-600 ring-2 ring-lime-400 shadow-sm';
+                          else if (num <= 6) colorClass = 'bg-amber-500 text-slate-950 font-black border-amber-500 ring-2 ring-amber-400 shadow-sm';
+                          else colorClass = 'bg-rose-600 text-white font-black border-rose-600 ring-2 ring-rose-400 shadow-sm';
+                        }
+                        return (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => handleUpdatePainScore(num)}
+                            className={`py-2 text-xs font-bold rounded-lg border text-center transition-all ${colorClass}`}
+                            title={`Seleccionar nivel ${num}`}
+                          >
+                            {num}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {painSavedFeedback && (
+                    <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-xs font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{painSavedFeedback}</span>
+                    </div>
+                  )}
+
+                  {/* Home Recovery Guidelines */}
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                      <Dumbbell className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Recomendaciones Fisioterapéuticas Domiciliarias:</span>
+                    </div>
+                    <ul className="list-disc pl-4 space-y-1 text-slate-600 dark:text-slate-400 text-[11px]">
+                      <li>Aplica crioterapia local (hielo envuelto en paño) por 15 min si hay inflamación activa tras tu sesión.</li>
+                      <li>Mantén pausas activas y realiza los estiramientos lumbares o cervicales indicados por tu fisioterapeuta.</li>
+                      <li>Registra tu nivel de dolor (EVA) antes de cada cita para calibrar la intensidad de tu terapia manual o tecarterapia.</li>
+                    </ul>
+                  </div>
+                </div>
+
                 {/* Actions */}
                 <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
-                      onClick={handleDownloadIcs}
+                      type="button"
+                      onClick={handleDownloadVoucher}
                       className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
                     >
-                      <Download className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Calendario (.ICS)</span>
+                      <FileCheck className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Comprobante PDF</span>
+                    </button>
+
+                    <a
+                      href={generateGoogleCalendarUrl(foundAppointment)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Google Calendar</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={handleDownloadIcs}
+                      className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5 text-amber-500" />
+                      <span>(.ICS)</span>
                     </button>
 
                     <a
                       href={`https://wa.me/584126388484?text=${encodeURIComponent(
-                        `Hola EQUILIBRA, consulto sobre mi cita médica con código ${foundAppointment.code} (${foundAppointment.fecha} - ${foundAppointment.hora}).`
+                        generateWhatsAppReminderMessage(foundAppointment)
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"

@@ -63,6 +63,7 @@ import {
   saveStoredPatient,
   deleteStoredPatient,
 } from '../utils/patientUtils';
+import { deletePatientFromDb } from '../lib/supabase';
 import { PatientRegistrationModal } from './PatientRegistrationModal';
 import {
   getStoredTelegramConfig,
@@ -124,7 +125,7 @@ interface SpecialistAccessModalProps {
   onClose: () => void;
 }
 
-type PanelTab = 'dashboard' | 'agenda' | 'pacientes' | 'staff' | 'servicios' | 'cancelaciones' | 'auditoria' | 'configuracion';
+type PanelTab = 'dashboard' | 'agenda' | 'pacientes' | 'staff' | 'servicios' | 'cancelaciones' | 'actualizaciones' | 'auditoria' | 'configuracion';
 
 export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
   isOpen,
@@ -853,6 +854,11 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     lastSpecialist: string;
     lastReason?: string;
     registeredAt?: string;
+    hasPackage?: boolean;
+    packageName?: string;
+    packageUsedSessions?: number;
+    packageTotalSessions?: number;
+    cancellationCount?: number;
   }>();
 
   // First seed with registered clinical patient records
@@ -925,6 +931,11 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       assignedSpecialistId: rp.assignedSpecialistId,
       assignedSpecialistName: rp.assignedSpecialistName,
       totalVisits: rp.completedAppointments || rp.totalAppointments || 0,
+      hasPackage: Boolean(rp.hasPackage || rp.packageName || rp.packageTotalSessions),
+      packageName: rp.packageName,
+      packageUsedSessions: rp.packageUsedSessions || 0,
+      packageTotalSessions: rp.packageTotalSessions || 0,
+      cancellationCount: rp.cancellationCount || 0,
       lastVisitDate: rp.lastVisit || (rp.createdAt ? rp.createdAt.split('T')[0] : todayStr),
       lastSpecialist: rp.assignedSpecialistName || 'Sin asignar',
       lastReason: rp.clinicalNotes || 'Expediente clínico completo',
@@ -959,6 +970,13 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       }
       if (!existing.phone && app.telefono) existing.phone = app.telefono;
       if (!existing.email && app.email) existing.email = app.email;
+      if ((app.packageTotalSessions || 0) > 1 || app.packageCode) {
+        existing.hasPackage = true;
+        existing.packageName = app.selectedPackageName || existing.packageName;
+        existing.packageTotalSessions = app.packageTotalSessions || existing.packageTotalSessions || 0;
+        existing.packageUsedSessions = Math.max(existing.packageUsedSessions || 0, app.packageSessionNumber || 1);
+      }
+      if (app.cancellationCount) existing.cancellationCount = Math.max(existing.cancellationCount || 0, app.cancellationCount);
     } else {
       uniquePatientsMap.set(key, {
         name: `${appNombre} ${appApellido}`.trim(),
@@ -967,6 +985,11 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
         phone: app.telefono || '',
         email: app.email || '',
         totalVisits: 1,
+        hasPackage: Boolean((app.packageTotalSessions || 0) > 1 || app.packageCode),
+        packageName: app.selectedPackageName,
+        packageUsedSessions: app.packageSessionNumber || 1,
+        packageTotalSessions: app.packageTotalSessions || 0,
+        cancellationCount: app.cancellationCount || 0,
         lastVisitDate: app.fecha || todayStr,
         lastSpecialist: app.specialistName || 'Especialista',
         lastReason: app.motivoConsulta,
@@ -1399,6 +1422,18 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                   >
                     <Ban className="w-3.5 h-3.5" />
                     <span>Cancelaciones ({totalCancellations.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('actualizaciones')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                      activeTab === 'actualizaciones'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Actualizaciones</span>
                   </button>
 
                   {/* ADMIN ONLY TABS */}
@@ -1942,6 +1977,20 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                                     )}
                                   </div>
                                   <div className="flex items-center gap-1.5 shrink-0">
+                                    {pat.hasPackage ? (
+                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                        PAQUETE {pat.packageUsedSessions || 0}/{pat.packageTotalSessions || '?'}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                        SESIÓN INDIVIDUAL
+                                      </span>
+                                    )}
+                                    {pat.cancellationCount > 0 && (
+                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/70 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+                                        CANCELACIONES: {pat.cancellationCount}
+                                      </span>
+                                    )}
                                     {pat.isRegisteredRecord && (
                                       <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                                         EXPEDIENTE COMPLETO
@@ -2047,9 +2096,11 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                                   {existingRecord && (
                                     <button
                                       onClick={() => {
-                                        if (confirm(`¿Estás seguro de eliminar el expediente clínico de ${pat.name}?`)) {
-                                          deleteStoredPatient(existingRecord.id);
-                                          setRegisteredPatients(getStoredPatients());
+                                        if (confirm(`El expediente de ${pat.name} se archivará y conservará su historial. ¿Continuar?`)) {
+                                          void deletePatientFromDb(existingRecord.id).then(() => {
+                                            deleteStoredPatient(existingRecord.id);
+                                            setRegisteredPatients(getStoredPatients());
+                                          });
                                         }
                                       }}
                                       className="p-1 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all cursor-pointer"
@@ -2440,7 +2491,47 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                   </div>
                 )}
 
-                {/* 7. AUDITORÍA & SEGURIDAD TAB */}
+                {/* 7. NOTAS DE ACTUALIZACIÓN TAB */}
+                {activeTab === 'actualizaciones' && (
+                  <div className="space-y-5 max-w-4xl">
+                    <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-transparent border border-amber-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-widest font-extrabold text-amber-600 dark:text-amber-400">Notas de actualización</p>
+                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">EQUILIBRA V1.10</h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Cambios disponibles para especialistas y administración</p>
+                      </div>
+                      <span className="px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">ACTUALIZACIÓN ACTIVA</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        ['Paquetes y sesiones', 'Un solo código por paquete, contador de sesiones y etiquetas como Paquete 1/10.'],
+                        ['Selección de días', 'Los pacientes pueden elegir varios días pendientes desde el portal con su código.'],
+                        ['Usuarios persistentes', 'Cada reserva crea o actualiza el paciente en Supabase sin duplicarlo.'],
+                        ['Cancelaciones', 'Se conservan motivo, fecha, recargo e historial de cancelaciones del paciente.'],
+                        ['Cierre mensual', 'El Excel incluye resumen mensual, citas, paquetes, cancelaciones, especialistas y auditoría.'],
+                        ['Seguridad', 'Los expedientes no se borran físicamente: se archivan para conservar su historial.'],
+                        ['Supabase', 'Se añadieron columnas para paquetes, sesiones, cancelaciones y estado archivado.'],
+                      ].map(([title, description]) => (
+                        <div key={title} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h4>
+                              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400 mt-1">{description}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
+                      <strong className="text-slate-900 dark:text-white">Importante:</strong> para que los usuarios, paquetes y cancelaciones se guarden en la nube, debe estar ejecutado en Supabase el esquema SQL de la V1.10 desde la pestaña Configuración.
+                    </div>
+                  </div>
+                )}
+
+                {/* 8. AUDITORÍA & SEGURIDAD TAB */}
                 {activeTab === 'auditoria' && (
                   <div className="space-y-2">
                     <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
@@ -3025,6 +3116,16 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                 >
                   <UserCheck className="w-4 h-4 mb-0.5" />
                   <span>Equipo</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('actualizaciones')}
+                  className={`flex flex-col items-center py-1 px-2 rounded-xl text-[10px] font-bold ${
+                    activeTab === 'actualizaciones' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 mb-0.5" />
+                  <span>V1.10</span>
                 </button>
 
                 {(authenticatedUser?.role === 'admin' || authenticatedUser?.role === 'administrador_general') ? (

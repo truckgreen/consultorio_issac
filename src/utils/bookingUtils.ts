@@ -73,7 +73,7 @@ export function saveAppointmentToStorage(appointment: ConfirmedAppointment): voi
   if (typeof window === 'undefined') return;
   try {
     const current = getSavedAppointments();
-    const updated = [appointment, ...current.filter((a) => a.id !== appointment.id && a.code !== appointment.code)];
+    const updated = [appointment, ...current.filter((a) => a.id !== appointment.id)];
     localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(updated));
     localStorage.setItem('equilibra_appointments', JSON.stringify(updated));
     if (appointment.code) {
@@ -344,6 +344,9 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
     fecha: sanitizeString(appointment.fecha),
     hora: sanitizeString(appointment.hora),
     motivoConsulta: sanitizeString(appointment.motivoConsulta || '', 600),
+    painScore: appointment.painScore !== undefined ? Math.max(0, Math.min(10, Math.round(appointment.painScore))) : undefined,
+    evolutionNotes: appointment.evolutionNotes ? sanitizeString(appointment.evolutionNotes, 1000) : undefined,
+    homeExercises: Array.isArray(appointment.homeExercises) ? appointment.homeExercises.map((e) => sanitizeString(e, 200)) : undefined,
   };
 
   // Always keep a local encrypted/sanitized copy for instant UI feedback
@@ -670,6 +673,64 @@ export async function cancelAppointmentInDatabase(
     penaltyAmount,
     updatedAppointment: updated,
   };
+}
+
+/**
+ * Updates patient clinical evolution, pain score (EVA 1-10) and home exercises
+ */
+export async function updateAppointmentClinicalEvolution(
+  appointmentIdOrCode: string,
+  painScore: number,
+  notes?: string,
+  homeExercises?: string[]
+): Promise<{ success: boolean; updatedAppointment?: ConfirmedAppointment; error?: string }> {
+  let all = getSavedAppointments();
+  let index = all.findIndex(
+    (a) =>
+      a.id === appointmentIdOrCode ||
+      a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+      a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  );
+
+  if (index === -1) {
+    all = await getAppointmentsFromDatabase();
+    index = all.findIndex(
+      (a) =>
+        a.id === appointmentIdOrCode ||
+        a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+        a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    );
+  }
+
+  if (index === -1) {
+    return { success: false, error: 'No se encontró la cita clínica.' };
+  }
+
+  const app = all[index];
+  const cleanPain = Math.max(0, Math.min(10, Math.round(painScore)));
+  const updated: ConfirmedAppointment = {
+    ...app,
+    painScore: cleanPain,
+    evolutionNotes: notes ? sanitizeString(notes, 1000) : app.evolutionNotes,
+    homeExercises: homeExercises || app.homeExercises,
+  };
+
+  saveAppointmentToStorage(updated);
+
+  if (isSupabaseConfigured) {
+    try {
+      await supabase
+        .from('appointments')
+        .update({
+          notes: notes ? `${app.notes ? app.notes + ' | ' : ''}EVA: ${cleanPain}/10. ${notes}` : app.notes,
+        })
+        .or(`id.eq.${app.id},code.eq.${app.code}`);
+    } catch (e) {
+      console.warn('Supabase clinical evolution update note:', e);
+    }
+  }
+
+  return { success: true, updatedAppointment: updated };
 }
 
 /**

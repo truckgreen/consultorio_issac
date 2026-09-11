@@ -700,6 +700,25 @@ export async function getPatientsFromDb(): Promise<PatientRecord[]> {
         const localMatch = localList.find(l => l.id === remotePat.id);
         return {
           ...remotePat,
+          fechaNacimiento: remotePat.fecha_nacimiento,
+          totalAppointments: remotePat.total_appointments || 0,
+          completedAppointments: remotePat.completed_appointments || 0,
+          lastVisit: remotePat.last_visit || '',
+          totalSpent: remotePat.total_spent || 0,
+          firstVisitDate: remotePat.first_visit_date || '',
+          clinicalNotes: remotePat.clinical_notes || '',
+          medicalConditions: remotePat.medical_conditions || '',
+          medicamentosActuales: remotePat.medicamentos_actuales || '',
+          contactoEmergencia: remotePat.contacto_emergencia || undefined,
+          hasPackage: Boolean(remotePat.has_package),
+          packageName: remotePat.package_name || undefined,
+          packageCode: remotePat.package_code || undefined,
+          packageTotalSessions: remotePat.package_total_sessions || 0,
+          packageUsedSessions: remotePat.package_used_sessions || 0,
+          cancellationCount: remotePat.cancellation_count || 0,
+          cancellationHistory: remotePat.cancellation_history || [],
+          archived: Boolean(remotePat.archived),
+          createdAt: remotePat.created_at,
           documents: remotePat.documents || localMatch?.documents || []
         };
       });
@@ -767,6 +786,14 @@ export async function insertPatientInDb(patient: PatientRecord): Promise<{ succe
           alergias: patient.alergias || '',
           antecedentes: patient.antecedentes || '',
           medicamentos_actuales: patient.medicamentosActuales || '',
+          has_package: patient.hasPackage || false,
+          package_name: patient.packageName || null,
+          package_code: patient.packageCode || null,
+          package_total_sessions: patient.packageTotalSessions || 0,
+          package_used_sessions: patient.packageUsedSessions || 0,
+          cancellation_count: patient.cancellationCount || 0,
+          cancellation_history: patient.cancellationHistory || [],
+          archived: patient.archived || false,
           documents: patient.documents || [],
           created_at: patient.createdAt || new Date().toISOString()
         }
@@ -817,13 +844,13 @@ export async function updatePatientInDb(id: string, updates: Partial<PatientReco
 
 export async function deletePatientFromDb(id: string): Promise<boolean> {
   const current = getLocalPatients();
-  saveLocalPatients(current.filter(p => p.id !== id));
+  saveLocalPatients(current.map(p => p.id === id ? { ...p, archived: true } : p));
 
   const client = getSupabaseClient();
   if (!client) return true;
 
   try {
-    const { error } = await client.from('patients').delete().eq('id', id);
+    const { error } = await client.from('patients').update({ archived: true }).eq('id', id);
     if (error) {
       console.warn('Supabase patient delete error:', error.message);
     }
@@ -904,6 +931,11 @@ CREATE TABLE IF NOT EXISTS appointments (
   notes TEXT,
   payment_status TEXT DEFAULT 'PENDIENTE',
   amount NUMERIC DEFAULT 35,
+  cancellation_count INTEGER DEFAULT 0,
+  cancellation_fee_percent NUMERIC DEFAULT 0,
+  cancellation_fee_amount NUMERIC DEFAULT 0,
+  cancellation_reason TEXT,
+  canceled_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -918,6 +950,11 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS package_session_number INTEGER
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'PENDIENTE';
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 35;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancellation_count INTEGER DEFAULT 0;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancellation_fee_percent NUMERIC DEFAULT 0;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancellation_fee_amount NUMERIC DEFAULT 0;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMP WITH TIME ZONE;
 
 -- 2. Tabla de Expedientes de Pacientes
 CREATE TABLE IF NOT EXISTS patients (
@@ -942,12 +979,28 @@ CREATE TABLE IF NOT EXISTS patients (
   alergias TEXT,
   antecedentes TEXT,
   medicamentos_actuales TEXT,
+  has_package BOOLEAN DEFAULT false,
+  package_name TEXT,
+  package_code TEXT,
+  package_total_sessions INTEGER DEFAULT 0,
+  package_used_sessions INTEGER DEFAULT 0,
+  cancellation_count INTEGER DEFAULT 0,
+  cancellation_history JSONB DEFAULT '[]'::jsonb,
+  archived BOOLEAN DEFAULT false,
   documents JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS documents JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS cedula TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS has_package BOOLEAN DEFAULT false;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS package_name TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS package_code TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS package_total_sessions INTEGER DEFAULT 0;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS package_used_sessions INTEGER DEFAULT 0;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS cancellation_count INTEGER DEFAULT 0;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS cancellation_history JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false;
 
 -- 3. Tabla de Mensajes de Contacto
 CREATE TABLE IF NOT EXISTS contact_messages (

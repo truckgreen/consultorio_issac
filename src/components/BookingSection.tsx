@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Calendar,
@@ -176,6 +176,11 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
     }
   }, [selectedDate, selectedServiceId, savedAppointments]);
 
+  const isPackageSelected = useMemo(() => {
+    const name = String(selectedPackage?.name || '');
+    return /paquete/i.test(name) || Number(name.match(/(\d+)\s*sesiones?/i)?.[1] || 0) > 1;
+  }, [selectedPackage]);
+
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
 
@@ -199,12 +204,14 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
       errors.email = emailValidation.errorMessage || 'Ingresa un correo electrónico válido.';
     }
 
-    if (!selectedDate) {
-      errors.fecha = 'Por favor selecciona un día en el calendario.';
-    }
+    if (!isPackageSelected) {
+      if (!selectedDate) {
+        errors.fecha = 'Por favor selecciona un día en el calendario.';
+      }
 
-    if (!selectedTime) {
-      errors.hora = 'Por favor selecciona un horario disponible.';
+      if (!selectedTime) {
+        errors.hora = 'Por favor selecciona un horario disponible.';
+      }
     }
 
     if (selectedServiceId === 'fisioterapia' && !selectedSpecialistId) {
@@ -248,7 +255,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
       const selectedService = SERVICES_DATA.find((s) => s.id === selectedServiceId);
       const chosenSpecialist = SPECIALISTS_ACCOUNTS.find((s) => s.id === selectedSpecialistId);
       const secureCode = generateSecureCode();
-      const packageTotalSessions = Number(selectedPackage.name.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
+      const packageTotalSessions = isPackageSelected ? 10 : 1;
 
       const newAppointment: ConfirmedAppointment = {
         id: `app_${Date.now()}_${secureCode.replace(/[^a-zA-Z0-9]/g, '')}`,
@@ -258,7 +265,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
         selectedPackageName: sanitizeString(selectedPackage.name),
         selectedPackagePrice: sanitizeString(selectedPackage.price),
         selectedPackageDescription: selectedPackage.description ? sanitizeString(selectedPackage.description) : undefined,
-        packageCode: packageTotalSessions > 1 ? secureCode : undefined,
+        packageCode: isPackageSelected ? secureCode : undefined,
         packageTotalSessions,
         packageSessionNumber: 1,
         specialistId: chosenSpecialist ? chosenSpecialist.id : undefined,
@@ -267,8 +274,8 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
         apellido: sanitizeString(apellido, 60),
         telefono: sanitizeString(telefono, 30),
         email: sanitizeString(email, 100).toLowerCase(),
-        fecha: sanitizeString(selectedDate),
-        hora: sanitizeString(selectedTime),
+        fecha: isPackageSelected ? 'Por programar con código' : sanitizeString(selectedDate),
+        hora: isPackageSelected ? 'Por programar con código' : sanitizeString(selectedTime),
         motivoConsulta: sanitizeString(motivoConsulta, 600),
         primeraVisita,
         createdAt: new Date().toISOString(),
@@ -610,7 +617,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
               </div>
             </div>
 
-            {/* Step 2: Interactive Calendar with Slot Statuses */}
+            {/* Step 2: Interactive Calendar with Slot Statuses OR Package Notice */}
             <div className="bg-white dark:bg-[#151c28] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-7 shadow-sm">
               <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2.5">
@@ -619,49 +626,105 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white font-heading">
-                      Selecciona el Día y la Hora
+                      {isPackageSelected ? 'Elección de Días para tu Paquete' : 'Selecciona el Día y la Hora'}
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Horarios verificados en tiempo real contra la agenda clínica
+                      {isPackageSelected
+                        ? 'En la opción de paquete, los días se eligen con tu código único'
+                        : 'Horarios verificados en tiempo real contra la agenda clínica'}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <BookingCalendar
-                selectedDate={selectedDate}
-                selectedTime={selectedTime}
-                onSelectDate={(dateStr) => {
-                  setSelectedDate(dateStr);
-                  if (formErrors.fecha) {
-                    const newErr = { ...formErrors };
-                    delete newErr.fecha;
-                    setFormErrors(newErr);
-                  }
-                }}
-                onSelectTime={(timeStr) => {
-                  setSelectedTime(timeStr);
-                  if (formErrors.hora) {
-                    const newErr = { ...formErrors };
-                    delete newErr.hora;
-                    setFormErrors(newErr);
-                  }
-                }}
-                serviceId={selectedServiceId}
-                appointments={savedAppointments}
-              />
+              {isPackageSelected ? (
+                <div className="space-y-4 p-5 sm:p-6 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border-2 border-amber-300/80 dark:border-amber-700/60">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <Package className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 bg-amber-200/60 dark:bg-amber-900/60 px-2.5 py-0.5 rounded-full inline-block mb-1">
+                        Modalidad de Paquete (10 Sesiones)
+                      </span>
+                      <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                        Los días se eligen ingresando tu código único
+                      </h4>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
+                        Has elegido la opción de <strong>{selectedPackage.name}</strong>. Para esta modalidad no necesitas elegir los días en este momento. Al confirmar tu solicitud recibirás <strong>un solo código único</strong> con el que podrás ingresar al portal y elegir tus <strong>10 días en el horario</strong> mediante la opción de <strong>multiselección</strong>, con un <strong>contador en tiempo real</strong> de cuántos días has elegido y cuántos te quedan por elegir.
+                      </p>
+                    </div>
+                  </div>
 
-              {formErrors.fecha && (
-                <p className="text-xs font-semibold text-rose-500 mt-2 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  {formErrors.fecha}
-                </p>
-              )}
-              {formErrors.hora && (
-                <p className="text-xs font-semibold text-rose-500 mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  {formErrors.hora}
-                </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    <div className="p-3 rounded-xl bg-white dark:bg-slate-900/80 border border-amber-200/80 dark:border-amber-800/40 text-xs">
+                      <span className="font-bold text-slate-900 dark:text-white block mb-0.5">🔑 Un solo código</span>
+                      <span className="text-slate-500 dark:text-slate-400">Todo tu paquete bajo un único código centralizado sin generar códigos extra.</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white dark:bg-slate-900/80 border border-amber-200/80 dark:border-amber-800/40 text-xs">
+                      <span className="font-bold text-slate-900 dark:text-white block mb-0.5">🗓️ Multiselección ágil</span>
+                      <span className="text-slate-500 dark:text-slate-400">Selecciona con un clic múltiples días y horas en la agenda clínica.</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white dark:bg-slate-900/80 border border-amber-200/80 dark:border-amber-800/40 text-xs">
+                      <span className="font-bold text-slate-900 dark:text-white block mb-0.5">📊 Contador y horario</span>
+                      <span className="text-slate-500 dark:text-slate-400">Visualiza en tu horario cuántos días has elegido y cuántos te restan (límite de 10).</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-amber-200/70 dark:border-amber-800/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                      ¿Ya tienes tu código de paquete emitido y deseas elegir tus días ahora?
+                    </span>
+                    {onOpenPatientPortal && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenPatientPortal()}
+                        className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-100 font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all shrink-0"
+                      >
+                        <Search className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Ingresar código para elegir días</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <BookingCalendar
+                    selectedDate={selectedDate}
+                    selectedTime={selectedTime}
+                    onSelectDate={(dateStr) => {
+                      setSelectedDate(dateStr);
+                      if (formErrors.fecha) {
+                        const newErr = { ...formErrors };
+                        delete newErr.fecha;
+                        setFormErrors(newErr);
+                      }
+                    }}
+                    onSelectTime={(timeStr) => {
+                      setSelectedTime(timeStr);
+                      if (formErrors.hora) {
+                        const newErr = { ...formErrors };
+                        delete newErr.hora;
+                        setFormErrors(newErr);
+                      }
+                    }}
+                    serviceId={selectedServiceId}
+                    appointments={savedAppointments}
+                  />
+
+                  {formErrors.fecha && (
+                    <p className="text-xs font-semibold text-rose-500 mt-2 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {formErrors.fecha}
+                    </p>
+                  )}
+                  {formErrors.hora && (
+                    <p className="text-xs font-semibold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {formErrors.hora}
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
@@ -941,13 +1004,13 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                 </div>
                 <div>
                   <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>Reserva Segura con Validación Criptográfica</span>
+                    <span>{isPackageSelected ? 'Registro de Paquete con Código Único' : 'Reserva Segura con Validación Criptográfica'}</span>
                     <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 rounded-full">
                       {selectedPackage.price || `${selectedServiceObj.priceFormatted} USD`}
                     </span>
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {selectedServiceObj.title} • {selectedPackage.name} • {selectedDate} ({selectedTime || 'Selecciona hora'})
+                    {selectedServiceObj.title} • {selectedPackage.name} • {isPackageSelected ? '10 sesiones (días a elegir con código único)' : `${selectedDate} (${selectedTime || 'Selecciona hora'})`}
                   </p>
                 </div>
               </div>
@@ -955,9 +1018,9 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
               <button
                 type="submit"
                 id="submit-booking-btn"
-                disabled={isSubmitting || !selectedTime}
+                disabled={isSubmitting || (!isPackageSelected && !selectedTime)}
                 className={`w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all ${
-                  !selectedTime
+                  !isPackageSelected && !selectedTime
                     ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'
                     : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-amber-500/25 hover:shadow-amber-500/40 hover:-translate-y-0.5'
                 }`}
@@ -965,11 +1028,11 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                 {isSubmitting ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Cifrando y Confirmando Reserva...</span>
+                    <span>{isPackageSelected ? 'Generando Código Único de Paquete...' : 'Cifrando y Confirmando Reserva...'}</span>
                   </>
                 ) : (
                   <>
-                    <span>Confirmar y Agendar Cita</span>
+                    <span>{isPackageSelected ? 'Confirmar Paquete y Generar Código' : 'Confirmar y Agendar Cita'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -991,32 +1054,45 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   <CheckCircle2 className="w-10 h-10 text-white" />
                 </div>
                 <span className="text-xs uppercase tracking-widest font-bold bg-white/20 px-3 py-1 rounded-full inline-block mb-2">
-                  ¡Cita Registrada & Verificada!
+                  {latestAppointment.packageTotalSessions && latestAppointment.packageTotalSessions > 1
+                    ? '¡Paquete de 10 Sesiones Registrado!'
+                    : '¡Cita Registrada & Verificada!'}
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-extrabold font-heading">
-                  Tu consulta ha sido confirmada
+                  {latestAppointment.packageTotalSessions && latestAppointment.packageTotalSessions > 1
+                    ? 'Tu paquete ha sido confirmado'
+                    : 'Tu consulta ha sido confirmada'}
                 </h3>
                 <p className="text-xs sm:text-sm text-emerald-100 mt-2 max-w-md mx-auto">
-                  Tu pase de atención ha sido generado con código único de verificación.
+                  {latestAppointment.packageTotalSessions && latestAppointment.packageTotalSessions > 1
+                    ? 'Se ha generado un único código para tus 10 sesiones. Ingresa al portal para elegir tus días con la opción de multiselección.'
+                    : 'Tu pase de atención ha sido generado con código único de verificación.'}
                 </p>
               </div>
 
               {/* Voucher Details Body */}
               <div className="p-6 sm:p-8 space-y-6">
                 {/* Booking Code Card */}
-                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 flex items-center justify-between">
+                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <span className="text-xs font-semibold text-amber-800 dark:text-amber-300 block">
-                      Código de reserva / comprobante:
+                      {latestAppointment.packageTotalSessions && latestAppointment.packageTotalSessions > 1
+                        ? 'Tu CÓDIGO ÚNICO para las 10 sesiones:'
+                        : 'Código de reserva / comprobante:'}
                     </span>
                     <span className="text-xl sm:text-2xl font-mono font-extrabold text-amber-950 dark:text-amber-200">
                       {latestAppointment.packageCode || latestAppointment.code}
                     </span>
+                    {latestAppointment.packageTotalSessions && latestAppointment.packageTotalSessions > 1 && (
+                      <span className="text-[11px] text-amber-700 dark:text-amber-400 block mt-0.5">
+                        Guarda este código. Con él seleccionarás tus 10 días con el límite establecido.
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
                     onClick={() => handleCopyCode(latestAppointment.packageCode || latestAppointment.code)}
-                    className="p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-700/60 transition-all flex items-center gap-1.5 text-xs font-semibold"
+                    className="p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-700/60 transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0"
                   >
                     {copiedCode ? (
                       <>
@@ -1026,11 +1102,28 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                     ) : (
                       <>
                         <Copy className="w-4 h-4 text-amber-600" />
-                        <span>Copiar</span>
+                        <span>Copiar código</span>
                       </>
                     )}
                   </button>
                 </div>
+
+                {/* Package Quick CTA */}
+                {latestAppointment.packageTotalSessions && latestAppointment.packageTotalSessions > 1 && onOpenPatientPortal && (
+                  <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700 space-y-2">
+                    <p className="text-xs text-emerald-900 dark:text-emerald-200 font-semibold">
+                      🗓️ Ya puedes elegir tus 10 días de paquete en el horario:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => onOpenPatientPortal(latestAppointment.packageCode || latestAppointment.code)}
+                      className="w-full py-3 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 transition-all"
+                    >
+                      <CalendarCheck className="w-4 h-4" />
+                      <span>Ingresar al Portal y Elegir mis 10 Días</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Appointment Summary Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
