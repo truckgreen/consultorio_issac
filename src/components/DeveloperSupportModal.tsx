@@ -23,11 +23,9 @@ import {
   Activity,
   Bug,
   Lightbulb,
-  Trash2,
 } from 'lucide-react';
 import { DEVELOPER_SUPPORT_INFO, CLINIC_INFO } from '../data/featuresData';
-import { saveDeveloperTicketToDatabase, clearAllAppointmentsFromSystem } from '../utils/bookingUtils';
-import { clearAllStoredNotifications } from '../utils/notificationUtils';
+import { saveDeveloperTicketToDatabase } from '../utils/bookingUtils';
 import {
   validateAndSanitizeName,
   validateAndSanitizeEmail,
@@ -65,27 +63,6 @@ export const DeveloperSupportModal: React.FC<DeveloperSupportModalProps> = ({
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedTicket, setCopiedTicket] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
-
-  // System maintenance state
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [isResettingSystem, setIsResettingSystem] = useState(false);
-  const [resetSuccessMsg, setResetSuccessMsg] = useState<string | null>(null);
-
-  const handleResetAllData = async () => {
-    setIsResettingSystem(true);
-    try {
-      await clearAllAppointmentsFromSystem();
-      clearAllStoredNotifications();
-      setResetSuccessMsg('¡Todas las citas y notificaciones han sido eliminadas correctamente!');
-      setShowResetConfirm(false);
-      setTimeout(() => setResetSuccessMsg(null), 5000);
-    } catch (e) {
-      console.error(e);
-      setResetSuccessMsg('Ocurrió un error al intentar vaciar los registros.');
-    } finally {
-      setIsResettingSystem(false);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -683,61 +660,6 @@ export const DeveloperSupportModal: React.FC<DeveloperSupportModalProps> = ({
                 </div>
               </div>
 
-              {/* Maintenance & Reset Utility */}
-              <div className="p-4 rounded-2xl bg-red-50/60 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
-                  <h4 className="font-bold text-xs text-red-950 dark:text-red-300">
-                    Depuración y Vaciado de Registros (Citas & Notificaciones)
-                  </h4>
-                </div>
-                <p className="text-xs text-red-800/80 dark:text-red-300/80 leading-relaxed">
-                  Permite a los administradores o soporte técnico eliminar todas las citas guardadas de prueba y vaciar la bandeja de alertas en vivo con un solo clic.
-                </p>
-
-                {resetSuccessMsg && (
-                  <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>{resetSuccessMsg}</span>
-                  </div>
-                )}
-
-                {showResetConfirm ? (
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-red-300 dark:border-red-800 space-y-2">
-                    <p className="text-xs font-bold text-red-600 dark:text-red-400">
-                      ¿Seguro que deseas vaciar todas las citas y notificaciones? No se podrá recuperar la información.
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={isResettingSystem}
-                        onClick={handleResetAllData}
-                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-1 transition-all"
-                      >
-                        {isResettingSystem ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                        <span>{isResettingSystem ? 'Eliminando...' : 'Sí, Eliminar Todo'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isResettingSystem}
-                        onClick={() => setShowResetConfirm(false)}
-                        className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowResetConfirm(true)}
-                    className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Eliminar Todos los Registros de Citas y Alertas</span>
-                  </button>
-                )}
-              </div>
             </div>
           )}
 

@@ -259,7 +259,7 @@ export const ContactFooter: React.FC = () => {
 
           <div className="flex items-center gap-4">
             <a
-              href="https://instagram.com/equilibrave"
+              href="https://instagram.com/fisiojewsiejew?stkn=MXVzYjliaDdjYTMxZA=="
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 text-slate-300 hover:text-amber-400 transition-colors"

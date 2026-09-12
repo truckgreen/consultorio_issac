@@ -9,10 +9,10 @@ export const CLINIC_INFO = {
   addressFull: "Venezuela, Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 46",
   addressShort: "Centro Profesional del Este, Piso 4, Ofic. 46, Sabana Grande, Caracas",
   phoneDisplay: "+58 424-2724617",
-  phoneRaw: "+584127471858",
+  phoneRaw: "+58 424-2724617",
   email: "contacto@equilibrave.com",
-  instagram: "@equilibrave",
-  whatsappUrl: "https://wa.me/584127471858?text=Hola%20Equilibra,%20quisiera%20solicitar%20informaci%C3%B3n%20sobre%20sus%20servicios.",
+  instagram: "@fisiojewsiejew",
+  whatsappUrl: "https://wa.me/584242724617?text=Hola%20Equilibra,%20quisiera%20solicitar%20informaci%C3%B3n%20sobre%20sus%20servicios.",
   googleMapsUrl: "https://maps.google.com/?q=Centro+Profesional+del+Este+Caracas+Sabana+Grande",
   hours: [
     "Lunes a Viernes: 8:00am a 7:00pm",

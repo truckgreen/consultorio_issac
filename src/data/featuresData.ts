@@ -14,11 +14,10 @@ export const CLINIC_INFO = {
     floor: 'Piso 4, Oficina 48',
     fullAddress: 'Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 48'
   },
-  phone: '0412-747-18-58',
-  phoneDisplay: '0412-747-18-58',
-  phoneRaw: '04127471858',
+  phone: '0424-272-46-17',
+  phoneDisplay: '0424-272-46-17',
+  phoneRaw: '04242724617',
   instagram: '@fisiojewsiejew',
-  email: 'contacto@equilibrave.com',
   hours: [
     { day: 'Lunes a Sábado', time: '8:00am a 5:00pm' }
   ]
@@ -29,7 +28,7 @@ export const DEVELOPER_SUPPORT_INFO = {
   leadDev: 'Desarrollador Full Stack & Soporte Técnico',
   email: 'paezjose481@gmail.com',
   secondaryEmail: 'paezjose481@gmail.com',
-  phoneDisplay: '+58 424-2724617',
+  phoneDisplay: '+58 424-158-07-02',
   whatsappUrl: 'https://wa.me/qr/ZVOTHXHPPR7DJ1?text=Hola%2C%20tengo%20una%20duda%20o%20requiero%20soporte%20t%C3%A9cnico%20con%20la%20plataforma%20EQUILIBRA',
   supportHours: 'Lunes a Domingo: 8:00 AM - 10:00 PM (GMT-4)',
   responseTime: 'Menos de 2 horas',
