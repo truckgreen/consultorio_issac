@@ -56,8 +56,10 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenBooking }) => 
               <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 shadow-slate-900/15 dark:shadow-black/50">
                 <img
                   src={APP_IMAGES.about.src}
-                  alt={APP_IMAGES.about.alt}
+                  alt={APP_IMAGES.about.alt || "Sesión de fisioterapia y rehabilitación en el consultorio Equilibra"}
                   referrerPolicy="no-referrer"
+                  loading="lazy"
+                  decoding="async"
                   className={`w-full h-[400px] sm:h-[480px] object-cover ${APP_IMAGES.about.position || 'object-center'} transform hover:scale-105 transition-transform duration-700`}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

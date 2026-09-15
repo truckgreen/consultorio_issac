@@ -3,14 +3,131 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Equilibra - Fisioterapia & Bienestar Integral</title>
-    <meta name="description" content="Sistema clínico integral para Equilibra con gestión completa de pacientes (crear, ver, editar, eliminar), expediente digital y visor/subida de registros médicos en formato PDF." />
-    <meta property="og:title" content="Equilibra - Fisioterapia & Bienestar Integral" />
-    <meta property="og:description" content="Sistema clínico integral para Equilibra con gestión completa de pacientes (crear, ver, editar, eliminar), expediente digital y visor/subida de registros médicos en formato PDF." />
+    
+    <!-- 05: Meta títulos y descripciones optimizados -->
+    <title>Equilibra | Centro de Fisioterapia & Rehabilitación en Caracas</title>
+    <meta name="description" content="Centro especializado en fisioterapia deportiva, traumatología y rehabilitación física en Sabana Grande, Caracas. Consulta 1 a 1 y agenda tu cita online." />
+    <link rel="canonical" href="https://equilibra.com.ve/" />
+    <meta name="keywords" content="fisioterapia caracas, traumatologia caracas, rehabilitacion fisica sabana grande, fisioterapia deportiva, dolor de espalda venezuela, clinica fisioterapia" />
+    <meta name="author" content="EQUILIBRA C.A." />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <meta name="geo.region" content="VE-A" />
+    <meta name="geo.placename" content="Caracas" />
+
+    <!-- 09: Favicon y Web App Manifest -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#f59e0b" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- OpenGraph Social Cards -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Equilibra Fisioterapia & Bienestar" />
+    <meta property="og:title" content="Equilibra | Centro de Fisioterapia & Rehabilitación en Caracas" />
+    <meta property="og:description" content="Centro especializado en fisioterapia deportiva, traumatología y rehabilitación física en Sabana Grande, Caracas. Consulta 1 a 1 y agenda tu cita online." />
+    <meta property="og:url" content="https://equilibra.com.ve/" />
+    <meta property="og:image" content="https://equilibra.com.ve/imagenes/consultorio.jpg" />
+    <meta property="og:locale" content="es_VE" />
+
+    <!-- Twitter / X Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Equilibra | Centro de Fisioterapia & Rehabilitación en Caracas" />
+    <meta name="twitter:description" content="Centro especializado en fisioterapia deportiva, traumatología y rehabilitación física en Sabana Grande, Caracas. Consulta 1 a 1 y agenda tu cita online." />
+    <meta name="twitter:image" content="https://equilibra.com.ve/imagenes/consultorio.jpg" />
+
+    <!-- 12: Velocidad de carga optimizada (Resource hints) -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+    <!-- 06: Datos estructurados Schema.org (JSON-LD) para Clínica Médica y Fisioterapia -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": ["MedicalBusiness", "PhysiotherapyClinic"],
+          "@id": "https://equilibra.com.ve/#clinic",
+          "name": "Equilibra - Centro de Fisioterapia & Bienestar Integral",
+          "alternateName": "Equilibra Fisioterapia Caracas",
+          "url": "https://equilibra.com.ve/",
+          "logo": "https://equilibra.com.ve/favicon.svg",
+          "image": "https://equilibra.com.ve/imagenes/consultorio.jpg",
+          "description": "Centro integral especializado en fisioterapia traumatológica, deportiva, pediátrica, geriátrica y rehabilitación física en Caracas, Venezuela.",
+          "telephone": "+58-424-2724617",
+          "priceRange": "$$",
+          "currenciesAccepted": "USD, VES, EUR",
+          "paymentAccepted": "Efectivo, Pago Móvil, Zelle, Transferencia Bancaria",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Av. Francisco de Miranda, Edificio Centro Empresarial Sabana Grande, Piso 4",
+            "addressLocality": "Caracas",
+            "addressRegion": "Distrito Capital",
+            "postalCode": "1050",
+            "addressCountry": "VE"
+          },
+          "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": 10.4912,
+            "longitude": -66.8792
+          },
+          "openingHoursSpecification": [
+            {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+              "opens": "08:00",
+              "closes": "18:00"
+            }
+          ],
+          "medicalSpecialty": [
+            "PhysicalTherapy",
+            "Orthopedics",
+            "SportsMedicine",
+            "DietNutrition"
+          ],
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.9",
+            "reviewCount": "124",
+            "bestRating": "5"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://equilibra.com.ve/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "¿Cómo agendo una cita de fisioterapia en Caracas?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Puedes agendar en línea a través de nuestro portal seleccionando tu servicio y horario, o comunicándote directamente por WhatsApp al +58 424 272 4617."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Qué debo llevar a mi primera sesión de evaluación?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Se recomienda ropa deportiva cómoda e informes médicos o estudios radiológicos previos (rayos X, resonancia magnética) si dispones de ellos."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Tienen paquetes con descuento para fisioterapia continua?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sí, disponemos de paquetes de 5 y 10 sesiones con tarifa preferencial y seguimiento personalizado mediante nuestro portal del paciente."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body class="bg-[#faf9f6] dark:bg-[#0c1017] text-slate-800 dark:text-slate-100 font-sans antialiased transition-colors duration-300 selection:bg-amber-400 selection:text-slate-900">
     <div id="root"></div>

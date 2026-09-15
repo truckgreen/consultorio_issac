@@ -118,6 +118,7 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({
                       referrerPolicy="no-referrer"
                       className={`w-full h-full object-cover ${imageAsset.position || 'object-[center_15%]'} transform group-hover:scale-108 transition-transform duration-700`}
                       loading="lazy"
+                      decoding="async"
                     />
                     {/* Layered cinematic overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/30 to-transparent group-hover:from-slate-950/85 transition-colors duration-300" />

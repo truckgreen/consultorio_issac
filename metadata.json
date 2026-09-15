@@ -1,6 +1,6 @@
 {
   "name": "Equilibra - Fisioterapia & Bienestar Integral",
-  "description": "Sistema clínico integral para Equilibra con gestión completa de pacientes (crear, ver, editar, eliminar), expediente digital y visor/subida de registros médicos en formato PDF.",
+  "description": "Centro especializado en fisioterapia deportiva, traumatología y rehabilitación física en Sabana Grande, Caracas con expediente clínico digital y citas online.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

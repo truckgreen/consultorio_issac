@@ -1,0 +1,16 @@
+{
+  "name": "Equilibra - Fisioterapia & Bienestar Integral",
+  "short_name": "Equilibra",
+  "description": "Centro clínico especializado en fisioterapia, traumatología y rehabilitación en Caracas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1017",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

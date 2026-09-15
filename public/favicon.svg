@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="16" fill="#0C1017"/>
+  <circle cx="32" cy="32" r="28" stroke="#F59E0B" stroke-width="2" stroke-opacity="0.3"/>
+  <path d="M32 10 L32 54" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="12" r="4.5" fill="#FBBF24"/>
+  <!-- Equilibrium wings / balance curve -->
+  <path d="M18 22 C22 17, 42 17, 46 22 C43 27, 21 27, 18 22 Z" fill="#F59E0B" fill-opacity="0.85"/>
+  <path d="M22 31 C26 27, 38 27, 42 31 C39 35, 25 35, 22 31 Z" fill="#FBBF24" fill-opacity="0.85"/>
+  <!-- Caduceus snakes intertwined in harmony -->
+  <path d="M22 44 C22 38, 42 38, 42 32 C42 26, 22 26, 22 20" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M42 44 C42 38, 22 38, 22 32 C22 26, 42 26, 42 20" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- Base grounded dot -->
+  <circle cx="32" cy="52" r="2" fill="#F59E0B"/>
+</svg>

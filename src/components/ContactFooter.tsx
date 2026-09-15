@@ -35,6 +35,9 @@ import {
 interface ContactFooterProps {
   onOpenBooking: () => void;
   onOpenPrivacyModal?: () => void;
+  onOpenLegalNotice?: () => void;
+  onOpenCookieSettings?: () => void;
+  onOpenLaunchAudit?: () => void;
   onOpenPatientPortal?: () => void;
   onOpenSpecialistAccess?: () => void;
   onOpenDeveloperSupport?: () => void;
@@ -43,6 +46,9 @@ interface ContactFooterProps {
 export const ContactFooter: React.FC<ContactFooterProps> = ({
   onOpenBooking,
   onOpenPrivacyModal,
+  onOpenLegalNotice,
+  onOpenCookieSettings,
+  onOpenLaunchAudit,
   onOpenPatientPortal,
   onOpenSpecialistAccess,
   onOpenDeveloperSupport,
@@ -407,27 +413,56 @@ export const ContactFooter: React.FC<ContactFooterProps> = ({
                 </button>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {onOpenLegalNotice && (
+                  <button
+                    onClick={onOpenLegalNotice}
+                    className="flex-1 min-w-[120px] py-2 text-[11px] font-bold text-slate-300 hover:text-amber-400 bg-slate-800/60 rounded-xl border border-slate-700/60 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <ShieldCheck className="w-3 h-3 text-amber-400" />
+                    <span>Aviso Legal</span>
+                  </button>
+                )}
+
                 {onOpenPrivacyModal && (
                   <button
                     onClick={onOpenPrivacyModal}
-                    className="flex-1 py-2 text-[11px] font-bold text-slate-300 hover:text-amber-400 bg-slate-800/60 rounded-xl border border-slate-700/60 transition-colors flex items-center justify-center gap-1"
+                    className="flex-1 min-w-[120px] py-2 text-[11px] font-bold text-slate-300 hover:text-amber-400 bg-slate-800/60 rounded-xl border border-slate-700/60 transition-colors flex items-center justify-center gap-1"
                   >
                     <ShieldCheck className="w-3 h-3 text-emerald-400" />
                     <span>Privacidad ARCO</span>
                   </button>
                 )}
 
+                {onOpenCookieSettings && (
+                  <button
+                    onClick={onOpenCookieSettings}
+                    className="flex-1 min-w-[120px] py-2 text-[11px] font-bold text-slate-300 hover:text-amber-400 bg-slate-800/60 rounded-xl border border-slate-700/60 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <span>Configurar Cookies</span>
+                  </button>
+                )}
+
                 {onOpenSpecialistAccess && (
                   <button
                     onClick={onOpenSpecialistAccess}
-                    className="flex-1 py-2 text-[11px] font-bold text-slate-300 hover:text-amber-400 bg-slate-800/60 rounded-xl border border-slate-700/60 transition-colors flex items-center justify-center gap-1"
+                    className="flex-1 min-w-[120px] py-2 text-[11px] font-bold text-slate-300 hover:text-amber-400 bg-slate-800/60 rounded-xl border border-slate-700/60 transition-colors flex items-center justify-center gap-1"
                   >
                     <KeyRound className="w-3 h-3 text-indigo-400" />
                     <span>Especialistas</span>
                   </button>
                 )}
               </div>
+
+              {onOpenLaunchAudit && (
+                <button
+                  onClick={onOpenLaunchAudit}
+                  className="w-full py-2.5 text-[11px] font-bold text-emerald-300 hover:text-white bg-emerald-950/40 hover:bg-emerald-900/60 rounded-xl border border-emerald-500/40 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Auditoría Web 20/20 (Lista para Lanzamiento)</span>
+                </button>
+              )}
 
               {onOpenDeveloperSupport && (
                 <button

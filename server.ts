@@ -384,13 +384,40 @@ function isValidEntityId(id: string): boolean {
 async function startServer() {
   const app = express();
 
-  // Web Security Headers (OWASP & HIPAA/GDPR Compliance)
+  // Web Security Headers (OWASP, HIPAA/GDPR Compliance, & Force HTTPS)
   app.use((req, res, next) => {
+    // 04: Forzar HTTPS en producción si el tráfico entra desprotegido vía proxy
+    if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] === 'http') {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+
+    // Cabeceras estrictas de seguridad (HSTS, Anti-sniffing, XSS, Iframe sandbox)
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     next();
+  });
+
+  // 07: Endpoint dedicado para robots.txt
+  app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    const robotsFile = path.join(process.cwd(), 'public', 'robots.txt');
+    if (fs.existsSync(robotsFile)) {
+      return res.sendFile(robotsFile);
+    }
+    res.send("User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nSitemap: https://equilibra.com.ve/sitemap.xml\n");
+  });
+
+  // 07: Endpoint dedicado para sitemap.xml
+  app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml');
+    const sitemapFile = path.join(process.cwd(), 'public', 'sitemap.xml');
+    if (fs.existsSync(sitemapFile)) {
+      return res.sendFile(sitemapFile);
+    }
+    res.status(404).send('<!-- Sitemap no generado -->');
   });
 
   app.use(express.json({ limit: '15mb' }));

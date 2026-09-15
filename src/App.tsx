@@ -11,21 +11,29 @@ import { WhyChooseUs } from './components/WhyChooseUs';
 import { InteractiveAssessment } from './components/InteractiveAssessment';
 import { BookingSection } from './components/BookingSection';
 import { BookingModal } from './components/BookingModal';
+import { GoogleBusinessCard } from './components/GoogleBusinessCard';
 import { TestimonialsSection } from './components/TestimonialsSection';
 import { InteractiveFaq } from './components/InteractiveFaq';
 import { ContactFooter } from './components/ContactFooter';
 import { PatientPortalModal } from './components/PatientPortalModal';
 import { SpecialistAccessModal } from './components/SpecialistAccessModal';
 import { SecurityPrivacyModal } from './components/SecurityPrivacyModal';
+import { LegalNoticeModal } from './components/LegalNoticeModal';
+import { LaunchAuditModal } from './components/LaunchAuditModal';
 import { DeveloperSupportModal } from './components/DeveloperSupportModal';
 import { AppDownloadModal } from './components/AppDownloadModal';
+import { WhatsAppFloatingButton } from './components/WhatsAppFloatingButton';
+import { CookieBanner } from './components/CookieBanner';
+import { NotFoundPage } from './components/NotFoundPage';
 import { ServiceItem } from './types';
 import { syncGlobalConfigFromServer } from './lib/supabase';
+import { trackPageView } from './utils/analytics';
 
 export function App() {
   // Global config sync across all devices
   useEffect(() => {
     syncGlobalConfigFromServer();
+    trackPageView('homepage');
   }, []);
 
   // 1. Dark Mode State
@@ -56,8 +64,16 @@ export function App() {
   const [portalInitialCode, setPortalInitialCode] = useState<string | undefined>(undefined);
   const [isSpecialistAccessOpen, setIsSpecialistAccessOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [isLegalNoticeOpen, setIsLegalNoticeOpen] = useState(false);
+  const [isLaunchAuditOpen, setIsLaunchAuditOpen] = useState(false);
   const [isDeveloperSupportOpen, setIsDeveloperSupportOpen] = useState(false);
   const [isAppDownloadOpen, setIsAppDownloadOpen] = useState(false);
+
+  // 3. Custom 404 State
+  const [is404Active, setIs404Active] = useState<boolean>(() => {
+    const path = window.location.pathname;
+    return path !== '/' && path !== '' && path !== '/index.html';
+  });
 
   // Handlers
   const handleOpenBooking = (serviceId?: string) => {
@@ -74,6 +90,26 @@ export function App() {
     setPortalInitialCode(code);
     setIsPatientPortalOpen(true);
   };
+
+  const handleTriggerCookieSettings = () => {
+    window.dispatchEvent(new CustomEvent('equilibra_open_cookie_settings'));
+  };
+
+  if (is404Active) {
+    return (
+      <NotFoundPage
+        onGoHome={() => {
+          window.history.pushState({}, '', '/');
+          setIs404Active(false);
+        }}
+        onOpenBooking={() => {
+          window.history.pushState({}, '', '/');
+          setIs404Active(false);
+          handleOpenBooking();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0c1017] text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950 relative">
@@ -120,6 +156,9 @@ export function App() {
           onOpenPatientPortal={handleOpenPatientPortal}
           onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
         />
+
+        {/* 08: Ficha de Google Business Profile */}
+        <GoogleBusinessCard />
         
         <TestimonialsSection />
         
@@ -132,10 +171,23 @@ export function App() {
         onOpenPatientPortal={() => handleOpenPatientPortal()}
         onOpenSpecialistAccess={() => setIsSpecialistAccessOpen(true)}
         onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
+        onOpenLegalNotice={() => setIsLegalNoticeOpen(true)}
+        onOpenCookieSettings={handleTriggerCookieSettings}
+        onOpenLaunchAudit={() => setIsLaunchAuditOpen(true)}
         onOpenDeveloperSupport={() => setIsDeveloperSupportOpen(true)}
       />
 
-      {/* 4. Global Modals */}
+      {/* 4. Floating Conversion Elements */}
+      {/* 18: Botón de WhatsApp Visible Flotante */}
+      <WhatsAppFloatingButton />
+
+      {/* 03: Banner de Consentimiento de Cookies */}
+      <CookieBanner
+        onOpenPrivacyPolicy={() => setIsPrivacyModalOpen(true)}
+        onOpenLegalNotice={() => setIsLegalNoticeOpen(true)}
+      />
+
+      {/* 5. Global Modals */}
       <BookingModal
         isOpen={isBookingModalOpen}
         onClose={handleCloseBooking}
@@ -167,6 +219,38 @@ export function App() {
       <SecurityPrivacyModal
         isOpen={isPrivacyModalOpen}
         onClose={() => setIsPrivacyModalOpen(false)}
+      />
+
+      {/* 01: Modal de Aviso Legal y Términos */}
+      <LegalNoticeModal
+        isOpen={isLegalNoticeOpen}
+        onClose={() => setIsLegalNoticeOpen(false)}
+      />
+
+      {/* Checklist interactivo 20 de 20 */}
+      <LaunchAuditModal
+        isOpen={isLaunchAuditOpen}
+        onClose={() => setIsLaunchAuditOpen(false)}
+        onOpenLegalNotice={() => {
+          setIsLaunchAuditOpen(false);
+          setIsLegalNoticeOpen(true);
+        }}
+        onOpenPrivacyPolicy={() => {
+          setIsLaunchAuditOpen(false);
+          setIsPrivacyModalOpen(true);
+        }}
+        onOpenCookieSettings={() => {
+          setIsLaunchAuditOpen(false);
+          handleTriggerCookieSettings();
+        }}
+        onOpenBooking={() => {
+          setIsLaunchAuditOpen(false);
+          handleOpenBooking();
+        }}
+        onTrigger404={() => {
+          setIsLaunchAuditOpen(false);
+          setIs404Active(true);
+        }}
       />
 
       <DeveloperSupportModal

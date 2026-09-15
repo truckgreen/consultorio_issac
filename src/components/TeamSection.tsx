@@ -156,9 +156,11 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
                 <div className="relative aspect-[4/4.8] rounded-2xl overflow-hidden mb-4 bg-slate-200 dark:bg-slate-800 ring-2 ring-transparent group-hover:ring-amber-400/70 dark:group-hover:ring-amber-400/50 transition-all duration-300">
                   <img
                     src={member.image}
-                    alt={member.name}
+                    alt={`Especialista ${member.name}, ${member.role} en Centro Clínico Equilibra Caracas`}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover object-top group-hover:scale-106 transition-transform duration-500"
+                    loading="lazy"
+                    decoding="async"
                   />
                   {/* Gradient Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-70 group-hover:opacity-40 transition-opacity" />
@@ -254,8 +256,9 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
               <div className="flex items-center gap-4 mb-5">
                 <img
                   src={selectedMember.image}
-                  alt={selectedMember.name}
+                  alt={`Fotografía clínica de ${selectedMember.name}, ${selectedMember.role}`}
                   referrerPolicy="no-referrer"
+                  decoding="async"
                   className="w-20 h-20 rounded-2xl object-cover object-top shadow-md border-2 border-amber-500"
                 />
                 <div>
