@@ -30,11 +30,11 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onGoHome, onOpenBook
         </span>
 
         <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white font-heading tracking-tight mb-3">
-          Este camino perdió el equilibrio
+          Equilibra perdió el equilibrio
         </h1>
 
         <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-8">
-          La página que buscas no existe o ha sido reubicada. En EQUILIBRA te ayudamos a recuperar la dirección de tu bienestar.
+          La página que buscas no existe o ha sido reubicada. En EQUILIBRA te ayudamos a recuperar el equilibrio de tu bienestar.
         </p>
 
         {/* Action Buttons */}
