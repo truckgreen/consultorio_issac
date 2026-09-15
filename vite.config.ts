@@ -23,29 +23,11 @@ export default defineConfig(() => {
     process.env.VITE_SUPABASE_KEY ||
     '';
 
-  const telegramToken =
-    process.env.VITE_TELEGRAM_BOT_TOKEN ||
-    process.env.TELEGRAM_BOT_TOKEN ||
-    process.env.BOT_TOKEN ||
-    process.env.TELEGRAM_TOKEN ||
-    process.env.VITE_BOT_TOKEN ||
-    '';
-
-  const telegramChatId =
-    process.env.VITE_TELEGRAM_CHAT_ID ||
-    process.env.TELEGRAM_CHAT_ID ||
-    process.env.CHAT_ID ||
-    process.env.TELEGRAM_GROUP_ID ||
-    process.env.VITE_CHAT_ID ||
-    '';
-
   return {
     plugins: [react(), tailwindcss()],
     define: {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl),
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabaseKey),
-      'import.meta.env.VITE_TELEGRAM_BOT_TOKEN': JSON.stringify(telegramToken),
-      'import.meta.env.VITE_TELEGRAM_CHAT_ID': JSON.stringify(telegramChatId),
     },
     resolve: {
       alias: {

@@ -79,19 +79,15 @@ function getEnvCredentials() {
 
   const telegramToken =
     process.env.TELEGRAM_BOT_TOKEN ||
-    process.env.VITE_TELEGRAM_BOT_TOKEN ||
     process.env.BOT_TOKEN ||
     process.env.TELEGRAM_TOKEN ||
-    process.env.VITE_BOT_TOKEN ||
     disk.telegramToken ||
     '';
 
   const telegramChatId =
     process.env.TELEGRAM_CHAT_ID ||
-    process.env.VITE_TELEGRAM_CHAT_ID ||
     process.env.CHAT_ID ||
     process.env.TELEGRAM_GROUP_ID ||
-    process.env.VITE_CHAT_ID ||
     disk.telegramChatId ||
     '';
 

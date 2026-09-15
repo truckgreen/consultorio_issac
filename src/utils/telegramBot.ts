@@ -5,10 +5,11 @@ import { getStaffAuthHeaders } from './security';
 
 const TELEGRAM_CONFIG_STORAGE_KEY = 'equilibra_telegram_config';
 
-// Default / fallback configurations with default specialist tags
+// Default / fallback configurations with default specialist tags.
+// Telegram secrets must never be exposed in the browser bundle.
 export const DEFAULT_TELEGRAM_CONFIG: TelegramConfig = {
-  botToken: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_BOT_TOKEN) || '',
-  chatId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_CHAT_ID) || '',
+  botToken: '',
+  chatId: '',
   enabled: true,
   notifyOnBooking: true,
   notifyOnCancellation: true,
@@ -25,25 +26,22 @@ export const DEFAULT_TELEGRAM_CONFIG: TelegramConfig = {
 };
 
 export function getStoredTelegramConfig(): TelegramConfig {
-  const envToken = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_BOT_TOKEN) || '';
-  const envChatId = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_CHAT_ID) || '';
-
   if (typeof window === 'undefined') return DEFAULT_TELEGRAM_CONFIG;
   try {
     const raw = localStorage.getItem(TELEGRAM_CONFIG_STORAGE_KEY);
     if (!raw) {
       return {
         ...DEFAULT_TELEGRAM_CONFIG,
-        botToken: envToken || DEFAULT_TELEGRAM_CONFIG.botToken,
-        chatId: envChatId || DEFAULT_TELEGRAM_CONFIG.chatId,
+        botToken: DEFAULT_TELEGRAM_CONFIG.botToken,
+        chatId: DEFAULT_TELEGRAM_CONFIG.chatId,
       };
     }
     const parsed = JSON.parse(raw);
     return {
       ...DEFAULT_TELEGRAM_CONFIG,
       ...parsed,
-      botToken: parsed.botToken || envToken || DEFAULT_TELEGRAM_CONFIG.botToken,
-      chatId: parsed.chatId || envChatId || DEFAULT_TELEGRAM_CONFIG.chatId,
+      botToken: parsed.botToken || DEFAULT_TELEGRAM_CONFIG.botToken,
+      chatId: parsed.chatId || DEFAULT_TELEGRAM_CONFIG.chatId,
       specialistTags: {
         ...DEFAULT_TELEGRAM_CONFIG.specialistTags,
         ...(parsed.specialistTags || {}),
@@ -164,9 +162,10 @@ export async function sendTelegramBookingAlert(
     console.warn('[Telegram Alert] Server API not reachable or failed, attempting direct client fallback:', apiErr);
   }
 
-  // 2. Direct client fallback if botToken & chatId are provided in client or localStorage
-  const botToken = config.botToken || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_BOT_TOKEN) || '';
-  const chatId = config.chatId || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_CHAT_ID) || '';
+  // 2. Direct client fallback if botToken & chatId are provided in client local storage.
+  // Secrets should only be read from the server, never from browser-exposed Vite env vars.
+  const botToken = config.botToken || '';
+  const chatId = config.chatId || '';
 
   if (!botToken || !chatId) {
     console.warn('Telegram Bot Token o Chat ID no configurados aún en el panel de administración ni en variables de entorno.');
