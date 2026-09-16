@@ -50,6 +50,19 @@ export function trackEvent(name: string, category: AnalyticsEvent['category'] = 
 
   // Dispatch custom window event for reactive UI/components
   window.dispatchEvent(new CustomEvent('equilibra_analytics_event', { detail: event }));
+
+  // Forward event to Google Analytics (gtag) if initialized
+  try {
+    if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
+      (window as any).gtag('event', name, {
+        event_category: category,
+        event_label: label,
+        value: value,
+      });
+    }
+  } catch (gtagErr) {
+    console.debug('[Analytics] Google Analytics dispatch error:', gtagErr);
+  }
 }
 
 export function trackPageView(pageName: string = 'home'): void {

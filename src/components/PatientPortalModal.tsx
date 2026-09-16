@@ -50,6 +50,7 @@ import {
   downloadAppointmentVoucherPdf,
   generateWhatsAppReminderMessage,
 } from '../utils/calendarExportUtils';
+import { downloadInvoiceReceiptPdf } from '../utils/invoiceReceiptUtils';
 import { SERVICES_DATA } from '../data/servicesData';
 import { CLINIC_INFO } from '../data/featuresData';
 import { BookingCalendar } from './BookingCalendar';
@@ -150,6 +151,28 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
     if (foundAppointment) {
       downloadAppointmentVoucherPdf(foundAppointment);
     }
+  };
+
+  const handleDownloadInvoiceReceipt = () => {
+    if (!foundAppointment) return;
+    const priceRaw = foundAppointment.selectedPackagePrice || foundAppointment.servicePrice || '35';
+    const cleanNum = parseFloat(String(priceRaw).replace(/[^\d.]/g, '')) || 35;
+    downloadInvoiceReceiptPdf({
+      receiptNumber: `FAC-${foundAppointment.code.replace(/[^A-Z0-9]/gi, '').slice(0, 8)}`,
+      date: foundAppointment.fecha || new Date().toISOString().split('T')[0],
+      patientName: `${foundAppointment.nombre} ${foundAppointment.apellido}`,
+      patientDocumentId: foundAppointment.telefono || 'Verificado Portal',
+      patientPhone: foundAppointment.telefono,
+      patientEmail: foundAppointment.email,
+      serviceTitle: foundAppointment.selectedPackageName || foundAppointment.serviceTitle || 'Fisioterapia & Readaptación',
+      specialistName: foundAppointment.specialistName || 'Especialista EQUILIBRA',
+      amount: cleanNum,
+      currency: 'USD ($)',
+      paymentMethod: foundAppointment.payment_status === 'PAGADO' ? 'Pago Digital Aprobado' : 'Pendiente / En Sede',
+      paymentReference: foundAppointment.code,
+      sessionDetails: `Sesión clínica programada para el ${foundAppointment.fecha} a las ${foundAppointment.hora}. Válido para trámite de seguros médicos.`,
+      appointmentCode: foundAppointment.code,
+    });
   };
 
   // Robust Normalization & Matching Helpers
@@ -1456,6 +1479,15 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                     >
                       <FileCheck className="w-3.5 h-3.5 text-amber-400" />
                       <span>Comprobante PDF</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDownloadInvoiceReceipt}
+                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-sm"
+                    >
+                      <DollarSign className="w-3.5 h-3.5" />
+                      <span>Recibo / Factura Digital</span>
                     </button>
 
                     <a

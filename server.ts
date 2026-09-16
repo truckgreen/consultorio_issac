@@ -4,6 +4,7 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { GoogleGenAI } from '@google/genai';
 
 // Load environment variables from .env file if present
 dotenv.config();
@@ -431,6 +432,137 @@ async function startServer() {
       supabaseConfigured: Boolean(env.supabaseUrl && env.supabaseKey),
       telegramConfigured: Boolean(env.telegramToken && env.telegramChatId),
     });
+  });
+
+  // 1b. Asistente Virtual Médico & Triage Fisioterapéutico con IA (Gemini API)
+  app.post('/api/ai/triage', createRateLimiter(60 * 1000, 20, 'ai_triage'), async (req, res) => {
+    try {
+      const { userSymptoms, age, activityLevel, duration, previousInjury } = req.body || {};
+      const symptomsText = sanitizeServerInput(userSymptoms || '', 1000);
+
+      if (!symptomsText || symptomsText.trim().length < 5) {
+        return res.status(400).json({
+          success: false,
+          error: 'Por favor describe tus síntomas o motivo de consulta con más detalle.',
+        });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      // Fallback rule-based triage if API key is not present or offline
+      if (!apiKey) {
+        const lower = symptomsText.toLowerCase();
+        let recommendedServiceId = 'fisioterapia';
+        let specialist = 'Fisioterapia General & Traumatología';
+        let urgency = 'moderada';
+        let reasoning = 'Evaluación física integral para identificar el origen biomecánico de tu molestia.';
+
+        if (lower.includes('deporte') || lower.includes('correr') || lower.includes('futbol') || lower.includes('desgarro') || lower.includes('gym')) {
+          recommendedServiceId = 'fisioterapia-deportiva';
+          specialist = 'Fisioterapia Deportiva & Readaptación';
+          reasoning = 'Recomendado para optimizar el retorno a la actividad física sin riesgo de recaída.';
+        } else if (lower.includes('niño') || lower.includes('bebé') || lower.includes('hijo') || lower.includes('pediatr')) {
+          recommendedServiceId = 'fisioterapia-pediatrica';
+          specialist = 'Fisioterapia Pediátrica';
+          reasoning = 'Atención especializada en neurodesarrollo y postura infantil.';
+        } else if (lower.includes('abuelo') || lower.includes('artrosis') || lower.includes('caida') || lower.includes('adulto mayor')) {
+          recommendedServiceId = 'fisioterapia-geriatrica';
+          specialist = 'Fisioterapia Geriátrica';
+          reasoning = 'Enfocado en movilidad funcional, fortalecimiento y prevención de caídas.';
+        } else if (lower.includes('estres') || lower.includes('ansiedad') || lower.includes('emocion') || lower.includes('mental')) {
+          recommendedServiceId = 'psicologia';
+          specialist = 'Psicología Clínica & Bienestar';
+          reasoning = 'Abordaje biopsicosocial del dolor crónico y equilibrio emocional.';
+        }
+
+        return res.json({
+          success: true,
+          triage: {
+            recommendedServiceId,
+            specialistArea: specialist,
+            urgencyLevel: urgency,
+            triageSummary: reasoning,
+            homeAdvice: [
+              'Evita movimientos bruscos o sobrecargas sobre la zona dolorosa.',
+              'Aplica frío local si la molestia es reciente (< 48h) o calor suave si es tensión muscular prolongada.',
+              'Agenda tu valoración presencial en EQUILIBRA para obtener un diagnóstico con pruebas biomecánicas.'
+            ],
+            confidence: 'Protocolo Clínico Asistido',
+          },
+        });
+      }
+
+      // Gemini AI-powered reasoning
+      const ai = new GoogleGenAI({ apiKey });
+      const prompt = `Eres el Asistente Virtual de Triage Clínico y Orientación Médica de "EQUILIBRA - Centro de Fisioterapia & Bienestar" en Caracas, Venezuela.
+Tu objetivo es analizar los síntomas del usuario y recomendar la especialidad o servicio más adecuado dentro de la clínica.
+
+SERVICIOS DISPONIBLES EN EQUILIBRA:
+- "fisioterapia" (Fisioterapia Traumatológica / Dolor de espalda, cervicalgia, lumbalgia, tendinitis, hernias)
+- "fisioterapia-deportiva" (Lesiones de corredores, atletas, gimnasio, desgarros musculares, ligamentos, readaptación)
+- "fisioterapia-pediatrica" (Desarrollo motor, marcha, escoliosis en niños y adolescentes)
+- "fisioterapia-geriatrica" (Adulto mayor, artrosis, osteoporosis, equilibrio, movilidad)
+- "fisioterapia-estetica" (Drenaje linfático, postoperatorio, retención de líquidos)
+- "entrenamiento-funcional" (Acondicionamiento físico, prevención, boxeo funcional)
+- "psicologia" (Manejo del dolor crónico, somatización, estrés)
+- "nutricion" (Plan nutricional antiinflamatorio y deportivo)
+
+INFORMACIÓN DEL PACIENTE:
+- Síntomas / Molestia reportada: "${symptomsText}"
+- Edad aproximada: "${sanitizeServerInput(String(age || 'No especificada'), 20)}"
+- Nivel de actividad: "${sanitizeServerInput(String(activityLevel || 'Normal'), 30)}"
+- Tiempo de evolución: "${sanitizeServerInput(String(duration || 'No especificado'), 50)}"
+- Antecedente de lesión: "${sanitizeServerInput(String(previousInjury || 'Ninguno'), 100)}"
+
+Debes responder ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
+{
+  "recommendedServiceId": "id-del-servicio-exacto-arriba",
+  "specialistArea": "Nombre legible de la especialidad",
+  "urgencyLevel": "baja" | "moderada" | "prioritaria",
+  "triageSummary": "Explicación clara, empática y profesional (2-3 oraciones) de por qué este servicio es el ideal para su caso.",
+  "homeAdvice": [
+    "Consejo 1 seguro mientras asiste a la consulta",
+    "Consejo 2 sobre postura o aplicación térmica",
+    "Consejo 3"
+  ],
+  "disclaimer": "Orientación preliminar educativa de triage. Requiere valoración física en clínica."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+      });
+
+      const responseText = response.text || '{}';
+      const parsed = JSON.parse(responseText);
+
+      res.json({
+        success: true,
+        triage: parsed,
+      });
+    } catch (aiErr: any) {
+      console.warn('[AI Triage] Error calling Gemini API, using fallback:', aiErr?.message);
+      // Clean fallback if API fails
+      res.json({
+        success: true,
+        triage: {
+          recommendedServiceId: 'fisioterapia',
+          specialistArea: 'Fisioterapia General & Traumatología',
+          urgencyLevel: 'moderada',
+          triageSummary: 'Hemos registrado tus síntomas. Te recomendamos una sesión de evaluación fisioterapéutica 1 a 1 para un diagnóstico biomecánico preciso.',
+          homeAdvice: [
+            'Evita levantar cargas pesadas o forzar el rango de dolor.',
+            'Aplica frío local en periodos de 15 minutos si sientes hinchazón.',
+            'Agenda tu consulta en EQUILIBRA para recibir tu pauta de tratamiento personalizada.'
+          ],
+          confidence: 'Evaluación Estándar',
+        },
+      });
+    }
   });
 
   // 2. Global configuration endpoint (Syncs credentials with token masking for non-staff)

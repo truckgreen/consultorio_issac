@@ -87,10 +87,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navLinks = [
     { label: 'Inicio', href: '#inicio', id: 'inicio' },
-    { label: 'Nosotros', href: '#sobre-nosotros', id: 'sobre-nosotros' },
+    { label: 'Triage IA', href: '#triage-medico', id: 'triage-medico' },
     { label: 'Servicios', href: '#servicios', id: 'servicios' },
     { label: 'Equipo', href: '#equipo', id: 'equipo' },
-    { label: 'Especialidades', href: '#especialidades', id: 'especialidades' },
+    { label: 'Reseñas', href: '#testimonios', id: 'testimonios' },
     { label: 'Contacto', href: '#contacto', id: 'contacto' },
   ];
 
