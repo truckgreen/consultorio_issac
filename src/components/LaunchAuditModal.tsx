@@ -45,7 +45,7 @@ export const LaunchAuditModal: React.FC<LaunchAuditModalProps> = ({
       id: 1,
       name: 'Aviso legal',
       category: 'legal',
-      status: 'verified',',
+      status: 'verified',
       action: { label: 'Ver Aviso Legal', onClick: onOpenLegalNotice },
     },
     {
