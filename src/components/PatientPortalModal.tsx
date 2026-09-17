@@ -614,7 +614,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
 
   const isPackageAppointment = Boolean(foundAppointment && getPackageTotalSessions(foundAppointment) > 1);
   const packageCode = foundAppointment ? getPackageAccessCode(foundAppointment) : '';
-  const packageLimit = 10;
+  const packageLimit = foundAppointment ? getPackageTotalSessions(foundAppointment) : 10;
 
   const packageAppointments = foundAppointment
     ? appointmentsList.filter(
@@ -886,6 +886,11 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                             >
                               {app.status || 'Confirmada'}
                             </span>
+                            {((app.packageTotalSessions || 0) > 1 || app.packageCode) && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                Sesión {app.packageSessionNumber || 1}/{app.packageTotalSessions || (app.selectedPackageName?.match(/(\d+)\s*sesiones?/i)?.[1] || '?')}
+                              </span>
+                            )}
                           </div>
 
                           <p className="text-sm font-bold text-slate-900 dark:text-white">
@@ -1045,7 +1050,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                         <div className="flex items-center gap-2">
                           <Package className="w-5 h-5 text-amber-400" />
                           <h4 className="text-base font-extrabold text-white font-heading">
-                            Gestión de Paquete (Límite 10 Sesiones)
+                            Gestión y Contador de Paquete ({packageLimit} Sesiones)
                           </h4>
                         </div>
                         <p className="text-xs text-slate-300 mt-0.5">
@@ -1106,7 +1111,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                           <p className="text-[11px] text-slate-300 mt-0.5">
                             {daysRemainingToChoose > 0
                               ? `Haz clic directamente en los horarios disponibles para seleccionar varios días a la vez (puedes elegir hasta ${daysRemainingToChoose} día(s) más). Los días se resaltarán automáticamente en el calendario.`
-                              : 'Has alcanzado los 10 días de tu paquete. Todos tus días aparecen resaltados en verde en el calendario. Puedes hacer clic en un día para deseleccionarlo y cambiarlo.'}
+                              : `Has alcanzado el total de ${packageLimit} días de tu paquete. Todos tus días aparecen resaltados en verde en el calendario. Puedes hacer clic en un día para deseleccionarlo y cambiarlo.`}
                           </p>
                         </div>
                         <span className="font-mono text-xs font-black text-amber-300 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-700 shrink-0 self-start sm:self-auto">
@@ -1119,10 +1124,10 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                           <div className="text-xs">
                             <p className="font-bold text-emerald-200">
-                              ¡Límite máximo de 10 días completado!
+                              ¡Total de {packageLimit} sesiones completado!
                             </p>
                             <p className="text-emerald-300/80 text-[11px]">
-                              Tus 10 sesiones se encuentran resaltadas en verde en el calendario inferior bajo tu código único {packageCode}.
+                              Tus {packageLimit} sesiones se encuentran resaltadas en verde en el calendario inferior bajo tu código único {packageCode}.
                             </p>
                           </div>
                         </div>

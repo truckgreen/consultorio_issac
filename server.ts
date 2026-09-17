@@ -130,6 +130,7 @@ function getServerSupabaseClient(): SupabaseClient | null {
 
 // In-memory appointments fallback cache with persistent disk backing
 const APPOINTMENTS_FILE = path.join(process.cwd(), 'data', 'appointments.json');
+const APPOINTMENTS_ARCHIVE_FILE = path.join(process.cwd(), 'data', 'appointments_archive.json');
 
 function loadStoredAppointments(): any[] {
   try {
@@ -156,6 +157,50 @@ function persistAppointmentsToDisk(list: any[]): void {
   } catch (err) {
     console.error('[Server Appointments Disk] Error saving:', err);
   }
+}
+
+function appendToArchiveDisk(archivedList: any[]): void {
+  try {
+    const dir = path.dirname(APPOINTMENTS_ARCHIVE_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    let existing: any[] = [];
+    if (fs.existsSync(APPOINTMENTS_ARCHIVE_FILE)) {
+      try {
+        const raw = fs.readFileSync(APPOINTMENTS_ARCHIVE_FILE, 'utf-8');
+        existing = JSON.parse(raw) || [];
+      } catch {
+        existing = [];
+      }
+    }
+    const merged = [...archivedList, ...existing];
+    // Deduplicate by ID
+    const seen = new Set<string>();
+    const unique = merged.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+    fs.writeFileSync(APPOINTMENTS_ARCHIVE_FILE, JSON.stringify(unique, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[Server Archive Disk] Error saving backup:', err);
+  }
+}
+
+function loadArchivedAppointments(): any[] {
+  try {
+    if (fs.existsSync(APPOINTMENTS_ARCHIVE_FILE)) {
+      const data = fs.readFileSync(APPOINTMENTS_ARCHIVE_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[Server Archive Disk] Error reading:', err);
+  }
+  return [];
 }
 
 const serverAppointmentsCache: any[] = loadStoredAppointments();
@@ -1151,6 +1196,147 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
     } catch (err: any) {
       console.error('[Server DELETE ALL appointments error]:', err);
       res.status(500).json({ success: false, error: err?.message || 'Error eliminando citas' });
+    }
+  });
+
+  // 5c-2. Monthly Cut-off / Purge Appointments before a cutoff date (Protected: Requires Staff/Admin authorization)
+  app.post('/api/appointments/monthly-cutoff', createRateLimiter(60 * 1000, 10, 'appointments_monthly_cutoff'), requireStaffAuth, async (req, res) => {
+    try {
+      const { cutoffDate, statusesOnly, onlyCompletedOrCanceled } = req.body;
+      if (!cutoffDate || typeof cutoffDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(cutoffDate)) {
+        return res.status(400).json({ success: false, error: 'Fecha de corte inválida (formato requerido: YYYY-MM-DD)' });
+      }
+
+      const validStatuses = Array.isArray(statusesOnly) && statusesOnly.length > 0
+        ? statusesOnly.map((s: string) => String(s).toUpperCase())
+        : (onlyCompletedOrCanceled ? ['COMPLETADA', 'CANCELADA'] : null);
+
+      // 1. Identify appointments to archive and delete
+      const initialCount = serverAppointmentsCache.length;
+      const toDeleteIds: string[] = [];
+      const toArchiveItems: any[] = [];
+
+      serverAppointmentsCache.forEach((appt) => {
+        if (appt.fecha && appt.fecha < cutoffDate) {
+          const apptStatus = (appt.status || 'CONFIRMADA').toUpperCase();
+          if (!validStatuses || validStatuses.includes(apptStatus)) {
+            toDeleteIds.push(appt.id);
+            toArchiveItems.push({
+              ...appt,
+              archived_at: new Date().toISOString(),
+              cutoff_date: cutoffDate,
+            });
+          }
+        }
+      });
+
+      // 2. Persist to historical archive file on disk (Option 5: Respaldo histórico)
+      if (toArchiveItems.length > 0) {
+        appendToArchiveDisk(toArchiveItems);
+      }
+
+      // Filter cache
+      const updatedCache = serverAppointmentsCache.filter((a) => !toDeleteIds.includes(a.id));
+      serverAppointmentsCache.length = 0;
+      serverAppointmentsCache.push(...updatedCache);
+      persistAppointmentsToDisk(serverAppointmentsCache);
+
+      // 3. Backup and delete from Supabase
+      const supabaseClient = getServerSupabaseClient();
+      let supabaseDeletedCount = 0;
+      let supabaseArchivedCount = 0;
+      if (supabaseClient && toDeleteIds.length > 0) {
+        // Try backing up to 'appointments_archive' in Supabase first
+        try {
+          const archivePayload = toArchiveItems.map((item) => ({
+            id: item.id,
+            code: item.code,
+            nombre: item.nombre,
+            apellido: item.apellido,
+            email: item.email,
+            telefono: item.telefono,
+            fecha: item.fecha,
+            hora: item.hora,
+            service_id: item.service_id || item.serviceId,
+            service_title: item.service_title || item.serviceTitle || item.selectedPackageName,
+            status: item.status,
+            specialist_name: item.specialist_name || item.specialistName,
+            amount: item.amount,
+            notes: item.notes,
+            created_at: item.created_at || item.createdAt || new Date().toISOString(),
+            archived_at: new Date().toISOString(),
+          }));
+          const { error: archErr } = await supabaseClient.from('appointments_archive').upsert(archivePayload);
+          if (!archErr) {
+            supabaseArchivedCount = toArchiveItems.length;
+          } else {
+            console.warn('[Server Supabase Archive note]:', archErr.message);
+          }
+        } catch (archEx) {
+          console.warn('[Server Supabase Archive table note]:', archEx);
+        }
+
+        try {
+          let query = supabaseClient.from('appointments').delete().lt('fecha', cutoffDate);
+          if (validStatuses && validStatuses.length > 0) {
+            query = query.in('status', validStatuses);
+          }
+          const { error } = await query;
+          if (error) {
+            console.warn('[Server Supabase Monthly Cutoff note]:', error.message);
+          } else {
+            supabaseDeletedCount = toDeleteIds.length;
+          }
+        } catch (supaErr) {
+          console.warn('[Server Supabase Monthly Cutoff error]:', supaErr);
+        }
+      }
+
+      const deletedCount = toDeleteIds.length;
+      console.log(`[Server] Corte mensual aplicado. Fecha corte: ${cutoffDate}. Citas archivadas y depuradas: ${deletedCount}.`);
+
+      res.json({
+        success: true,
+        message: `Corte mensual procesado correctamente. Se han archivado y depurado ${deletedCount} citas anteriores al ${cutoffDate}.`,
+        deletedCount,
+        archivedCount: deletedCount,
+        remainingCount: serverAppointmentsCache.length,
+        cutoffDate,
+      });
+    } catch (err: any) {
+      console.error('[Server Monthly Cutoff error]:', err);
+      res.status(500).json({ success: false, error: err?.message || 'Error al procesar corte mensual' });
+    }
+  });
+
+  // 5c-3. GET Historical Archived Appointments (Protected: Requires Staff/Admin authorization)
+  app.get('/api/appointments/archive', requireStaffAuth, async (req, res) => {
+    try {
+      const diskArchived = loadArchivedAppointments();
+      const supabaseClient = getServerSupabaseClient();
+      let supaArchived: any[] = [];
+      if (supabaseClient) {
+        try {
+          const { data } = await supabaseClient.from('appointments_archive').select('*').order('fecha', { ascending: false }).limit(200);
+          if (Array.isArray(data)) {
+            supaArchived = data;
+          }
+        } catch (e) {
+          console.warn('[Server Archive GET note]:', e);
+        }
+      }
+      // Merge unique
+      const combined = [...diskArchived, ...supaArchived];
+      const seen = new Set<string>();
+      const unique = combined.filter((c) => {
+        if (seen.has(c.id)) return false;
+        seen.add(c.id);
+        return true;
+      });
+      res.json({ success: true, count: unique.length, data: unique });
+    } catch (err: any) {
+      console.error('[Server GET Archive error]:', err);
+      res.status(500).json({ success: false, error: 'Error cargando archivo histórico' });
     }
   });
 

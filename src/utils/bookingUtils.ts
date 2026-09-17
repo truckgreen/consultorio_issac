@@ -1018,3 +1018,146 @@ export async function clearAllAppointmentsFromSystem(): Promise<{ success: boole
     message: 'Todas las citas han sido eliminadas exitosamente.',
   };
 }
+
+export const LOCAL_STORAGE_ARCHIVE_KEY = 'equilibra_appointments_archive';
+
+/**
+ * Returns locally archived appointments from previous monthly cutoffs
+ */
+export function getArchivedAppointments(): ConfirmedAppointment[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_ARCHIVE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error('Error reading archived appointments from localStorage:', e);
+    return [];
+  }
+}
+
+/**
+ * Performs a monthly cut-off:
+ * 1. Safely archives appointments before cutoffDate to localStorage archive, server disk archive, and Supabase appointments_archive (Option 5).
+ * 2. Depurates active appointments before cutoffDate from localStorage, server disk/memory, and Supabase.
+ * 3. Leaves patient master clinical profiles untouched.
+ */
+export async function performMonthlyCutoff(
+  cutoffDate: string,
+  onlyCompletedOrCanceled: boolean = false
+): Promise<{ success: boolean; deletedCount: number; archivedCount: number; remainingCount: number; message: string }> {
+  if (!cutoffDate) {
+    return { success: false, deletedCount: 0, archivedCount: 0, remainingCount: 0, message: 'Fecha de corte requerida' };
+  }
+
+  // 1. Filter and save local appointments + store in local archive
+  const current = getSavedAppointments();
+  const toKeep: ConfirmedAppointment[] = [];
+  const toArchive: ConfirmedAppointment[] = [];
+  let localDeleted = 0;
+
+  current.forEach((a) => {
+    const isPrior = a.fecha && a.fecha < cutoffDate;
+    const isCompletedOrCanceled = a.status === 'completada' || a.status === 'cancelada';
+    const shouldDelete = isPrior && (!onlyCompletedOrCanceled || isCompletedOrCanceled);
+
+    if (shouldDelete) {
+      localDeleted++;
+      toArchive.push(a);
+    } else {
+      toKeep.push(a);
+    }
+  });
+
+  if (typeof window !== 'undefined') {
+    try {
+      if (toArchive.length > 0) {
+        const existingArchive = getArchivedAppointments();
+        const combinedArchive = [...toArchive, ...existingArchive];
+        const seen = new Set<string>();
+        const uniqueArchive = combinedArchive.filter((item) => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
+        localStorage.setItem(LOCAL_STORAGE_ARCHIVE_KEY, JSON.stringify(uniqueArchive));
+      }
+
+      localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(toKeep));
+      localStorage.setItem('equilibra_appointments', JSON.stringify(toKeep));
+      window.dispatchEvent(new CustomEvent('equilibra_appointments_cleared'));
+      window.dispatchEvent(new CustomEvent('equilibra_appointment_saved', { detail: null }));
+    } catch (e) {
+      console.warn('[performMonthlyCutoff] localStorage error:', e);
+    }
+  }
+
+  // 2. Call server endpoint with historical archiving
+  let serverDeleted = 0;
+  let serverArchived = 0;
+  try {
+    const res = await fetch('/api/appointments/monthly-cutoff', {
+      method: 'POST',
+      headers: {
+        ...getStaffAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        cutoffDate,
+        onlyCompletedOrCanceled,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      serverDeleted = data.deletedCount || 0;
+      serverArchived = data.archivedCount || serverDeleted;
+    }
+  } catch (err) {
+    console.warn('[performMonthlyCutoff] Server API note:', err);
+  }
+
+  // 3. Backup to Supabase appointments_archive and delete from appointments if client is ready
+  if (isSupabaseConfigured && supabase && toArchive.length > 0) {
+    try {
+      const archiveRows = toArchive.map((item) => ({
+        id: item.id,
+        code: item.code,
+        nombre: item.nombre,
+        apellido: item.apellido,
+        email: item.email,
+        telefono: item.telefono,
+        fecha: item.fecha,
+        hora: item.hora,
+        service_id: item.serviceId,
+        service_title: item.selectedPackageName || item.servicePrice,
+        status: item.status,
+        specialist_name: item.specialistName,
+        amount: item.amount,
+        notes: item.notes,
+        created_at: item.createdAt || new Date().toISOString(),
+        archived_at: new Date().toISOString(),
+      }));
+      await supabase.from('appointments_archive').upsert(archiveRows);
+    } catch (archErr) {
+      console.warn('[performMonthlyCutoff] Supabase archive insert note:', archErr);
+    }
+
+    try {
+      let q = supabase.from('appointments').delete().lt('fecha', cutoffDate);
+      if (onlyCompletedOrCanceled) {
+        q = q.in('status', ['COMPLETADA', 'CANCELADA', 'completada', 'cancelada']);
+      }
+      await q;
+    } catch (supaErr) {
+      console.warn('[performMonthlyCutoff] Supabase delete note:', supaErr);
+    }
+  }
+
+  const effectiveDeleted = Math.max(localDeleted, serverDeleted);
+  return {
+    success: true,
+    deletedCount: effectiveDeleted,
+    archivedCount: effectiveDeleted,
+    remainingCount: toKeep.length,
+    message: `Corte mensual procesado. Se respaldaron en el Archivo Histórico y se liberaron ${effectiveDeleted} citas anteriores al ${cutoffDate}.`,
+  };
+}

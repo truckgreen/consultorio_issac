@@ -83,10 +83,9 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({ isOpen, onCl
               </p>
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-1.5 text-xs">
                 <p><strong>Razón Social:</strong> EQUILIBRA C.A. (Centro de Fisioterapia & Bienestar Integral)</p>
-                <p><strong>Registro de Información Fiscal (RIF):</strong> Por Registrar</p>
                 <p><strong>Domicilio Clínico:</strong> Av. Francisco de Miranda, Edif. Centro Empresarial Sabana Grande, Piso 4, Consultorio 4-B, Caracas 1050, Venezuela.</p>
                 <p><strong>Teléfono de Atención:</strong> +58 424 272 4617</p>
-                <p><strong>Registro de Propiedad Intelectual:</strong> Registrado en Safe Creative (Todos los derechos reservados)</p>
+                <p><strong>Registro de Propiedad Intelectual:</strong>(Todos los derechos reservados)</p>
               </div>
             </div>
 

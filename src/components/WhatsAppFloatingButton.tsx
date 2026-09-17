@@ -84,44 +84,29 @@ export const WhatsAppFloatingButton: React.FC = () => {
       </AnimatePresence>
 
       {/* Main WhatsApp Floating Action Button */}
-      <div className="flex items-center gap-3">
-        {/* Quick Triage Shortcut Button */}
-        <motion.a
-          href="#triage-medico"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          id="btn-triage-flotante"
-          aria-label="Abrir Asistente IA de Triage Médico"
-          className="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 font-extrabold text-xs shadow-xl border border-amber-400/50 backdrop-blur-md hover:bg-slate-800 transition-all"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
-          <span>Asistente IA</span>
-        </motion.a>
+      <motion.a
+        href={whatsappUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={handleClick}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.94 }}
+        id="btn-whatsapp-flotante"
+        aria-label="Escribir por WhatsApp a Consultorio Equilibra"
+        className="relative group flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-2xl shadow-emerald-500/40 border-2 border-white/60 dark:border-slate-900/60 transition-all focus:outline-none focus:ring-4 focus:ring-emerald-400/40"
+      >
+        {/* Pulsing ring indicator */}
+        <span className="absolute -inset-1 rounded-full bg-emerald-400/30 animate-pulse pointer-events-none" />
 
-        <motion.a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={handleClick}
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.94 }}
-          id="btn-whatsapp-flotante"
-          aria-label="Escribir por WhatsApp a Consultorio Equilibra"
-          className="relative group flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-2xl shadow-emerald-500/40 border-2 border-white/60 dark:border-slate-900/60 transition-all focus:outline-none focus:ring-4 focus:ring-emerald-400/40"
-        >
-          {/* Pulsing ring indicator */}
-          <span className="absolute -inset-1 rounded-full bg-emerald-400/30 animate-pulse pointer-events-none" />
+        {/* WhatsApp Icon */}
+        <MessageCircle className="w-7 h-7 sm:w-8 sm:h-8 fill-current drop-shadow-sm transition-transform group-hover:rotate-6" />
 
-          {/* WhatsApp Icon */}
-          <MessageCircle className="w-7 h-7 sm:w-8 sm:h-8 fill-current drop-shadow-sm transition-transform group-hover:rotate-6" />
-
-          {/* Online Status Green Dot */}
-          <span className="absolute top-1 right-1 flex h-3.5 w-3.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-300 border-2 border-emerald-600" />
-          </span>
-        </motion.a>
-      </div>
+        {/* Online Status Green Dot */}
+        <span className="absolute top-1 right-1 flex h-3.5 w-3.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+          <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-300 border-2 border-emerald-600" />
+        </span>
+      </motion.a>
     </div>
   );
 };

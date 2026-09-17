@@ -103,10 +103,41 @@ export function notifySpecialistNewAppointment(appointment: ConfirmedAppointment
   }
 }
 
+export function getDirectPortalLink(codeOrToken: string): string {
+  if (typeof window === 'undefined') {
+    return `/?portal_code=${encodeURIComponent(codeOrToken)}`;
+  }
+  const origin = window.location.origin;
+  return `${origin}/?portal_code=${encodeURIComponent(codeOrToken)}`;
+}
+
+export function generatePatientWhatsAppConfirmationUrl(appointment: ConfirmedAppointment): string {
+  const totalSessions = appointment.packageTotalSessions || Number(appointment.selectedPackageName?.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
+  const sessionNumber = appointment.packageSessionNumber || 1;
+  const packageCode = appointment.packageCode || appointment.code;
+  const directLink = getDirectPortalLink(packageCode);
+
+  const text = `👋 *¡Hola ${appointment.nombre}! Tu cita en EQUILIBRA ha sido agendada con éxito.*\n\n` +
+    `🩺 *Tratamiento:* ${appointment.selectedPackageName || appointment.serviceId}\n` +
+    `📅 *Fecha:* ${appointment.fecha}\n` +
+    `⏰ *Horario:* ${appointment.hora}\n` +
+    `👨‍⚕️ *Especialista:* ${appointment.specialistName || 'Equipo Clínico Equilibra'}\n` +
+    `🔑 *Tu Código de Paciente:* ${packageCode}\n` +
+    (totalSessions > 1 ? `📊 *Control de Paquete:* Sesión ${sessionNumber} de ${totalSessions}\n` : '') +
+    `\n🌐 *Portal del Paciente (Acceso Directo 1-Click sin contraseña):*\n${directLink}\n\n` +
+    `_Desde tu portal puedes consultar tus próximas sesiones, ver tus ejercicios recomendados y reprogramar con total facilidad._\n\n` +
+    `📍 *Sede:* Sabana Grande, Caracas. ¡Te esperamos!`;
+
+  const cleanPhone = (appointment.telefono || '').replace(/[^\d]/g, '');
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+}
+
 export function generateWhatsAppAlertUrl(appointment: ConfirmedAppointment, specialistPhone = '584126388484'): string {
   const totalSessions = appointment.packageTotalSessions || Number(appointment.selectedPackageName?.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
   const sessionNumber = appointment.packageSessionNumber || 1;
   const packageCode = appointment.packageCode || appointment.code;
+  const directLink = getDirectPortalLink(packageCode);
+
   const text = `🔔 *NUEVA CITA AGENDADA - EQUILIBRA* 🔔\n\n` +
     `👤 *Paciente:* ${appointment.nombre} ${appointment.apellido}\n` +
     `📅 *Fecha:* ${appointment.fecha}\n` +
@@ -116,6 +147,7 @@ export function generateWhatsAppAlertUrl(appointment: ConfirmedAppointment, spec
     `📞 *Teléfono Paciente:* ${appointment.telefono}\n` +
     `📊 *Sesión:* ${sessionNumber}/${totalSessions}\n` +
     `🔑 *Código de paquete:* ${packageCode}\n` +
+    `🔗 *Portal Directo Paciente:* ${directLink}\n` +
     (appointment.motivoConsulta ? `📝 *Motivo:* ${appointment.motivoConsulta}\n` : '') +
     `\n✅ _Cita registrada en tiempo real en la plataforma EQUILIBRA._`;
 

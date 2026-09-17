@@ -45,8 +45,7 @@ export const LaunchAuditModal: React.FC<LaunchAuditModalProps> = ({
       id: 1,
       name: 'Aviso legal',
       category: 'legal',
-      status: 'verified',
-      description: 'Modal y vista legal formal con titularidad jurídica (EQUILIBRA C.A., RIF J-50348219-0), registro en Safe Creative, colegiaturas MPPS/FMV y exención médica.',
+      status: 'verified',',
       action: { label: 'Ver Aviso Legal', onClick: onOpenLegalNotice },
     },
     {

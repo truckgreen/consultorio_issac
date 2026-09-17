@@ -30,10 +30,23 @@ import { syncGlobalConfigFromServer } from './lib/supabase';
 import { trackPageView } from './utils/analytics';
 
 export function App() {
-  // Global config sync across all devices
+  // Global config sync across all devices & direct link detection
   useEffect(() => {
     syncGlobalConfigFromServer();
     trackPageView('homepage');
+
+    // Portal del Paciente con enlace directo (Sin contraseña compleja)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const portalParam = urlParams.get('portal_code') || urlParams.get('cita') || urlParams.get('codigo') || urlParams.get('paciente') || urlParams.get('p');
+      if (portalParam && portalParam.trim()) {
+        const cleanCode = portalParam.trim().toUpperCase();
+        setPortalInitialCode(cleanCode);
+        setIsPatientPortalOpen(true);
+      }
+    } catch (e) {
+      console.warn('[Direct Portal Link] Param read note:', e);
+    }
   }, []);
 
   // 1. Dark Mode State

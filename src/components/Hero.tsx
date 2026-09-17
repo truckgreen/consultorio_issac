@@ -120,37 +120,27 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3 }}
-          className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto"
+          className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
         >
           {/* Golden Button from Flyer with Glow and Hover */}
           <a
             href="#servicios"
             id="hero-services-cta"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 text-sm sm:text-base font-black text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 hover:scale-[1.03] active:scale-[0.98] rounded-full shadow-xl shadow-amber-400/35 transition-all group btn-glow-amber"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-base sm:text-lg font-black text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 hover:scale-[1.03] active:scale-[0.98] rounded-full shadow-xl shadow-amber-400/35 transition-all group btn-glow-amber"
           >
             <span>Conoce nuestros servicios</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
           </a>
 
           {/* Secondary Appointment Button */}
           <button
             onClick={() => onOpenBooking()}
             id="hero-book-cta"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 text-sm sm:text-base font-bold text-white bg-white/10 hover:bg-white/20 hover:scale-[1.03] active:scale-[0.98] rounded-full backdrop-blur-md border border-white/25 transition-all shadow-lg hover:border-amber-400/50"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-base sm:text-lg font-bold text-white bg-white/10 hover:bg-white/20 hover:scale-[1.03] active:scale-[0.98] rounded-full backdrop-blur-md border border-white/25 transition-all shadow-lg hover:border-amber-400/50"
           >
-            <Calendar className="w-4 h-4 text-amber-300" />
+            <Calendar className="w-5 h-5 text-amber-300" />
             <span>Reserva tu cita</span>
           </button>
-
-          {/* AI Triage Direct Button */}
-          <a
-            href="#triage-medico"
-            id="hero-ai-triage-cta"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm sm:text-base font-bold text-amber-300 bg-amber-950/40 hover:bg-amber-900/60 hover:scale-[1.03] active:scale-[0.98] rounded-full backdrop-blur-md border border-amber-400/40 transition-all shadow-lg hover:border-amber-300"
-          >
-            <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-            <span>Asistente IA de Triage</span>
-          </a>
         </motion.div>
 
         {/* Glassmorphism Trust Card Container */}

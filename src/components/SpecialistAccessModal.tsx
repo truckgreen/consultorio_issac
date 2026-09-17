@@ -40,6 +40,7 @@ import {
   Stethoscope,
   Volume2,
   CalendarOff,
+  CalendarRange,
   Edit2,
   UserX,
   Settings,
@@ -49,6 +50,8 @@ import {
   Building2,
   Copy,
   Trash2,
+  ExternalLink,
+  Link,
 } from 'lucide-react';
 import { ConfirmedAppointment, SpecialistUser, AdminUser, AdminNotification, TeamMember, SpecialistAbsence, TelegramConfig, SupabaseConfig, PatientRecord } from '../types';
 import {
@@ -57,6 +60,7 @@ import {
   saveAppointmentToStorage,
   deleteAppointmentFromStorageAndServer,
   clearAllAppointmentsFromSystem,
+  performMonthlyCutoff,
 } from '../utils/bookingUtils';
 import {
   getStoredPatients,
@@ -111,6 +115,7 @@ import {
   requestBrowserNotificationPermission,
   generateWhatsAppAlertUrl,
   playNotificationChime,
+  getDirectPortalLink,
 } from '../utils/notificationUtils';
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import {
@@ -162,11 +167,23 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
   // Search & Filter controls
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>('');
+  // Month filter for monthly cutoffs and clean viewing: 'CURRENT', 'ALL', or 'YYYY-MM'
+  const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>('CURRENT');
   const [statusFilter, setStatusFilter] = useState<string>('TODAS');
   const [specialistFilter, setSpecialistFilter] = useState<string>('TODOS');
   const [isExportingExcel, setIsExportingExcel] = useState<boolean>(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [browserNotifEnabled, setBrowserNotifEnabled] = useState<boolean>(false);
+
+  // Monthly Cut-off Modal State
+  const [monthlyCutoffModal, setMonthlyCutoffModal] = useState<{
+    isOpen: boolean;
+    cutoffDate: string;
+    onlyCompletedOrCanceled: boolean;
+    exportBeforeDelete: boolean;
+  } | null>(null);
+  const [isProcessingCutoff, setIsProcessingCutoff] = useState(false);
+  const [cutoffResultMsg, setCutoffResultMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [supabaseStatus, setSupabaseStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>(
     isSupabaseConfigured ? 'idle' : 'error'
   );
@@ -733,6 +750,56 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     }
   };
 
+  const handleExecuteMonthlyCutoff = async () => {
+    if (!monthlyCutoffModal) return;
+    setIsProcessingCutoff(true);
+    setCutoffResultMsg(null);
+
+    try {
+      // 1. Export to Excel first if requested
+      if (monthlyCutoffModal.exportBeforeDelete) {
+        exportAppointmentsToExcel({
+          appointments: appointments.filter((a) => a.fecha && a.fecha < monthlyCutoffModal.cutoffDate),
+          specialistFilterId: 'TODOS',
+          filenamePrefix: `EQUILIBRA_Cierre_Mes_${monthlyCutoffModal.cutoffDate}`,
+        });
+      }
+
+      // 2. Perform cutoff across Supabase, server cache, and localStorage
+      const result = await performMonthlyCutoff(
+        monthlyCutoffModal.cutoffDate,
+        monthlyCutoffModal.onlyCompletedOrCanceled
+      );
+
+      // 3. Refresh list
+      await loadClinicalData();
+
+      recordSecurityEvent({
+        action: 'BOOKING_SUCCESS',
+        severity: 'INFO',
+        details: `Corte mensual procesado hasta ${monthlyCutoffModal.cutoffDate}. ${result.deletedCount} citas archivadas/eliminadas por ${authenticatedUser?.name}.`,
+      });
+
+      setCutoffResultMsg({
+        type: 'success',
+        text: `¡Corte mensual exitoso! Se liberaron ${result.deletedCount} citas del sistema.`,
+      });
+
+      setTimeout(() => {
+        setMonthlyCutoffModal(null);
+        setCutoffResultMsg(null);
+      }, 3000);
+    } catch (err: any) {
+      console.error('[handleExecuteMonthlyCutoff] Error:', err);
+      setCutoffResultMsg({
+        type: 'error',
+        text: err?.message || 'Error al procesar el corte mensual.',
+      });
+    } finally {
+      setIsProcessingCutoff(false);
+    }
+  };
+
   const handleReassignSpecialist = (appointmentId: string, newSpecialistId: string) => {
     const targetSpec = SPECIALISTS_ACCOUNTS.find((s) => s.id === newSpecialistId);
     if (!targetSpec) return;
@@ -793,6 +860,17 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     }
 
     const matchesDate = !selectedDateFilter || app.fecha === selectedDateFilter;
+
+    // Monthly isolation filter: When 'CURRENT', only shows appointments of the current calendar month
+    // Can also select a specific YYYY-MM or 'ALL' to view all history
+    let matchesMonth = true;
+    if (selectedMonthFilter !== 'ALL' && !selectedDateFilter) {
+      const now = new Date();
+      const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const targetMonth = selectedMonthFilter === 'CURRENT' ? currentYearMonth : selectedMonthFilter;
+      matchesMonth = Boolean(app.fecha && app.fecha.startsWith(targetMonth));
+    }
+
     const matchesStatus =
       statusFilter === 'TODAS' ||
       (statusFilter === 'CONFIRMADAS' && (app.status === 'confirmada' || app.status === 'CONFIRMADA')) ||
@@ -820,7 +898,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       (app.email && app.email.toLowerCase().includes(search)) ||
       (app.motivoConsulta && app.motivoConsulta.toLowerCase().includes(search));
 
-    return matchesDate && matchesStatus && matchesSearch;
+    return matchesDate && matchesMonth && matchesStatus && matchesSearch;
   });
 
   const totalConfirmed = filteredAppointments.filter((a) => a.status === 'confirmada' || a.status === 'completada').length;
@@ -863,6 +941,8 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     packageName?: string;
     packageUsedSessions?: number;
     packageTotalSessions?: number;
+    packageCode?: string;
+    portalCode?: string;
     cancellationCount?: number;
   }>();
 
@@ -980,6 +1060,10 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
         existing.packageName = app.selectedPackageName || existing.packageName;
         existing.packageTotalSessions = app.packageTotalSessions || existing.packageTotalSessions || 0;
         existing.packageUsedSessions = Math.max(existing.packageUsedSessions || 0, app.packageSessionNumber || 1);
+        if (app.packageCode) existing.packageCode = app.packageCode;
+      }
+      if (app.packageCode || app.code) {
+        existing.portalCode = existing.portalCode || app.packageCode || app.code;
       }
       if (app.cancellationCount) existing.cancellationCount = Math.max(existing.cancellationCount || 0, app.cancellationCount);
     } else {
@@ -994,6 +1078,8 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
         packageName: app.selectedPackageName,
         packageUsedSessions: app.packageSessionNumber || 1,
         packageTotalSessions: app.packageTotalSessions || 0,
+        packageCode: app.packageCode,
+        portalCode: app.packageCode || app.code,
         cancellationCount: app.cancellationCount || 0,
         lastVisitDate: app.fecha || todayStr,
         lastSpecialist: app.specialistName || 'Especialista',
@@ -1550,6 +1636,34 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     </div>
                   )}
 
+                  {/* Filter by Month (Monthly Cutoff view) */}
+                  {activeTab === 'agenda' && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="hidden md:inline text-slate-500 font-semibold text-[11px]">Periodo:</span>
+                      <select
+                        value={selectedMonthFilter}
+                        onChange={(e) => {
+                          setSelectedMonthFilter(e.target.value);
+                          setSelectedDateFilter('');
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 font-bold text-xs"
+                      >
+                        <option value="CURRENT">📅 Mes Actual</option>
+                        <option value="ALL">Todos los Meses (Historial)</option>
+                        {(Array.from(new Set(appointments.map(a => a.fecha ? a.fecha.slice(0, 7) : ''))).filter(Boolean) as string[]).sort().reverse().map(ym => {
+                          const [y, m] = ym.split('-');
+                          const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                          const label = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+                          return (
+                            <option key={ym} value={ym}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+
                   {/* Filter by Status */}
                   {activeTab === 'agenda' && (
                     <select
@@ -1572,7 +1686,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                         type="date"
                         value={selectedDateFilter}
                         onChange={(e) => setSelectedDateFilter(e.target.value)}
-                        className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                        className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs"
                       />
                       {selectedDateFilter && (
                         <button
@@ -1585,6 +1699,28 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                     </div>
                   )}
 
+                  {/* Realizar Corte Mensual Button for Administrators */}
+                  {activeTab === 'agenda' && isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const firstDayCurrentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+                        setMonthlyCutoffModal({
+                          isOpen: true,
+                          cutoffDate: firstDayCurrentMonth,
+                          onlyCompletedOrCanceled: false,
+                          exportBeforeDelete: true,
+                        });
+                      }}
+                      className="ml-auto px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                      title="Realizar corte del mes anterior y mantener la base de datos limpia"
+                    >
+                      <CalendarRange className="w-3.5 h-3.5" />
+                      <span>Cierre de Mes</span>
+                    </button>
+                  )}
+
                   {/* Clear All Appointments Button for Administrators */}
                   {activeTab === 'agenda' && isAdmin && appointments.length > 0 && (
                     <button
@@ -1594,11 +1730,11 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                         type: 'appointments',
                         targetTitle: 'todas las citas registradas en el sistema',
                       })}
-                      className="ml-auto px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
                       title="Eliminar todas las citas del sistema"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                      <span>Vaciar Citas ({appointments.length})</span>
+                      <span>Vaciar Todo</span>
                     </button>
                   )}
                 </div>
@@ -1816,6 +1952,16 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                               >
                                 {app.status}
                               </span>
+
+                              {/* Package Session Badge in Agenda */}
+                              {((app.packageTotalSessions || 0) > 1 || app.packageCode) && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                                  <Package className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                                  <span>
+                                    Sesión {app.packageSessionNumber || 1}/{app.packageTotalSessions || (app.selectedPackageName?.match(/(\d+)\s*sesiones?/i)?.[1] || '?')}
+                                  </span>
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
@@ -1857,6 +2003,21 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
 
                           {/* Actions */}
                           <div className="flex items-center gap-2 shrink-0">
+                            {/* Copy Direct Portal Link Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const directLink = getDirectPortalLink(app.packageCode || app.code);
+                                navigator.clipboard?.writeText(directLink);
+                                alert(`¡Enlace directo al Portal del Paciente copiado!\nPaciente: ${app.nombre} ${app.apellido}\nCódigo: ${app.packageCode || app.code}\n${directLink}`);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-300 hover:text-amber-700 dark:hover:text-amber-400 text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-200 dark:border-slate-700"
+                              title="Copiar enlace 1-click al Portal del Paciente"
+                            >
+                              <Link className="w-3.5 h-3.5" />
+                              <span>Portal 1-Click</span>
+                            </button>
+
                             {/* WhatsApp Direct Notification */}
                             <a
                               href={generateWhatsAppAlertUrl(app)}
@@ -1983,8 +2144,13 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                                   </div>
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     {pat.hasPackage ? (
-                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                        PAQUETE {pat.packageUsedSessions || 0}/{pat.packageTotalSessions || '?'}
+                                      <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border shadow-xs flex items-center gap-1 ${
+                                        (pat.packageTotalSessions || 0) - (pat.packageUsedSessions || 0) <= 1
+                                          ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+                                          : 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                      }`}>
+                                        <Package className="w-3 h-3" />
+                                        <span>PAQUETE {pat.packageUsedSessions || 0}/{pat.packageTotalSessions || '?'}</span>
                                       </span>
                                     ) : (
                                       <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
@@ -2006,6 +2172,52 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                                     </span>
                                   </div>
                                 </div>
+
+                                {/* Package Session Tracker Block (Contador de Sesiones) */}
+                                {pat.hasPackage && (
+                                  <div className="mt-2.5 p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-emerald-500/10 border border-amber-500/25 space-y-1.5">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                        <Activity className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                        <span>Progreso del Paquete ({pat.packageName || 'Tratamiento Integral'})</span>
+                                      </span>
+                                      <span className="font-mono font-extrabold text-amber-800 dark:text-amber-300">
+                                        {pat.packageUsedSessions || 0} de {pat.packageTotalSessions || '?'} consumidas
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full transition-all duration-500 ${
+                                          (pat.packageTotalSessions || 0) - (pat.packageUsedSessions || 0) <= 1
+                                            ? 'bg-amber-600'
+                                            : 'bg-emerald-600'
+                                        }`}
+                                        style={{
+                                          width: `${Math.min(
+                                            100,
+                                            Math.round(
+                                              ((pat.packageUsedSessions || 0) / (pat.packageTotalSessions || 1)) * 100
+                                            )
+                                          )}%`,
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+                                      <span>
+                                        Restantes:{' '}
+                                        <strong className="text-slate-800 dark:text-slate-200 font-bold">
+                                          {Math.max(0, (pat.packageTotalSessions || 0) - (pat.packageUsedSessions || 0))} sesiones
+                                        </strong>
+                                      </span>
+                                      {(pat.packageTotalSessions || 0) - (pat.packageUsedSessions || 0) <= 1 && (
+                                        <span className="text-amber-700 dark:text-amber-300 font-bold flex items-center gap-1">
+                                          <AlertCircle className="w-3 h-3" />
+                                          <span>¡Próximo a agotar paquete!</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
 
                                 <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1.5 mt-2.5">
                                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -2053,15 +2265,37 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
 
                               {/* Action Footer */}
                               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 mt-2">
-                                <a
-                                  href={`https://wa.me/${pat.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Hola ${pat.name}, te contactamos del Centro Clínico EQUILIBRA para hacer seguimiento a tu atención médica y ficha clínica.`)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-bold"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                  <span>WhatsApp</span>
-                                </a>
+                                <div className="flex items-center gap-2">
+                                  <a
+                                    href={`https://wa.me/${pat.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                                      pat.portalCode
+                                        ? `Hola ${pat.name}, te compartimos el enlace directo y sin contraseña a tu Portal del Paciente en EQUILIBRA: ${getDirectPortalLink(pat.portalCode)}`
+                                        : `Hola ${pat.name}, te contactamos del Centro Clínico EQUILIBRA para hacer seguimiento a tu atención médica y ficha clínica.`
+                                    )}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-bold"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    <span>WhatsApp</span>
+                                  </a>
+
+                                  {pat.portalCode && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const link = getDirectPortalLink(pat.portalCode!);
+                                        navigator.clipboard?.writeText(link);
+                                        alert(`¡Enlace directo al Portal copiado!\nPaciente: ${pat.name}\nCódigo: ${pat.portalCode}\n${link}`);
+                                      }}
+                                      className="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 hover:underline font-semibold"
+                                      title="Copiar enlace 1-click para el paciente"
+                                    >
+                                      <Link className="w-3 h-3" />
+                                      <span>Portal 1-Click</span>
+                                    </button>
+                                  )}
+                                </div>
 
                                 <div className="flex items-center gap-1.5">
                                   <button
@@ -2979,7 +3213,39 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                           </div>
                         )}
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                          {/* Option 0: Cierre de Mes (Opción B) */}
+                          <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700/60 flex flex-col justify-between gap-3 shadow-sm">
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <CalendarRange className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                <span className="font-bold text-xs text-amber-950 dark:text-amber-200 block">
+                                  Cierre de Mes Automático
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-amber-800 dark:text-amber-300/80 leading-relaxed">
+                                Descarga el respaldo completo en Excel de las citas del mes pasado y las depura de la base de datos para liberar espacio. Los pacientes y fichas clínicas quedan intactos.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const now = new Date();
+                                const firstDayCurrentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+                                setMonthlyCutoffModal({
+                                  isOpen: true,
+                                  cutoffDate: firstDayCurrentMonth,
+                                  onlyCompletedOrCanceled: false,
+                                  exportBeforeDelete: true,
+                                });
+                              }}
+                              className="py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                            >
+                              <CalendarRange className="w-3.5 h-3.5" />
+                              <span>Ejecutar Cierre de Mes</span>
+                            </button>
+                          </div>
+
                           {/* Option 1: Clear appointments */}
                           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between gap-3">
                             <div>
@@ -3219,6 +3485,134 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                   <Trash2 className="w-3.5 h-3.5" />
                 )}
                 <span>{isClearing ? 'Eliminando...' : 'Sí, Eliminar'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Interactivo: Cierre de Mes (Opción B) */}
+      {monthlyCutoffModal?.isOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-amber-300 dark:border-amber-700/60 shadow-2xl p-6 space-y-5">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <CalendarRange className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  Cierre de Mes y Depuración de Agenda
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Libera espacio en Supabase y mantén el calendario ágil sin perder el historial médico.
+                </p>
+              </div>
+            </div>
+
+            {/* Cutoff configuration options */}
+            <div className="space-y-3.5 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
+              <div>
+                <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                  Depurar citas anteriores a esta fecha:
+                </label>
+                <input
+                  type="date"
+                  value={monthlyCutoffModal.cutoffDate}
+                  onChange={(e) => setMonthlyCutoffModal({ ...monthlyCutoffModal, cutoffDate: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-medium"
+                />
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  💡 Todo lo agendado antes del <strong>{monthlyCutoffModal.cutoffDate}</strong> será archivado y retirado de la agenda activa.
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2.5">
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={monthlyCutoffModal.exportBeforeDelete}
+                    onChange={(e) => setMonthlyCutoffModal({ ...monthlyCutoffModal, exportBeforeDelete: e.target.checked })}
+                    className="mt-0.5 rounded text-amber-500 focus:ring-amber-400"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                      Descargar Respaldo en Excel antes de depurar (Recomendado)
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                      Genera automáticamente el libro oficial en Excel con todas las citas que serán eliminadas para contabilidad y auditoría.
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={monthlyCutoffModal.onlyCompletedOrCanceled}
+                    onChange={(e) => setMonthlyCutoffModal({ ...monthlyCutoffModal, onlyCompletedOrCanceled: e.target.checked })}
+                    className="mt-0.5 rounded text-amber-500 focus:ring-amber-400"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                      Eliminar únicamente citas Completadas o Canceladas
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                      Si se desmarca, limpiará todas las citas anteriores a la fecha seleccionada.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Impact details */}
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-300 flex items-start gap-2.5">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-bold block">Protección total de expedientes de pacientes:</span>
+                <span className="text-[11px] text-emerald-800 dark:text-emerald-400 block">
+                  Los datos de contacto, fichas clínicas de pacientes funcionales, notas médicas y paquetes comprados <strong>NO se eliminan</strong>.
+                </span>
+              </div>
+            </div>
+
+            {/* Feedback message */}
+            {cutoffResultMsg && (
+              <div className={`p-3.5 rounded-xl border text-xs font-bold flex items-center gap-2 ${
+                cutoffResultMsg.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300'
+                  : 'bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-red-300'
+              }`}>
+                {cutoffResultMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                <span>{cutoffResultMsg.text}</span>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isProcessingCutoff}
+                onClick={() => setMonthlyCutoffModal(null)}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isProcessingCutoff}
+                onClick={handleExecuteMonthlyCutoff}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/25 transition-all disabled:opacity-50"
+              >
+                {isProcessingCutoff ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Procesando corte...</span>
+                  </>
+                ) : (
+                  <>
+                    <CalendarRange className="w-3.5 h-3.5" />
+                    <span>Confirmar Cierre de Mes</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

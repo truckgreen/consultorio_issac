@@ -39,7 +39,11 @@ import {
   getSlotsForDate,
   getSavedAppointments,
 } from '../utils/bookingUtils';
-import { generateWhatsAppAlertUrl } from '../utils/notificationUtils';
+import {
+  generateWhatsAppAlertUrl,
+  generatePatientWhatsAppConfirmationUrl,
+  getDirectPortalLink,
+} from '../utils/notificationUtils';
 import {
   generateGoogleCalendarUrl,
   downloadAppointmentVoucherPdf
@@ -236,7 +240,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         selectedPackage.name.toLowerCase().includes('paquete') ||
         selectedPackage.name.toLowerCase().includes('sesiones')
       );
-      const packageTotalSessions = isPackageSelected ? 10 : 1;
+      const parsedSessionsMatch = selectedPackage.name.match(/(\d+)\s*sesiones?/i);
+      const packageTotalSessions = isPackageSelected ? (parsedSessionsMatch ? parseInt(parsedSessionsMatch[1], 10) : 10) : 1;
 
       const newAppointment: ConfirmedAppointment = {
         id: `app_${Date.now()}_${secureCode.replace(/[^a-zA-Z0-9]/g, '')}`,
@@ -793,6 +798,43 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
             </div>
 
+            {/* Direct Access Link Box (Sin Contraseña) */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-emerald-500/10 border border-amber-500/30 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                  <ExternalLink className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Enlace Directo al Portal del Paciente (Sin contraseña):</span>
+                </span>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                  Acceso 1-Click
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={getDirectPortalLink(createdAppointment.packageCode || createdAppointment.code)}
+                  className="flex-1 px-3 py-2 text-xs font-mono bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:outline-none select-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = getDirectPortalLink(createdAppointment.packageCode || createdAppointment.code);
+                    navigator.clipboard?.writeText(link);
+                    alert('¡Enlace directo copiado al portapapeles! Puedes enviárselo al paciente por WhatsApp o SMS.');
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                  title="Copiar enlace directo"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Copiar Enlace</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                El paciente puede abrir este enlace desde su teléfono o computador para consultar sus citas o elegir sus sesiones de paquete sin tener que crear ni recordar contraseñas complejas.
+              </p>
+            </div>
+
             <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3 pt-2">
               {onOpenPatientPortal && (
                 <button
@@ -811,9 +853,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <span>
                     {createdAppointment.packageCode
                       ? 'Elegir Días en el Portal Ahora'
-                      : 'Ver en el Portal'}
+                      : 'Abrir Portal de Paciente'}
                   </span>
                 </button>
+              )}
+
+              {createdAppointment.telefono && (
+                <a
+                  href={generatePatientWhatsAppConfirmationUrl(createdAppointment)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-3 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-700/20 transition-all"
+                  title="Enviar confirmación y enlace 1-click directo al paciente"
+                >
+                  <MessageSquare className="w-4 h-4 text-emerald-300" />
+                  <span>Enviar WhatsApp a Paciente</span>
+                </a>
               )}
 
               <a
