@@ -446,14 +446,14 @@ async function startServer() {
     next();
   });
 
-  // 07: Endpoint dedicado para robots.txt
+  // Endpoint dedicado para robots.txt
   app.get('/robots.txt', (req, res) => {
     res.type('text/plain');
     const robotsFile = path.join(process.cwd(), 'public', 'robots.txt');
     if (fs.existsSync(robotsFile)) {
       return res.sendFile(robotsFile);
     }
-    res.send("User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nSitemap: https://equilibra.com.ve/sitemap.xml\n");
+    res.send("User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nSitemap: https://consultorio-equilibra.onrender.com/sitemap.xml\n");
   });
 
   // 07: Endpoint dedicado para sitemap.xml

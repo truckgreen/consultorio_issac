@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, useScroll, useSpring } from 'motion/react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { AboutSection } from './components/AboutSection';
@@ -30,6 +31,13 @@ import { syncGlobalConfigFromServer } from './lib/supabase';
 import { trackPageView } from './utils/analytics';
 
 export function App() {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 28,
+    restDelta: 0.001,
+  });
+
   // Global config sync across all devices & direct link detection
   useEffect(() => {
     syncGlobalConfigFromServer();
@@ -126,6 +134,12 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0c1017] text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950 relative">
+      {/* Top Animated Reading Progress Bar */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 origin-left z-[60] pointer-events-none shadow-sm shadow-amber-400/30"
+        style={{ scaleX }}
+      />
+
       {/* Subtle global ambient background gradients */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-400/5 dark:bg-amber-500/5 rounded-full blur-3xl" />
@@ -170,7 +184,7 @@ export function App() {
           onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
         />
 
-        {/* 08: Ficha de Google Business Profile */}
+        {/* Google Business Profile Information Card */}
         <GoogleBusinessCard />
         
         <TestimonialsSection />
@@ -191,10 +205,9 @@ export function App() {
       />
 
       {/* 4. Floating Conversion Elements */}
-      {/* 18: Botón de WhatsApp Visible Flotante */}
       <WhatsAppFloatingButton />
 
-      {/* 03: Banner de Consentimiento de Cookies */}
+      {/* Cookie Consent Banner */}
       <CookieBanner
         onOpenPrivacyPolicy={() => setIsPrivacyModalOpen(true)}
         onOpenLegalNotice={() => setIsLegalNoticeOpen(true)}
@@ -234,13 +247,13 @@ export function App() {
         onClose={() => setIsPrivacyModalOpen(false)}
       />
 
-      {/* 01: Modal de Aviso Legal y Términos */}
+      {/* Legal & Terms Modal */}
       <LegalNoticeModal
         isOpen={isLegalNoticeOpen}
         onClose={() => setIsLegalNoticeOpen(false)}
       />
 
-      {/* Checklist interactivo 20 de 20 */}
+      {/* Audit Checklist Modal */}
       <LaunchAuditModal
         isOpen={isLaunchAuditOpen}
         onClose={() => setIsLaunchAuditOpen(false)}

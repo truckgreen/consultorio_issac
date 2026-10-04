@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
   Users,
   Award,
@@ -23,6 +23,36 @@ import { TeamMember } from '../types';
 interface TeamSectionProps {
   onOpenBooking: (serviceId?: string) => void;
 }
+
+// Fade-in & Slide-up animation variants
+const headerVariants: Variants = {
+  hidden: { opacity: 0, y: 35 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.65, ease: [0.22, 1, 0.36, 1] },
+  },
+};
+
+const teamGridVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+const memberCardVariants: Variants = {
+  hidden: { opacity: 0, y: 35 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+  },
+};
 
 export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
@@ -91,8 +121,14 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
       <div className="absolute bottom-10 right-0 w-80 h-80 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+        {/* Section Header with Fade-In + Slide-Up */}
+        <motion.div
+          variants={headerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          className="text-center max-w-3xl mx-auto mb-12 sm:mb-16"
+        >
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-bold uppercase tracking-wider mb-4">
             <Users className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             <span>Especialistas de Primera Línea</span>
@@ -103,7 +139,7 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
             <span className="text-xs uppercase tracking-[0.25em] font-extrabold text-amber-600 dark:text-amber-400 block">
               Nuestro
             </span>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight font-heading uppercase">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight font-heading uppercase [text-wrap:balance]">
               EQUIPO
             </h2>
             <span className="text-xs sm:text-sm font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase block">
@@ -136,20 +172,25 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
-        {/* 3x3 Responsive Grid of Team Members */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+        {/* 3x3 Responsive Grid of Team Members with Stagger Fade-In & Slide-Up */}
+        <motion.div
+          variants={teamGridVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.1 }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
+        >
           {filteredMembers.map((member, index) => (
             <motion.div
               key={member.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
+              variants={memberCardVariants}
+              whileHover={{ y: -6 }}
+              transition={{ duration: 0.35 }}
               onClick={() => setSelectedMember(member)}
               id={`team-card-${member.id}`}
-              className="group cursor-pointer bg-gradient-to-b from-slate-50/90 via-white to-slate-50/70 dark:from-[#151c28] dark:via-[#131924] dark:to-[#0f141e] rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-amber-500/10 hover:border-amber-400/60 dark:hover:border-amber-500/40 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
+              className="group cursor-pointer bg-gradient-to-b from-slate-50/90 via-white to-slate-50/70 dark:from-[#151c28] dark:via-[#131924] dark:to-[#0f141e] rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-amber-500/10 hover:border-amber-400/60 dark:hover:border-amber-500/40 transition-all duration-300 flex flex-col justify-between"
             >
               <div>
                 {/* Member Portrait Frame with Animated Ring on Hover */}
@@ -198,10 +239,16 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
               </div>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
 
-        {/* Multidisciplinary Philosophy Callout */}
-        <div className="mt-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-3xl p-8 sm:p-10 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        {/* Multidisciplinary Philosophy Callout with Fade-In + Slide-Up */}
+        <motion.div
+          variants={headerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          className="mt-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-3xl p-8 sm:p-10 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6"
+        >
           <div className="space-y-2 text-center md:text-left max-w-2xl">
             <span className="text-xs uppercase tracking-widest font-bold bg-white/20 px-3 py-1 rounded-full inline-block">
               Atención 360 Grados
@@ -214,15 +261,17 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
             </p>
           </div>
 
-          <button
+          <motion.button
             type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => onOpenBooking('fisioterapia')}
-            className="px-6 py-3.5 rounded-full bg-white text-slate-900 hover:bg-slate-50 font-bold text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 flex-shrink-0"
+            className="px-6 py-3.5 rounded-full bg-white text-slate-900 hover:bg-slate-50 font-bold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2 flex-shrink-0"
           >
             <Calendar className="w-4 h-4 text-amber-600" />
             <span>Agendar Evaluación General</span>
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       </div>
 
       {/* Member Detail Modal */}

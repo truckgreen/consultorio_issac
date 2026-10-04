@@ -67,11 +67,25 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
 
       {/* Main Hero Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center">
+        {/* Live Clinical Reception Status */}
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-semibold backdrop-blur-md mb-4 shadow-lg shadow-emerald-950/40"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+          </span>
+          <span>Sede Sabana Grande · Consultas disponibles hoy (8:00 AM – 6:00 PM)</span>
+        </motion.div>
+
         {/* Brand Badge with Animated Shimmer */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.6, delay: 0.05 }}
           className="relative overflow-hidden inline-flex items-center gap-2.5 px-4 sm:px-5 py-2 rounded-full bg-amber-400/15 border border-amber-400/50 backdrop-blur-md mb-6 shadow-lg shadow-amber-500/10"
         >
           {/* Shimmer Light Bar */}
@@ -82,12 +96,12 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
           </span>
         </motion.div>
 
-        {/* Main Headline */}
+        {/* Main Headline with Balanced Wrap */}
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.12] mb-4 max-w-4xl font-heading"
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.12] mb-4 max-w-4xl font-heading [text-wrap:balance]"
         >
           Tu camino hacia el{' '}
           <br className="hidden sm:inline" />
@@ -110,37 +124,41 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
-          className="text-lg sm:text-xl md:text-2xl text-slate-200 font-light italic max-w-3xl mb-10 leading-relaxed border-y border-white/10 py-4 px-2"
+          className="text-lg sm:text-xl md:text-2xl text-slate-200 font-light italic max-w-3xl mb-10 leading-relaxed border-y border-white/10 py-4 px-2 [text-wrap:balance]"
         >
           “{CLINIC_INFO.motto}”
         </motion.p>
 
-        {/* Action Buttons */}
+        {/* Action Buttons with Motion Physics */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3 }}
           className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
         >
-          {/* Golden Button from Flyer with Glow and Hover */}
-          <a
+          {/* Golden Button with Glow and Spring Hover */}
+          <motion.a
             href="#servicios"
             id="hero-services-cta"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-base sm:text-lg font-black text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 hover:scale-[1.03] active:scale-[0.98] rounded-full shadow-xl shadow-amber-400/35 transition-all group btn-glow-amber"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-base sm:text-lg font-black text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 rounded-full shadow-xl shadow-amber-400/35 transition-all group btn-glow-amber"
           >
             <span>Conoce nuestros servicios</span>
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
-          </a>
+          </motion.a>
 
-          {/* Secondary Appointment Button */}
-          <button
+          {/* Secondary Appointment Button with Spring Hover */}
+          <motion.button
             onClick={() => onOpenBooking()}
             id="hero-book-cta"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-base sm:text-lg font-bold text-white bg-white/10 hover:bg-white/20 hover:scale-[1.03] active:scale-[0.98] rounded-full backdrop-blur-md border border-white/25 transition-all shadow-lg hover:border-amber-400/50"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-base sm:text-lg font-bold text-white bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-md border border-white/25 transition-all shadow-lg hover:border-amber-400/50"
           >
             <Calendar className="w-5 h-5 text-amber-300" />
             <span>Reserva tu cita</span>
-          </button>
+          </motion.button>
         </motion.div>
 
         {/* Glassmorphism Trust Card Container */}

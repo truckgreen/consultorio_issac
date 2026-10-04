@@ -1,42 +1,87 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd
+        http://www.google.com/schemas/sitemap-image/1.1
+        http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd">
+
+  <!-- 1. Página Principal (Home / Portada) -->
   <url>
-    <loc>https://equilibra.com.ve/</loc>
-    <lastmod>2026-09-15</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://consultorio-equilibra.onrender.com/</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://consultorio-equilibra.onrender.com/imagenes/consultorio.jpg</image:loc>
+      <image:title>Consultorio Equilibra Fisioterapia Sabana Grande Caracas</image:title>
+      <image:caption>Instalaciones del centro de fisioterapia, traumatología y rehabilitación en Caracas</image:caption>
+    </image:image>
   </url>
+
+  <!-- 2. Servicios Clínicos y Tarifas -->
   <url>
-    <loc>https://equilibra.com.ve/#servicios</loc>
-    <lastmod>2026-09-15</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://equilibra.com.ve/#citas</loc>
-    <lastmod>2026-09-15</lastmod>
+    <loc>https://consultorio-equilibra.onrender.com/#servicios</loc>
+    <lastmod>2026-10-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
+
+  <!-- 3. Equipo Médico y Especialistas -->
   <url>
-    <loc>https://equilibra.com.ve/#equipo</loc>
-    <lastmod>2026-09-15</lastmod>
+    <loc>https://consultorio-equilibra.onrender.com/#equipo</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- 4. Especialidades y Áreas de Tratamiento -->
+  <url>
+    <loc>https://consultorio-equilibra.onrender.com/#especialidades</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- 5. Triage Clínico y Asistente Virtual -->
+  <url>
+    <loc>https://consultorio-equilibra.onrender.com/#triage-medico</loc>
+    <lastmod>2026-10-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
+  <!-- 6. Sobre Nosotros y Filosofía 360° -->
   <url>
-    <loc>https://equilibra.com.ve/#especialidades</loc>
-    <lastmod>2026-09-15</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://equilibra.com.ve/#contacto</loc>
-    <lastmod>2026-09-15</lastmod>
+    <loc>https://consultorio-equilibra.onrender.com/#sobre-nosotros</loc>
+    <lastmod>2026-10-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
+
+  <!-- 7. Sistema de Citas y Agendamiento Online -->
+  <url>
+    <loc>https://consultorio-equilibra.onrender.com/#citas</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- 8. Testimonios y Reseñas de Pacientes -->
+  <url>
+    <loc>https://consultorio-equilibra.onrender.com/#testimonios</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- 9. Contacto y Ubicación Física en Sabana Grande -->
+  <url>
+    <loc>https://consultorio-equilibra.onrender.com/#contacto</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
 </urlset>

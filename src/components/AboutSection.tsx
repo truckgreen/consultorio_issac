@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, type Variants } from 'framer-motion';
 import { CheckCircle2, ArrowRight, Activity, Heart, Award, Sparkles } from 'lucide-react';
 import { APP_IMAGES } from '../data/images';
 import { CLINIC_INFO } from '../data/featuresData';
@@ -7,6 +7,42 @@ import { CLINIC_INFO } from '../data/featuresData';
 interface AboutSectionProps {
   onOpenBooking: () => void;
 }
+
+// Fade-in & Slide-up animation variants
+const sectionVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const slideUpVariant: Variants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.7,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  },
+};
+
+const pillarSlideUp: Variants = {
+  hidden: { opacity: 0, y: 25 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  },
+};
 
 export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenBooking }) => {
   const pillars = [
@@ -40,15 +76,18 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenBooking }) => 
       <div className="absolute top-1/2 -left-20 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 -right-20 w-80 h-80 bg-amber-400/5 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
+      <motion.div
+        variants={sectionVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.15 }}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20"
+      >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           
-          {/* Left Column: Visual Images Composition */}
+          {/* Left Column: Visual Images Composition with Fade-In + Slide-Up */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.7 }}
+            variants={slideUpVariant}
             className="lg:col-span-6 relative"
           >
             <div className="relative mx-auto max-w-lg lg:max-w-none">
@@ -100,40 +139,40 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenBooking }) => 
             </div>
           </motion.div>
 
-          {/* Right Column: Narrative and Pillars */}
+          {/* Right Column: Narrative and Pillars with Fade-In + Slide-Up */}
           <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.7 }}
+            variants={slideUpVariant}
             className="lg:col-span-6 flex flex-col items-start"
           >
             {/* Section Tag */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-black uppercase tracking-wider mb-4">
+            <motion.div variants={slideUpVariant} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-black uppercase tracking-wider mb-4">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Nuestra Esencia</span>
-            </div>
+            </motion.div>
 
-            {/* Main Section Title (From Flyer) */}
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.15] mb-6 font-heading">
+            {/* Main Section Title */}
+            <motion.h2 variants={slideUpVariant} className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.15] mb-6 font-heading [text-wrap:balance]">
               El verdadero bienestar <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-amber-500 to-amber-400 dark:from-amber-400 dark:to-amber-200">
                 comienza en movimiento
               </span>
-            </h2>
+            </motion.h2>
 
             {/* Lead Description */}
-            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed mb-8">
+            <motion.p variants={slideUpVariant} className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed mb-8">
               {CLINIC_INFO.aboutText}
-            </p>
+            </motion.p>
 
-            {/* 3 Pillars List with Hover Left Border Effect */}
-            <div className="flex flex-col gap-3.5 w-full mb-10">
+            {/* 3 Pillars List with Fade-In + Slide-Up */}
+            <motion.div variants={sectionVariants} className="flex flex-col gap-3.5 w-full mb-10">
               {pillars.map((pillar, idx) => {
                 const IconComponent = pillar.icon;
                 return (
-                  <div
+                  <motion.div
                     key={idx}
+                    variants={pillarSlideUp}
+                    whileHover={{ x: 6 }}
+                    transition={{ type: 'spring', stiffness: 350, damping: 25 }}
                     className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 border-l-4 border-l-transparent hover:border-l-amber-500 hover:bg-white dark:hover:bg-slate-850 hover:shadow-md transition-all duration-300"
                   >
                     <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
@@ -147,32 +186,36 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenBooking }) => 
                         {pillar.text}
                       </p>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-4">
-              <a
+            {/* Action Buttons with Spring Dynamics */}
+            <motion.div variants={slideUpVariant} className="flex flex-wrap items-center gap-4">
+              <motion.a
                 href="#especialidades"
-                className="inline-flex items-center gap-2 px-6 py-3.5 text-sm sm:text-base font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-full shadow-lg shadow-amber-400/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="inline-flex items-center gap-2 px-6 py-3.5 text-sm sm:text-base font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-full shadow-lg shadow-amber-400/25 transition-all"
               >
                 <span>Conoce nuestras especialidades</span>
                 <ArrowRight className="w-4 h-4" />
-              </a>
+              </motion.a>
 
-              <button
+              <motion.button
                 onClick={onOpenBooking}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 className="inline-flex items-center gap-2 px-6 py-3.5 text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 border border-slate-300 dark:border-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <span>Agendar evaluación</span>
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
 
           </motion.div>
         </div>
-      </div>
+      </motion.div>
     </section>
   );
 };
