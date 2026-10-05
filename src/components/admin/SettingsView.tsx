@@ -17,9 +17,12 @@ import {
   Sparkles, 
   Send,
   Bot,
-  BellRing
+  BellRing,
+  MessageSquare,
+  Smartphone,
+  ExternalLink
 } from 'lucide-react';
-import { SupabaseConfig, TelegramConfig } from '../../types';
+import { SupabaseConfig, TelegramConfig, KapsoConfig } from '../../types';
 import { 
   saveSupabaseCredentials, 
   clearSupabaseCredentials, 
@@ -33,6 +36,12 @@ import {
   saveTelegramConfig, 
   testTelegramNotification 
 } from '../../utils/telegramBot';
+import {
+  getStoredKapsoConfig,
+  saveKapsoConfig,
+  testKapsoNotification,
+  formatPhoneForWhatsApp
+} from '../../utils/kapsoWhatsApp';
 
 interface SettingsViewProps {
   supabaseConfig: SupabaseConfig;
@@ -68,6 +77,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [telegramTestResult, setTelegramTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [telegramSaveSuccess, setTelegramSaveSuccess] = useState(false);
 
+  // Kapso WhatsApp state
+  const [kapsoConfig, setKapsoConfig] = useState<KapsoConfig>(getStoredKapsoConfig());
+  const [kapsoApiKey, setKapsoApiKey] = useState(kapsoConfig.apiKey || '');
+  const [kapsoPhoneNumberId, setKapsoPhoneNumberId] = useState(kapsoConfig.phoneNumberId || '');
+  const [kapsoAdminPhone, setKapsoAdminPhone] = useState(kapsoConfig.adminPhone || '');
+  const [kapsoEnabled, setKapsoEnabled] = useState(kapsoConfig.enabled ?? true);
+  const [kapsoNotifyPatient, setKapsoNotifyPatient] = useState(kapsoConfig.notifyPatient ?? true);
+  const [kapsoNotifyAdmin, setKapsoNotifyAdmin] = useState(kapsoConfig.notifyAdmin ?? true);
+  const [isTestingKapso, setIsTestingKapso] = useState(false);
+  const [kapsoTestResult, setKapsoTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [kapsoSaveSuccess, setKapsoSaveSuccess] = useState(false);
+
   useEffect(() => {
     syncGlobalConfigFromServer();
     const cfg = getStoredTelegramConfig();
@@ -75,6 +96,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setTelegramToken(cfg.botToken || '');
     setTelegramChatId(cfg.chatId || '');
     setTelegramEnabled(cfg.enabled ?? true);
+
+    const kCfg = getStoredKapsoConfig();
+    setKapsoConfig(kCfg);
+    setKapsoApiKey(kCfg.apiKey || '');
+    setKapsoPhoneNumberId(kCfg.phoneNumberId || '');
+    setKapsoAdminPhone(kCfg.adminPhone || '');
+    setKapsoEnabled(kCfg.enabled ?? true);
+    setKapsoNotifyPatient(kCfg.notifyPatient ?? true);
+    setKapsoNotifyAdmin(kCfg.notifyAdmin ?? true);
 
     const supCfg = getCurrentSupabaseConfig();
     if (supCfg.url) setUrl(supCfg.url);
@@ -88,6 +118,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setTelegramEnabled(updated.enabled ?? true);
     };
 
+    const handleKapsoUpdated = (e: any) => {
+      const updated = e.detail || getStoredKapsoConfig();
+      setKapsoConfig(updated);
+      if (updated.apiKey) setKapsoApiKey(updated.apiKey);
+      if (updated.phoneNumberId) setKapsoPhoneNumberId(updated.phoneNumberId);
+      if (updated.adminPhone) setKapsoAdminPhone(updated.adminPhone);
+      setKapsoEnabled(updated.enabled ?? true);
+      setKapsoNotifyPatient(updated.notifyPatient ?? true);
+      setKapsoNotifyAdmin(updated.notifyAdmin ?? true);
+    };
+
     const handleSupabaseUpdated = (e: any) => {
       const updated = e.detail || getCurrentSupabaseConfig();
       if (updated.url) setUrl(updated.url);
@@ -95,9 +136,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
 
     window.addEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
+    window.addEventListener('equilibra_kapso_config_updated', handleKapsoUpdated);
     window.addEventListener('equilibra_supabase_config_updated', handleSupabaseUpdated);
     return () => {
       window.removeEventListener('equilibra_telegram_config_updated', handleTelegramUpdated);
+      window.removeEventListener('equilibra_kapso_config_updated', handleKapsoUpdated);
       window.removeEventListener('equilibra_supabase_config_updated', handleSupabaseUpdated);
     };
   }, []);
@@ -156,6 +199,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsTestingTelegram(false);
   };
 
+  const handleSaveKapso = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated = saveKapsoConfig({
+      apiKey: kapsoApiKey.trim(),
+      phoneNumberId: kapsoPhoneNumberId.trim(),
+      adminPhone: kapsoAdminPhone.trim(),
+      enabled: kapsoEnabled,
+      notifyPatient: kapsoNotifyPatient,
+      notifyAdmin: kapsoNotifyAdmin,
+    });
+    setKapsoConfig(updated);
+    setKapsoSaveSuccess(true);
+    setTimeout(() => setKapsoSaveSuccess(false), 3000);
+  };
+
+  const handleTestKapso = async () => {
+    setIsTestingKapso(true);
+    setKapsoTestResult(null);
+    const res = await testKapsoNotification(kapsoApiKey, kapsoPhoneNumberId, kapsoAdminPhone);
+    setKapsoTestResult(res);
+    setIsTestingKapso(false);
+  };
+
   return (
     <div className="space-y-6">
       
@@ -163,10 +229,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <div>
         <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
           <Settings className="w-6 h-6 text-amber-500" />
-          <span>Configuración del Sistema, Telegram Bot & Supabase Cloud</span>
+          <span>Configuración del Sistema, WhatsApp Kapso, Telegram & Supabase</span>
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Notificaciones de Telegram en tiempo real, base de datos en la nube y respaldos clínicos
+          Notificaciones de WhatsApp automáticas vía Kapso, alertas de Telegram y base de datos clínica en la nube
         </p>
       </div>
 
@@ -290,6 +356,193 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {isTestingTelegram ? 'Enviando prueba...' : '🧪 Probar Bot (Enviar Mensaje de Prueba)'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* WhatsApp with Kapso (Meta Business Partner) Settings */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Notificaciones Automáticas por WhatsApp con Kapso</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                      Meta Partner
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Envía confirmaciones al WhatsApp de los pacientes y alertas al equipo clínico cuando se agenda una cita.
+                  </p>
+                </div>
+              </div>
+
+              <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                kapsoConfig.apiKey && kapsoConfig.phoneNumberId && kapsoConfig.enabled
+                  ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300'
+                  : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-300'
+              }`}>
+                {kapsoConfig.apiKey && kapsoConfig.phoneNumberId && kapsoConfig.enabled ? '● WhatsApp Activo' : '● Sin Configurar'}
+              </span>
+            </div>
+
+            <form onSubmit={handleSaveKapso} className="space-y-4 text-xs">
+              {/* Toggles */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-900/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 dark:text-white">Activar WhatsApp</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={kapsoEnabled} 
+                        onChange={(e) => setKapsoEnabled(e.target.checked)}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Habilita el envío vía Kapso</p>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 dark:text-white">Alerta al Paciente</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={kapsoNotifyPatient} 
+                        onChange={(e) => setKapsoNotifyPatient(e.target.checked)}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Confirmación con código y turno</p>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 dark:text-white">Alerta al Consultorio</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={kapsoNotifyAdmin} 
+                        onChange={(e) => setKapsoNotifyAdmin(e.target.checked)}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Aviso a recepción de nueva cita</p>
+                </div>
+              </div>
+
+              {/* Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Kapso API Key:</span>
+                    <a 
+                      href="https://kapso.ai" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-normal"
+                    >
+                      <span>kapso.ai</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="kapso_live_... o Bearer token"
+                    value={kapsoApiKey}
+                    onChange={(e) => setKapsoApiKey(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Phone Number ID:</span>
+                    <span className="text-[10px] text-slate-400 font-normal">ID del número en Kapso</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: 100234567890123"
+                    value={kapsoPhoneNumberId}
+                    onChange={(e) => setKapsoPhoneNumberId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>WhatsApp del Consultorio:</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Recepción / Alertas</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: +58 424-2724617 o 0414..."
+                    value={kapsoAdminPhone}
+                    onChange={(e) => setKapsoAdminPhone(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Guía Rápida Kapso */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 space-y-1.5">
+                <span className="font-bold flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>¿Cómo obtener tus claves en Kapso?</span>
+                </span>
+                <ol className="list-decimal list-inside text-[11px] space-y-0.5 text-slate-600 dark:text-slate-300">
+                  <li>Inicia sesión en <strong>kapso.ai</strong> y conecta tu WhatsApp Business.</li>
+                  <li>Ve a <strong>Integrations &gt; API Keys</strong> y copia tu clave.</li>
+                  <li>En la sección de <strong>Phone Numbers</strong> copia el <strong>Phone Number ID</strong> asignado por Meta.</li>
+                </ol>
+              </div>
+
+              {kapsoTestResult && (
+                <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                  kapsoTestResult.success 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 text-rose-700 dark:text-rose-300'
+                }`}>
+                  {kapsoTestResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                  <span>{kapsoTestResult.message}</span>
+                </div>
+              )}
+
+              {kapsoSaveSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>¡Configuración de WhatsApp guardada y sincronizada!</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2.5 pt-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-500/25 transition-colors flex items-center gap-2"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Guardar Configuración WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleTestKapso}
+                  disabled={isTestingKapso || !kapsoApiKey || !kapsoPhoneNumberId || !kapsoAdminPhone}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span>{isTestingKapso ? 'Enviando WhatsApp...' : '🧪 Enviar WhatsApp de Prueba'}</span>
                 </button>
               </div>
             </form>

@@ -121,6 +121,26 @@ export async function syncGlobalConfigFromServer(): Promise<void> {
             }
           }
         }
+        if (data && data.kapso) {
+          const kp = data.kapso;
+          if (kp.apiKey || kp.phoneNumberId || kp.adminPhone) {
+            const stored = localStorage.getItem('equilibra_kapso_config');
+            const parsed = stored ? JSON.parse(stored) : {};
+            const merged = {
+              ...parsed,
+              apiKey: kp.apiKey || parsed.apiKey || '',
+              phoneNumberId: kp.phoneNumberId || parsed.phoneNumberId || '',
+              adminPhone: kp.adminPhone || parsed.adminPhone || '',
+              enabled: kp.enabled ?? parsed.enabled ?? true,
+              notifyPatient: kp.notifyPatient ?? parsed.notifyPatient ?? true,
+              notifyAdmin: kp.notifyAdmin ?? parsed.notifyAdmin ?? true,
+            };
+            localStorage.setItem('equilibra_kapso_config', JSON.stringify(merged));
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('equilibra_kapso_config_updated', { detail: merged }));
+            }
+          }
+        }
       }
     } catch (apiErr) {
       console.warn('[syncGlobalConfigFromServer] /api/config fetch note:', apiErr);
@@ -148,6 +168,25 @@ export async function syncGlobalConfigFromServer(): Promise<void> {
               localStorage.setItem('equilibra_telegram_config', JSON.stringify(merged));
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('equilibra_telegram_config_updated', { detail: merged }));
+              }
+            }
+            if (row.id === 'kapso_config' && row.value) {
+              const kp = row.value;
+              const stored = localStorage.getItem('equilibra_kapso_config');
+              const parsed = stored ? JSON.parse(stored) : {};
+              const merged = {
+                ...parsed,
+                ...kp,
+                apiKey: kp.apiKey || parsed.apiKey || '',
+                phoneNumberId: kp.phoneNumberId || parsed.phoneNumberId || '',
+                adminPhone: kp.adminPhone || parsed.adminPhone || '',
+                enabled: kp.enabled ?? parsed.enabled ?? true,
+                notifyPatient: kp.notifyPatient ?? parsed.notifyPatient ?? true,
+                notifyAdmin: kp.notifyAdmin ?? parsed.notifyAdmin ?? true,
+              };
+              localStorage.setItem('equilibra_kapso_config', JSON.stringify(merged));
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('equilibra_kapso_config_updated', { detail: merged }));
               }
             }
             if (row.id === 'supabase_config' && row.value) {

@@ -116,6 +116,16 @@ export interface TelegramConfig {
   specialistTags?: Record<string, string>;
 }
 
+export interface KapsoConfig {
+  apiKey: string;
+  phoneNumberId: string;
+  adminPhone: string;
+  enabled: boolean;
+  notifyPatient: boolean;
+  notifyAdmin: boolean;
+  lastTestedAt?: string;
+}
+
 export interface AdminUser {
   id: string;
   name: string;

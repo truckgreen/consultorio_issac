@@ -20,6 +20,12 @@ interface StoredAppConfig {
   telegramChatId?: string;
   telegramEnabled?: boolean;
   specialistTags?: Record<string, string>;
+  kapsoApiKey?: string;
+  kapsoPhoneNumberId?: string;
+  kapsoAdminPhone?: string;
+  kapsoEnabled?: boolean;
+  kapsoNotifyPatient?: boolean;
+  kapsoNotifyAdmin?: boolean;
   updatedAt?: string;
 }
 
@@ -95,6 +101,28 @@ function getEnvCredentials() {
   const telegramEnabled = disk.telegramEnabled ?? true;
   const specialistTags = disk.specialistTags || {};
 
+  const kapsoApiKey =
+    process.env.KAPSO_API_KEY ||
+    process.env.KAPSO_KEY ||
+    disk.kapsoApiKey ||
+    '98be8174ebf8098a4c92bc540537c4c1de5dcd61d2643659b30cc0434a0ecdd5';
+
+  const kapsoPhoneNumberId =
+    process.env.KAPSO_PHONE_NUMBER_ID ||
+    process.env.KAPSO_PHONE_ID ||
+    disk.kapsoPhoneNumberId ||
+    '1325569650648320';
+
+  const kapsoAdminPhone =
+    process.env.KAPSO_ADMIN_PHONE ||
+    process.env.ADMIN_WHATSAPP ||
+    disk.kapsoAdminPhone ||
+    '';
+
+  const kapsoEnabled = disk.kapsoEnabled ?? true;
+  const kapsoNotifyPatient = disk.kapsoNotifyPatient ?? true;
+  const kapsoNotifyAdmin = disk.kapsoNotifyAdmin ?? true;
+
   return {
     supabaseUrl: supabaseUrl.trim(),
     supabaseKey: supabaseKey.trim(),
@@ -102,6 +130,12 @@ function getEnvCredentials() {
     telegramChatId: telegramChatId.trim(),
     telegramEnabled,
     specialistTags,
+    kapsoApiKey: kapsoApiKey.trim(),
+    kapsoPhoneNumberId: kapsoPhoneNumberId.trim(),
+    kapsoAdminPhone: kapsoAdminPhone.trim(),
+    kapsoEnabled,
+    kapsoNotifyPatient,
+    kapsoNotifyAdmin,
   };
 }
 
@@ -332,6 +366,89 @@ async function sendTelegramMessage(token: string, chatId: string, text: string) 
     throw new Error(desc || 'Error al enviar mensaje a Telegram');
   }
   return data;
+}
+
+// WhatsApp messaging utility via Kapso (Meta Business Partner API)
+function formatPhoneForWhatsApp(rawPhone: string): string {
+  if (!rawPhone) return '';
+  let digits = String(rawPhone).replace(/\D/g, '');
+  if (!digits) return '';
+  // Venezuelan prefixes: 0412, 0414, 0424, 0416, 0426
+  if (digits.startsWith('0') && (digits.length === 11 || digits.length === 10)) {
+    digits = '58' + digits.substring(1);
+  } else if (
+    (digits.startsWith('412') || digits.startsWith('414') || digits.startsWith('424') || digits.startsWith('416') || digits.startsWith('426')) &&
+    digits.length === 10
+  ) {
+    digits = '58' + digits;
+  }
+  return digits;
+}
+
+async function sendKapsoWhatsAppMessage(
+  apiKey: string,
+  phoneNumberId: string,
+  toPhone: string,
+  text: string
+): Promise<{ success: boolean; messageId?: string; raw?: any }> {
+  const cleanKey = apiKey.trim();
+  const cleanPhoneId = phoneNumberId.trim();
+  const cleanTo = formatPhoneForWhatsApp(toPhone);
+
+  if (!cleanKey || !cleanPhoneId) {
+    throw new Error('Kapso API Key o Phone Number ID no configurados.');
+  }
+  if (!cleanTo || cleanTo.length < 7) {
+    throw new Error(`Número telefónico de destino inválido: "${toPhone}"`);
+  }
+
+  // Official Kapso Meta WhatsApp Cloud API endpoint
+  const url = `https://api.kapso.ai/meta/whatsapp/v24.0/${cleanPhoneId}/messages`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-API-Key': cleanKey,
+    'Authorization': cleanKey.startsWith('Bearer ') ? cleanKey : `Bearer ${cleanKey}`,
+  };
+
+  const body = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: cleanTo,
+    type: 'text',
+    text: {
+      preview_url: false,
+      body: text,
+    },
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const rawText = await response.text();
+  let data: any = {};
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    data = { error: { message: rawText || 'Respuesta no válida de Kapso' } };
+  }
+
+  if (!response.ok || data.error) {
+    const errorMsg = data.error?.message || data.message || `Error HTTP ${response.status}: ${rawText.slice(0, 200)}`;
+    if (errorMsg.toLowerCase().includes('re-engagement') || errorMsg.toLowerCase().includes('24 hours') || errorMsg.toLowerCase().includes('template')) {
+      throw new Error(`WhatsApp Kapso requiere que el usuario haya iniciado conversación en las últimas 24 horas para texto libre, o enviar una plantilla aprobada por Meta.`);
+    }
+    throw new Error(`[Kapso WhatsApp] ${errorMsg}`);
+  }
+
+  return {
+    success: true,
+    messageId: data.messages?.[0]?.id || data.id,
+    raw: data,
+  };
 }
 
 // In-memory sliding window rate limiter
@@ -613,14 +730,30 @@ Debes responder ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
   // 2. Global configuration endpoint (Syncs credentials with token masking for non-staff)
   app.get('/api/config', (req, res) => {
     const isAuth = isStaffAuthenticated(req);
-    const { supabaseUrl, supabaseKey, telegramToken, telegramChatId, telegramEnabled, specialistTags } = getEnvCredentials();
+    const {
+      supabaseUrl,
+      supabaseKey,
+      telegramToken,
+      telegramChatId,
+      telegramEnabled,
+      specialistTags,
+      kapsoApiKey,
+      kapsoPhoneNumberId,
+      kapsoAdminPhone,
+      kapsoEnabled,
+      kapsoNotifyPatient,
+      kapsoNotifyAdmin,
+    } = getEnvCredentials();
 
-    // Mask sensitive bot token so unauthorized clients cannot steal the bot credentials
+    // Mask sensitive tokens so unauthorized clients cannot steal bot or API credentials
     const maskedTelegramToken = telegramToken
       ? (telegramToken.length > 8 ? '••••••••' + telegramToken.slice(-4) : '••••••••')
       : '';
     const maskedChatId = telegramChatId
       ? (telegramChatId.length > 4 ? '••••' + telegramChatId.slice(-4) : '••••')
+      : '';
+    const maskedKapsoApiKey = kapsoApiKey
+      ? (kapsoApiKey.length > 8 ? '••••••••' + kapsoApiKey.slice(-4) : '••••••••')
       : '';
 
     res.json({
@@ -637,6 +770,15 @@ Debes responder ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
         specialistTags: specialistTags || {},
         isConfigured: Boolean(telegramToken && telegramChatId),
         hasToken: Boolean(telegramToken),
+      },
+      kapso: {
+        apiKey: isAuth ? kapsoApiKey : maskedKapsoApiKey,
+        phoneNumberId: kapsoPhoneNumberId,
+        adminPhone: kapsoAdminPhone,
+        enabled: kapsoEnabled,
+        notifyPatient: kapsoNotifyPatient,
+        notifyAdmin: kapsoNotifyAdmin,
+        isConfigured: Boolean(kapsoApiKey && kapsoPhoneNumberId),
       },
     });
   });
@@ -677,6 +819,13 @@ Debes responder ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
       if (typeof telegramEnabled === 'boolean') updatePayload.telegramEnabled = telegramEnabled;
       else if (typeof enabled === 'boolean') updatePayload.telegramEnabled = enabled;
 
+      if (typeof req.body.kapsoApiKey === 'string') updatePayload.kapsoApiKey = req.body.kapsoApiKey.trim();
+      if (typeof req.body.kapsoPhoneNumberId === 'string') updatePayload.kapsoPhoneNumberId = req.body.kapsoPhoneNumberId.trim();
+      if (typeof req.body.kapsoAdminPhone === 'string') updatePayload.kapsoAdminPhone = formatPhoneForWhatsApp(req.body.kapsoAdminPhone);
+      if (typeof req.body.kapsoEnabled === 'boolean') updatePayload.kapsoEnabled = req.body.kapsoEnabled;
+      if (typeof req.body.kapsoNotifyPatient === 'boolean') updatePayload.kapsoNotifyPatient = req.body.kapsoNotifyPatient;
+      if (typeof req.body.kapsoNotifyAdmin === 'boolean') updatePayload.kapsoNotifyAdmin = req.body.kapsoNotifyAdmin;
+
       if (specialistTags && typeof specialistTags === 'object') {
         const cleanTags: Record<string, string> = {};
         for (const [k, v] of Object.entries(specialistTags)) {
@@ -709,6 +858,20 @@ Debes responder ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
             updated_at: new Date().toISOString(),
           }).then(() => {}).catch(err => console.warn('[Server] Supabase clinic_settings upsert error:', err));
         }
+        if (updatePayload.kapsoApiKey || updatePayload.kapsoPhoneNumberId || updatePayload.kapsoAdminPhone || updatePayload.kapsoEnabled !== undefined) {
+          client.from('clinic_settings').upsert({
+            id: 'kapso_config',
+            value: {
+              apiKey: updated.kapsoApiKey,
+              phoneNumberId: updated.kapsoPhoneNumberId,
+              adminPhone: updated.kapsoAdminPhone,
+              enabled: updated.kapsoEnabled ?? true,
+              notifyPatient: updated.kapsoNotifyPatient ?? true,
+              notifyAdmin: updated.kapsoNotifyAdmin ?? true,
+            },
+            updated_at: new Date().toISOString(),
+          }).then(() => {}).catch(err => console.warn('[Server] Supabase kapso_config upsert error:', err));
+        }
         if (updatePayload.supabaseUrl || updatePayload.supabaseAnonKey) {
           client.from('clinic_settings').upsert({
             id: 'supabase_config',
@@ -739,11 +902,55 @@ Debes responder ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
             specialistTags: env.specialistTags,
             isConfigured: Boolean(env.telegramToken && env.telegramChatId),
           },
+          kapso: {
+            apiKey: env.kapsoApiKey,
+            phoneNumberId: env.kapsoPhoneNumberId,
+            adminPhone: env.kapsoAdminPhone,
+            enabled: env.kapsoEnabled,
+            notifyPatient: env.kapsoNotifyPatient,
+            notifyAdmin: env.kapsoNotifyAdmin,
+            isConfigured: Boolean(env.kapsoApiKey && env.kapsoPhoneNumberId),
+          },
         },
       });
     } catch (err: any) {
       console.error('[API POST /api/config] Error:', err);
       res.status(500).json({ success: false, error: err?.message || 'Error al guardar configuración global' });
+    }
+  });
+
+  // 2c. Test Kapso WhatsApp connection endpoint
+  app.post('/api/kapso/test', createRateLimiter(60 * 1000, 10, 'kapso_test'), requireStaffAuth, async (req, res) => {
+    try {
+      const env = getEnvCredentials();
+      const apiKey = (req.body.apiKey || env.kapsoApiKey || '').trim();
+      const phoneNumberId = (req.body.phoneNumberId || env.kapsoPhoneNumberId || '').trim();
+      const targetPhone = (req.body.targetPhone || env.kapsoAdminPhone || '').trim();
+
+      if (!apiKey) {
+        return res.status(400).json({ success: false, error: 'Falta la API Key de Kapso.' });
+      }
+      if (!phoneNumberId) {
+        return res.status(400).json({ success: false, error: 'Falta el Phone Number ID de WhatsApp en Kapso.' });
+      }
+      if (!targetPhone) {
+        return res.status(400).json({ success: false, error: 'Falta el número de WhatsApp de destino para la prueba.' });
+      }
+
+      const testMsg =
+`🏥 *PRUEBA DE CONEXIÓN EQUILIBRA & KAPSO WHATSAPP* 🩺
+━━━━━━━━━━━━━━━━━━━━━━
+¡Excelente! Tu integración de WhatsApp a través de *Kapso* está configurada y lista.
+
+A partir de ahora, cuando un paciente agende una cita en la web, se enviarán confirmaciones automáticas a WhatsApp.
+
+⏱️ _Enviado: ${new Date().toLocaleString('es-VE')}_`;
+
+      const result = await sendKapsoWhatsAppMessage(apiKey, phoneNumberId, targetPhone, testMsg);
+      res.json({ success: true, messageId: result.messageId, recipient: result.recipient });
+    } catch (err: any) {
+      console.warn('[Kapso Test Error]:', err.message);
+      res.status(500).json({ success: false, error: err.message || 'Error al enviar mensaje de prueba por Kapso' });
     }
   });
 
@@ -1116,12 +1323,88 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
       }
     }
 
+    // Always attempt WhatsApp notifications via Kapso automatically
+    let kapsoPatientSent = false;
+    let kapsoAdminSent = false;
+    let kapsoError: string | null = null;
+
+    if (env.kapsoEnabled && env.kapsoApiKey && env.kapsoPhoneNumberId) {
+      try {
+        const serviceName = appointment.service_title || appointment.serviceTitle || appointment.service_id || 'Fisioterapia';
+        const packageName = appointment.selectedPackageName || appointment.selected_package_name || (appointment.primeraVisita ? 'Evaluación Inicial' : 'Sesión Estándar');
+        const totalSessions = Number(appointment.packageTotalSessions || appointment.package_total_sessions || packageName.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
+        const sessionNumber = Number(appointment.packageSessionNumber || appointment.package_session_number || 1);
+        const packageCode = appointment.packageCode || appointment.package_code || appointment.code || 'EQUILIBRA';
+        const price = appointment.selectedPackagePrice || appointment.servicePrice || '35 USD';
+        const specialist = appointment.specialistName || appointment.specialist_name || 'Lic. Isaac Jewsiejew';
+        const patientName = `${appointment.nombre} ${appointment.apellido}`;
+
+        // 1. WhatsApp confirmation to patient
+        if (env.kapsoNotifyPatient && appointment.telefono) {
+          try {
+            const patientMsg =
+`👋 ¡Hola *${appointment.nombre}*! Tu cita en *Equilibra - Fisioterapia & Bienestar Integral* ha sido agendada con éxito.
+
+📅 *Fecha:* ${appointment.fecha}
+⏰ *Hora:* ${appointment.hora}
+🩺 *Servicio:* ${serviceName}
+🏷️ *Plan:* ${packageName} (${sessionNumber}/${totalSessions})
+👨‍⚕️ *Especialista:* ${specialist}
+💵 *Tarifa:* ${price}
+🔖 *Código de Cita:* *${packageCode}*
+
+📍 *Sede:* Sabana Grande, Centro Profesional del Este, Caracas.
+⏱️ Por favor asiste 10 minutos antes de tu turno.
+
+_Para reprogramar o verificar el estado de tus citas, visita nuestra web o responde a este mensaje._`;
+
+            await sendKapsoWhatsAppMessage(env.kapsoApiKey, env.kapsoPhoneNumberId, appointment.telefono, patientMsg);
+            kapsoPatientSent = true;
+          } catch (kErr: any) {
+            console.warn('[Server Kapso WhatsApp Patient Alert Error]:', kErr?.message);
+            kapsoError = kErr?.message;
+          }
+        }
+
+        // 2. WhatsApp alert to clinic admin / reception
+        if (env.kapsoNotifyAdmin && env.kapsoAdminPhone) {
+          try {
+            const adminMsg =
+`🚨 *¡NUEVA CITA AGENDADA EN EQUILIBRA!*
+━━━━━━━━━━━━━━━━━━━━━━
+👤 *Paciente:* ${patientName}
+📞 *Teléfono:* ${appointment.telefono}
+📧 *Email:* ${appointment.email}
+📅 *Fecha:* ${appointment.fecha} a las ${appointment.hora}
+🩺 *Servicio:* ${serviceName}
+🏷️ *Reserva:* ${packageName}
+💵 *Tarifa:* ${price}
+👨‍⚕️ *Especialista:* ${specialist}
+🔖 *Código:* ${packageCode}
+📝 *Motivo:* ${appointment.motivoConsulta || appointment.motivo || 'No especificado'}`;
+
+            await sendKapsoWhatsAppMessage(env.kapsoApiKey, env.kapsoPhoneNumberId, env.kapsoAdminPhone, adminMsg);
+            kapsoAdminSent = true;
+          } catch (kAdminErr: any) {
+            console.warn('[Server Kapso WhatsApp Admin Alert Error]:', kAdminErr?.message);
+            if (!kapsoError) kapsoError = kAdminErr?.message;
+          }
+        }
+      } catch (generalKapsoErr: any) {
+        console.warn('[Server Kapso Error]:', generalKapsoErr?.message);
+        kapsoError = generalKapsoErr?.message;
+      }
+    }
+
     res.json({
       success: true,
       supabaseSaved,
       supabaseError,
       telegramSent,
       telegramError,
+      kapsoPatientSent,
+      kapsoAdminSent,
+      kapsoError,
       appointment,
     });
   });
