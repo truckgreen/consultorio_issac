@@ -3044,6 +3044,27 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                           </div>
                         </div>
 
+                        {/* Meta WhatsApp 24-hour rule notice */}
+                        <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                          <div className="space-y-0.5">
+                            <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                              <span>⚠️ Regla de Meta WhatsApp (Ventana de 24 horas):</span>
+                            </span>
+                            <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                              Para autorizar a Meta a enviarte el mensaje de prueba, primero debes abrir WhatsApp y escribirle al menos un <strong>"Hola"</strong> a tu bot <strong>+1 201-530-8164</strong>.
+                            </p>
+                          </div>
+                          <a
+                            href="https://wa.me/12015308164?text=Hola"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 text-xs shadow-sm transition-all"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>Abrir chat y decir «Hola»</span>
+                          </a>
+                        </div>
+
                         {/* Feedback message from test */}
                         {kapsoTestResult && (
                           <div

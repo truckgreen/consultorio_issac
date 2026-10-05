@@ -495,17 +495,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              {/* Guía Rápida Kapso */}
-              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 space-y-1.5">
-                <span className="font-bold flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>¿Cómo obtener tus claves en Kapso?</span>
-                </span>
-                <ol className="list-decimal list-inside text-[11px] space-y-0.5 text-slate-600 dark:text-slate-300">
-                  <li>Inicia sesión en <strong>kapso.ai</strong> y conecta tu WhatsApp Business.</li>
-                  <li>Ve a <strong>Integrations &gt; API Keys</strong> y copia tu clave.</li>
-                  <li>En la sección de <strong>Phone Numbers</strong> copia el <strong>Phone Number ID</strong> asignado por Meta.</li>
-                </ol>
+              {/* Guía Rápida Kapso y Regla de 24 Horas */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 space-y-2">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <span className="font-bold flex items-center gap-1.5 text-xs">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Regla de Meta WhatsApp (Ventana de 24 horas):</span>
+                  </span>
+                  <a
+                    href="https://wa.me/12015308164?text=Hola"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm transition-all"
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    <span>Abrir chat y decir «Hola» a +1 201-530-8164</span>
+                  </a>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                  Para poder recibir mensajes de prueba y notificaciones de prueba en tu teléfono personal, primero debes abrir un chat y escribirle al menos un <strong>"Hola"</strong> al número de tu bot (<strong>+1 201-530-8164</strong>). Esto abre la ventana autorizada de 24 horas que exige Meta.
+                </p>
               </div>
 
               {kapsoTestResult && (

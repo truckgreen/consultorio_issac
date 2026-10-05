@@ -408,7 +408,6 @@ async function sendKapsoWhatsAppMessage(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-API-Key': cleanKey,
-    'Authorization': cleanKey.startsWith('Bearer ') ? cleanKey : `Bearer ${cleanKey}`,
   };
 
   const body = {
@@ -437,11 +436,26 @@ async function sendKapsoWhatsAppMessage(
   }
 
   if (!response.ok || data.error) {
-    const errorMsg = data.error?.message || data.message || `Error HTTP ${response.status}: ${rawText.slice(0, 200)}`;
-    if (errorMsg.toLowerCase().includes('re-engagement') || errorMsg.toLowerCase().includes('24 hours') || errorMsg.toLowerCase().includes('template')) {
-      throw new Error(`WhatsApp Kapso requiere que el usuario haya iniciado conversación en las últimas 24 horas para texto libre, o enviar una plantilla aprobada por Meta.`);
+    const errorStr = typeof data.error === 'string' 
+      ? data.error 
+      : (data.error?.message || data.message || JSON.stringify(data));
+    const fullCheck = `${errorStr} ${rawText}`.toLowerCase();
+
+    if (
+      fullCheck.includes('24-hour') ||
+      fullCheck.includes('24 hour') ||
+      fullCheck.includes('24 hours') ||
+      fullCheck.includes('window') ||
+      fullCheck.includes('re-engagement') ||
+      fullCheck.includes('reopen the session') ||
+      fullCheck.includes('non-template')
+    ) {
+      throw new Error(
+        `Meta exige que abras WhatsApp y le envíes al menos un "Hola" a tu bot (+1 201-530-8164) para abrir la ventana de 24 horas y autorizar la recepción de mensajes.`
+      );
     }
-    throw new Error(`[Kapso WhatsApp] ${errorMsg}`);
+
+    throw new Error(`[Kapso WhatsApp] ${errorStr}`);
   }
 
   return {
