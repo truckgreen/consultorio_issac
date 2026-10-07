@@ -112,9 +112,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             id="brand-logo-link"
             className="flex items-center gap-2.5 group focus:outline-none shrink-0"
           >
-            <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center text-slate-950 shadow-md shadow-amber-500/30 group-hover:shadow-lg group-hover:shadow-amber-500/50 group-hover:scale-105 transition-all duration-300">
-              <Activity className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-300 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
+            <div className="relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center group-hover:scale-105 transition-all duration-300">
+              <img src="/imagenes/logo-equilibra.png" alt="" className="w-full h-full object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="text-lg sm:text-xl font-black tracking-widest text-slate-900 dark:text-white uppercase font-heading leading-none group-hover:text-amber-500 transition-colors">
@@ -429,4 +428,3 @@ export const Navbar: React.FC<NavbarProps> = ({
     </>
   );
 };
-

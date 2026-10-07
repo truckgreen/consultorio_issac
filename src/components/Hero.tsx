@@ -25,7 +25,7 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
           }}
         />
         {/* Cinematic Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#faf9f6] via-slate-950/75 to-slate-950/95 dark:from-[#0c1017] dark:via-slate-950/85 dark:to-slate-950/95" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#E9ECEF] via-slate-950/75 to-slate-950/95 dark:from-[#0c1017] dark:via-slate-950/85 dark:to-slate-950/95" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.28),rgba(0,0,0,0))]" />
         
         {/* Subtle dot grid texture */}
@@ -245,4 +245,3 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
     </section>
   );
 };
-

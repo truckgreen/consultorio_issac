@@ -117,7 +117,7 @@ export const TestimonialsSection: React.FC = () => {
   const currentItem = allTestimonials[currentIndex] || allTestimonials[0];
 
   return (
-    <section id="testimonios" className="py-24 lg:py-32 bg-[#faf9f6] dark:bg-[#0c1017] transition-colors relative overflow-hidden">
+    <section id="testimonios" className="py-24 lg:py-32 bg-[#E9ECEF] dark:bg-[#0c1017] transition-colors relative overflow-hidden">
       {/* Decorative Glow Elements */}
       <div className="absolute top-1/2 -left-28 w-96 h-96 bg-amber-500/5 dark:bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-400/5 dark:bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />

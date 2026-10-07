@@ -129,7 +129,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0c1017] text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950 relative">
+    <div className="min-h-screen bg-[#E9ECEF] dark:bg-[#0c1017] text-[#212529] dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950 relative">
       {/* Top Animated Reading Progress Bar */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 origin-left z-[60] pointer-events-none shadow-sm shadow-amber-400/30"

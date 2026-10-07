@@ -67,7 +67,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenBooking }) => 
     <section id="sobre-nosotros" className="py-24 lg:py-32 relative overflow-hidden bg-white dark:bg-[#0f1520] transition-colors bg-grid-subtle-light dark:bg-grid-subtle-dark">
       {/* Top Wave Divider Transition from Hero */}
       <div className="absolute top-0 left-0 right-0 overflow-hidden leading-none pointer-events-none z-10">
-        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="relative block w-full h-8 sm:h-12 text-[#faf9f6] dark:text-[#0c1017] fill-current">
+        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="relative block w-full h-8 sm:h-12 text-[#E9ECEF] dark:text-[#0c1017] fill-current">
           <path d="M0,0 C150,70 350,-20 500,40 C650,100 900,10 1200,50 L1200,0 L0,0 Z"></path>
         </svg>
       </div>

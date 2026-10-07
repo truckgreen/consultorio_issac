@@ -141,7 +141,7 @@ export const LaunchAuditModal: React.FC<LaunchAuditModalProps> = ({
       name: 'Contraste de colores',
       category: 'ux',
       status: 'verified',
-      description: 'Paleta verificada bajo norma WCAG AA (mínimo 4.5:1) tanto en modo claro (#faf9f6) como en modo oscuro clínico (#0c1017).',
+      description: 'Paleta Equilibra: Azul Calma (#3A86FF), Verde Eucalipto (#52B788), Gris Hielo (#E9ECEF) y Grafito Oscuro (#212529).',
       badge: 'WCAG AA',
     },
     {

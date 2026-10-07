@@ -3,11 +3,49 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --color-amber-50: #eff6ff;
+  --color-amber-100: #dbeafe;
+  --color-amber-200: #bfdbfe;
+  --color-amber-300: #60a5fa;
+  --color-amber-400: #3a86ff;
+  --color-amber-500: #3a86ff;
+  --color-amber-600: #2563eb;
+  --color-amber-700: #1d4ed8;
+  --color-amber-800: #1e40af;
+  --color-amber-900: #1e3a8a;
+  --color-amber-950: #172554;
+
+  --color-emerald-50: #eaf7f0;
+  --color-emerald-100: #d4efdf;
+  --color-emerald-200: #a8dfbf;
+  --color-emerald-300: #7dcea0;
+  --color-emerald-400: #52b788;
+  --color-emerald-500: #52b788;
+  --color-emerald-600: #409f73;
+  --color-emerald-700: #31825e;
+  --color-emerald-800: #28684c;
+  --color-emerald-900: #22533e;
+  --color-emerald-950: #153427;
+
+  --color-slate-50: #f8f9fa;
+  --color-slate-100: #f1f3f5;
+  --color-slate-200: #e9ecef;
+  --color-slate-300: #dee2e6;
+  --color-slate-400: #ced4da;
+  --color-slate-500: #adb5bd;
+  --color-slate-600: #6c757d;
+  --color-slate-700: #495057;
+  --color-slate-800: #343a40;
+  --color-slate-900: #212529;
+  --color-slate-950: #212529;
+}
+
 @layer base {
   :root {
-    --color-amber-primary: var(--color-primary, #f59e0b);
-    --color-amber-light: var(--color-primary-light, #fbbf24);
-    --color-amber-dark: var(--color-primary-dark, #d97706);
+    --color-amber-primary: var(--color-primary, #3a86ff);
+    --color-amber-light: var(--color-primary-light, #60a5fa);
+    --color-amber-dark: var(--color-primary-dark, #1d4ed8);
   }
 
   html {
@@ -37,22 +75,22 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(245, 158, 11, 0.35);
+  background: rgba(58, 134, 255, 0.35);
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(245, 158, 11, 0.7);
+  background: rgba(58, 134, 255, 0.7);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(245, 158, 11, 0.3);
+  background: rgba(58, 134, 255, 0.3);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(245, 158, 11, 0.6);
+  background: rgba(58, 134, 255, 0.6);
 }
 
 /* Subtle decorative utility patterns */
@@ -62,7 +100,7 @@
 }
 
 .bg-dot-pattern-dark {
-  background-image: radial-gradient(rgba(245, 158, 11, 0.08) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(58, 134, 255, 0.08) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
@@ -91,10 +129,10 @@
 /* Pulse glow for highlight CTA buttons */
 @keyframes pulseGlow {
   0%, 100% {
-    box-shadow: 0 0 15px -3px rgba(245, 158, 11, 0.4), 0 4px 6px -4px rgba(245, 158, 11, 0.2);
+    box-shadow: 0 0 15px -3px rgba(58, 134, 255, 0.4), 0 4px 6px -4px rgba(58, 134, 255, 0.2);
   }
   50% {
-    box-shadow: 0 0 25px 2px rgba(245, 158, 11, 0.65), 0 8px 12px -4px rgba(245, 158, 11, 0.3);
+    box-shadow: 0 0 25px 2px rgba(58, 134, 255, 0.65), 0 8px 12px -4px rgba(58, 134, 255, 0.3);
   }
 }
 

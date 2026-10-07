@@ -4,13 +4,13 @@
   "description": "Centro clínico especializado en fisioterapia, traumatología y rehabilitación en Caracas.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0c1017",
-  "theme_color": "#f59e0b",
+  "background_color": "#E9ECEF",
+  "theme_color": "#3A86FF",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
+      "src": "/imagenes/logo-equilibra.png",
+      "sizes": "385x295",
+      "type": "image/png"
     }
   ]
 }

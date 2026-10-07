@@ -2,34 +2,34 @@
    STELY.CSS - CONFIGURACIÓN FÁCIL DE COLORES Y ESTILO DE EQUILIBRA
    --------------------------------------------------------------------------
    ¡Cambia los colores de toda la página aquí de forma súper rápida y sencilla!
-   Solo edita los códigos hexadecimales (por ejemplo: #f59e0b) que ves abajo.
+   Solo edita los códigos hexadecimales (por ejemplo: #3A86FF) que ves abajo.
    ========================================================================== */
 
 :root {
   /* ========================================================================
      1. COLOR PRINCIPAL Y ACENTOS DE MARCA (Botones, detalles, iconos, enlaces)
      ======================================================================== */
-  --color-primary: #f59e0b;              /* Color primario principal */
-  --color-primary-hover: #d97706;        /* Color al pasar el cursor por encima */
-  --color-primary-light: #fbbf24;        /* Tono claro para degradados o reflejos */
-  --color-primary-dark: #b45309;         /* Tono oscuro para contrastes */
-  --color-primary-glow: rgba(245, 158, 11, 0.40); /* Brillo / resplandor suave */
-  --color-primary-soft: rgba(245, 158, 11, 0.12); /* Fondos tenues para etiquetas */
+  --color-primary: #3A86FF;              /* Azul Calma */
+  --color-primary-hover: #2563eb;
+  --color-primary-light: #60a5fa;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-glow: rgba(58, 134, 255, 0.40);
+  --color-primary-soft: rgba(58, 134, 255, 0.12);
 
   /* ========================================================================
      2. COLOR SECUNDARIO / APOYO
      ======================================================================== */
-  --color-secondary: #0ea5e9;            /* Color secundario de apoyo */
-  --color-secondary-hover: #0284c7;
+  --color-secondary: #52B788;            /* Verde Eucalipto */
+  --color-secondary-hover: #409f73;
 
   /* ========================================================================
      3. FONDOS GENERALES (Modo Claro vs Modo Oscuro)
      ======================================================================== */
-  --bg-canvas-light: #faf9f6;            /* Fondo base modo claro */
+  --bg-canvas-light: #E9ECEF;            /* Gris Hielo */
   --bg-card-light: #ffffff;              /* Fondo de tarjetas modo claro */
-  --text-main-light: #0f172a;            /* Texto principal modo claro */
-  --text-muted-light: #475569;           /* Texto secundario modo claro */
-  --border-light: #e2e8f0;               /* Bordes modo claro */
+  --text-main-light: #212529;            /* Grafito Oscuro */
+  --text-muted-light: #495057;
+  --border-light: #dee2e6;
 
   --bg-canvas-dark: #0c1017;             /* Fondo base modo oscuro */
   --bg-card-dark: #121824;               /* Fondo de tarjetas modo oscuro */
@@ -52,7 +52,7 @@
 
 .btn-brand-primary {
   background-color: var(--color-primary);
-  color: #0f172a;
+  color: #212529;
   font-weight: 700;
   transition: all 0.2s ease-in-out;
 }
