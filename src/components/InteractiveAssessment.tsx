@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles,
-  Bot,
+  Stethoscope,
   ArrowRight,
   RotateCcw,
   CheckCircle2,
@@ -20,9 +20,10 @@ import { SERVICES_DATA } from '../data/servicesData';
 interface MedicalTriageResponse {
   recommendedServiceId: string;
   specialistArea: string;
-  urgencyLevel: 'baja' | 'moderada' | 'prioritaria';
+  urgencyLevel: 'baja' | 'moderada' | 'prioritaria' | 'EMERGENCIA MÉDICA VITAL' | string;
   triageSummary: string;
   homeAdvice: string[];
+  isEmergency?: boolean;
   disclaimer?: string;
   confidence?: string;
 }
@@ -114,8 +115,8 @@ export const InteractiveAssessment: React.FC<InteractiveAssessmentProps> = ({ on
           {/* Header */}
           <div className="text-center max-w-2xl mx-auto mb-8">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 text-xs font-black uppercase tracking-wider mb-3">
-              <Bot className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              <span>Orientación Clínica & Asistente Virtual</span>
+              <Stethoscope className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span>Orientación Médica & Consulta Recomendada</span>
             </div>
 
             <h3 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white font-heading tracking-tight">
@@ -123,7 +124,7 @@ export const InteractiveAssessment: React.FC<InteractiveAssessmentProps> = ({ on
             </h3>
 
             <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mt-2">
-              Utiliza nuestro Asistente Inteligente de Triage Médico o selecciona tu objetivo para recomendarte el área adecuada.
+              Describe lo que sientes o tus objetivos físicos para orientarte hacia el profesional y tratamiento idóneo para ti.
             </p>
 
             {/* Mode Switcher */}
@@ -140,8 +141,8 @@ export const InteractiveAssessment: React.FC<InteractiveAssessmentProps> = ({ on
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <Bot className="w-4 h-4" />
-                <span>Asistente IA de Triage</span>
+                <Stethoscope className="w-4 h-4" />
+                <span>Evaluación de Síntomas</span>
               </button>
 
               <button
@@ -157,7 +158,7 @@ export const InteractiveAssessment: React.FC<InteractiveAssessmentProps> = ({ on
                 }`}
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Guía por Categorías</span>
+                <span>Guía por Especialidades</span>
               </button>
             </div>
           </div>
@@ -182,7 +183,7 @@ export const InteractiveAssessment: React.FC<InteractiveAssessmentProps> = ({ on
                       rows={3}
                       value={userSymptoms}
                       onChange={(e) => setUserSymptoms(e.target.value)}
-                      placeholder="Ej: Tengo un dolor punzante en la zona lumbar desde hace 4 días que se irradia hacia la pierna derecha al sentarme..."
+                      placeholder="Ej: Tengo dolor en la zona lumbar desde hace varios días que se incrementa al permanecer sentado o agacharme..."
                       className="w-full px-4 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     />
                   </div>
@@ -238,7 +239,7 @@ export const InteractiveAssessment: React.FC<InteractiveAssessmentProps> = ({ on
                   <div className="pt-2 flex items-center justify-between">
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                       <HeartPulse className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>Análisis instantáneo y confidencial con IA médica</span>
+                      <span>Orientación clínica confidencial e inmediata</span>
                     </p>
 
                     <button
@@ -249,19 +250,91 @@ export const InteractiveAssessment: React.FC<InteractiveAssessmentProps> = ({ on
                       {isLoadingAi ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Analizando tus síntomas...</span>
+                          <span>Evaluando síntomas...</span>
                         </>
                       ) : (
                         <>
                           <Send className="w-3.5 h-3.5" />
-                          <span>Obtener Triage</span>
+                          <span>Evaluar Síntomas</span>
                         </>
                       )}
                     </button>
                   </div>
                 </form>
+              ) : triageResult.isEmergency ? (
+                /* Emergency Red Flag Alert Card */
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-rose-50 dark:bg-rose-950/40 rounded-3xl p-6 sm:p-8 border-2 border-rose-500/60 shadow-xl space-y-6"
+                >
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-rose-200 dark:border-rose-900/60">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black uppercase tracking-wider text-rose-700 dark:text-rose-400">
+                          Prioridad Máxima de Seguridad
+                        </span>
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-rose-600 text-white">
+                          Emergencia Vital Detectada
+                        </span>
+                      </div>
+                      <h4 className="text-xl sm:text-2xl font-black text-rose-950 dark:text-rose-200 font-heading mt-1 flex items-center gap-2">
+                        <ShieldAlert className="w-6 h-6 text-rose-600 shrink-0" />
+                        <span>{triageResult.specialistArea}</span>
+                      </h4>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 py-1.5 px-3 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/40"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Nueva consulta</span>
+                    </button>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-white/80 dark:bg-rose-900/30 border border-rose-300 dark:border-rose-800 text-xs sm:text-sm text-rose-900 dark:text-rose-100 leading-relaxed font-semibold">
+                    {triageResult.triageSummary}
+                  </div>
+
+                  {triageResult.homeAdvice && triageResult.homeAdvice.length > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-rose-950 dark:text-rose-300">
+                        Instrucciones inmediatas de seguridad:
+                      </h5>
+                      <div className="grid grid-cols-1 gap-2">
+                        {triageResult.homeAdvice.map((advice, i) => (
+                          <div
+                            key={i}
+                            className="p-3 rounded-xl bg-white/90 dark:bg-slate-900 border border-rose-200 dark:border-rose-900/40 text-xs text-rose-900 dark:text-rose-200 flex items-start gap-2"
+                          >
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                            <span>{advice}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-rose-200 dark:border-rose-900/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <p className="text-[11px] text-rose-700 dark:text-rose-300 max-w-md">
+                      * Conforme al Código de Deontología Médica y normativas de salud, no debes esperar una cita de fisioterapia ambulatoria para atender emergencias potencialmente vitales.
+                    </p>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <a
+                        href="tel:911"
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 text-xs sm:text-sm font-black text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-full shadow-lg transition-all"
+                      >
+                        <ShieldAlert className="w-4 h-4" />
+                        <span>Llamar a Emergencias (911)</span>
+                      </a>
+                    </div>
+                  </div>
+                </motion.div>
               ) : (
-                /* AI Triage Result Card */
+                /* Clinical Recommendation Result Card */
                 <motion.div
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -271,10 +344,10 @@ export const InteractiveAssessment: React.FC<InteractiveAssessmentProps> = ({ on
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                          Resultado de Triage Asistido
+                          Orientación Clínica Recomendada
                         </span>
                         <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                          Urgencia: {triageResult.urgencyLevel}
+                          Prioridad: {triageResult.urgencyLevel}
                         </span>
                       </div>
                       <h4 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-heading mt-1">
@@ -426,6 +499,15 @@ export const InteractiveAssessment: React.FC<InteractiveAssessmentProps> = ({ on
             </div>
           )}
 
+          {/* Marco Regulatorio y Deontológico de Salud */}
+          <div className="mt-8 pt-5 border-t border-amber-300/40 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+            <div className="flex items-start sm:items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+              <span>
+                <strong>Aviso Deontológico y Sanitario:</strong> Esta herramienta interactiva es estrictamente orientativa y educativa. No emite recetas, diagnósticos definitivos ni constituye un acto médico formal conforme a la Ley del Ejercicio de la Medicina y Fisioterapia. La valoración presencial en clínica es indispensable.
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </section>

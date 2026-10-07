@@ -1,0 +1,78 @@
+/* ==========================================================================
+   STELY.CSS - CONFIGURACIÓN FÁCIL DE COLORES Y ESTILO DE EQUILIBRA
+   --------------------------------------------------------------------------
+   ¡Cambia los colores de toda la página aquí de forma súper rápida y sencilla!
+   Solo edita los códigos hexadecimales (por ejemplo: #f59e0b) que ves abajo.
+   ========================================================================== */
+
+:root {
+  /* ========================================================================
+     1. COLOR PRINCIPAL Y ACENTOS DE MARCA (Botones, detalles, iconos, enlaces)
+     ======================================================================== */
+  --color-primary: #f59e0b;              /* Color primario principal */
+  --color-primary-hover: #d97706;        /* Color al pasar el cursor por encima */
+  --color-primary-light: #fbbf24;        /* Tono claro para degradados o reflejos */
+  --color-primary-dark: #b45309;         /* Tono oscuro para contrastes */
+  --color-primary-glow: rgba(245, 158, 11, 0.40); /* Brillo / resplandor suave */
+  --color-primary-soft: rgba(245, 158, 11, 0.12); /* Fondos tenues para etiquetas */
+
+  /* ========================================================================
+     2. COLOR SECUNDARIO / APOYO
+     ======================================================================== */
+  --color-secondary: #0ea5e9;            /* Color secundario de apoyo */
+  --color-secondary-hover: #0284c7;
+
+  /* ========================================================================
+     3. FONDOS GENERALES (Modo Claro vs Modo Oscuro)
+     ======================================================================== */
+  --bg-canvas-light: #faf9f6;            /* Fondo base modo claro */
+  --bg-card-light: #ffffff;              /* Fondo de tarjetas modo claro */
+  --text-main-light: #0f172a;            /* Texto principal modo claro */
+  --text-muted-light: #475569;           /* Texto secundario modo claro */
+  --border-light: #e2e8f0;               /* Bordes modo claro */
+
+  --bg-canvas-dark: #0c1017;             /* Fondo base modo oscuro */
+  --bg-card-dark: #121824;               /* Fondo de tarjetas modo oscuro */
+  --text-main-dark: #f8fafc;             /* Texto principal modo oscuro */
+  --text-muted-dark: #94a3b8;            /* Texto secundario modo oscuro */
+  --border-dark: rgba(255, 255, 255, 0.08); /* Bordes modo oscuro */
+
+  /* ========================================================================
+     4. CANALES DE COMUNICACIÓN
+     ======================================================================== */
+  --color-whatsapp: #25d366;             /* Verde WhatsApp */
+  --color-telegram: #229ed9;             /* Azul Telegram */
+
+  /* ========================================================================
+     5. TIPOGRAFÍAS
+     ======================================================================== */
+  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.btn-brand-primary {
+  background-color: var(--color-primary);
+  color: #0f172a;
+  font-weight: 700;
+  transition: all 0.2s ease-in-out;
+}
+.btn-brand-primary:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow: 0 10px 25px -5px var(--color-primary-glow);
+}
+
+.text-brand-primary {
+  color: var(--color-primary);
+}
+
+.border-brand-primary {
+  border-color: var(--color-primary);
+}
+
+.bg-brand-soft {
+  background-color: var(--color-primary-soft);
+}
+
+.glow-brand {
+  box-shadow: 0 0 20px 2px var(--color-primary-glow);
+}

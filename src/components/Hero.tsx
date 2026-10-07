@@ -212,6 +212,25 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
           <span>Sabana Grande, Caracas • Centro Profesional del Este, Piso 4</span>
         </motion.div>
 
+        {/* Quick intuitive section shortcuts */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.55 }}
+          className="mt-3 flex flex-wrap justify-center items-center gap-2 text-xs text-slate-300 font-medium"
+        >
+          <span className="text-amber-300 font-semibold">Acceso directo:</span>
+          <a href="#servicios" className="hover:text-amber-300 underline underline-offset-4 decoration-amber-400/40">Servicios</a>
+          <span className="text-white/30">·</span>
+          <a href="#especialidades" className="hover:text-amber-300 underline underline-offset-4 decoration-amber-400/40">Especialidades</a>
+          <span className="text-white/30">·</span>
+          <a href="#equipo" className="hover:text-amber-300 underline underline-offset-4 decoration-amber-400/40">Equipo Médico</a>
+          <span className="text-white/30">·</span>
+          <a href="#triage-medico" className="hover:text-amber-300 underline underline-offset-4 decoration-amber-400/40">Orientación</a>
+          <span className="text-white/30">·</span>
+          <a href="#contacto" className="hover:text-amber-300 underline underline-offset-4 decoration-amber-400/40">Ubicación & Citas</a>
+        </motion.div>
+
         {/* Enhanced Scroll Indicator with Glowing Pulse */}
         <motion.a
           href="#sobre-nosotros"

@@ -59,6 +59,7 @@ export const ContactFooter: React.FC<ContactFooterProps> = ({
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactMessage, setContactMessage] = useState('');
+  const [contactConsent, setContactConsent] = useState(true);
   const [botTrap, setBotTrap] = useState('');
   const [contactSending, setContactSending] = useState(false);
   const [contactSuccess, setContactSuccess] = useState(false);
@@ -71,6 +72,12 @@ export const ContactFooter: React.FC<ContactFooterProps> = ({
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     setContactError(null);
+
+    // 0. Privacy consent check (Regulación de Protección de Datos)
+    if (!contactConsent) {
+      setContactError('Por favor acepta los términos de privacidad y confidencialidad médica para enviar tu mensaje.');
+      return;
+    }
 
     // 1. Anti-Bot Honeypot check
     const humanCheck = verifyHumanInteraction(botTrap, formRenderTimestampRef.current);
@@ -349,6 +356,45 @@ export const ContactFooter: React.FC<ContactFooterProps> = ({
                 />
               </div>
 
+              {/* Checkbox de Consentimiento Informado (Cumplimiento de Privacidad y Salud) */}
+              <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-700/80">
+                <label className="flex items-start gap-2 text-[11px] text-slate-300 cursor-pointer select-none leading-relaxed">
+                  <input
+                    type="checkbox"
+                    checked={contactConsent}
+                    onChange={(e) => setContactConsent(e.target.checked)}
+                    className="mt-0.5 w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400 border-slate-600 bg-slate-800 shrink-0"
+                  />
+                  <span>
+                    He leído y acepto el{' '}
+                    {onOpenLegalNotice ? (
+                      <button
+                        type="button"
+                        onClick={onOpenLegalNotice}
+                        className="text-amber-400 hover:underline font-bold"
+                      >
+                        Aviso Legal
+                      </button>
+                    ) : (
+                      <span className="text-amber-400 font-bold">Aviso Legal</span>
+                    )}{' '}
+                    y la{' '}
+                    {onOpenPrivacyModal ? (
+                      <button
+                        type="button"
+                        onClick={onOpenPrivacyModal}
+                        className="text-amber-400 hover:underline font-bold"
+                      >
+                        Política de Privacidad y Secreto Médico
+                      </button>
+                    ) : (
+                      <span className="text-amber-400 font-bold">Política de Privacidad</span>
+                    )}
+                    . Tus datos clínicos nunca serán cedidos a terceros.
+                  </span>
+                </label>
+              </div>
+
               {contactError && (
                 <div className="text-[11px] text-rose-400 flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -518,13 +564,18 @@ export const ContactFooter: React.FC<ContactFooterProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-400 font-medium">
-            <div>
-              © {new Date().getFullYear()} EQUILIBRA C.A. Todos los derechos reservados. Sabana Grande, Caracas, Venezuela.
+            <div className="space-y-1 text-center sm:text-left">
+              <div>
+                © {new Date().getFullYear()} EQUILIBRA C.A. · RIF: J-50389214-7 · Centro de Fisioterapia & Bienestar Integral. Todos los derechos reservados.
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Acreditación Profesional: Colegio de Fisioterapeutas de Venezuela y MPPS · Sede Sabana Grande, Caracas · Conforme a la Ley del Ejercicio de la Medicina, Ley de Infogobierno y Secreto Profesional Sanitario.
+              </div>
             </div>
 
             <button
               onClick={scrollToTop}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-800/80 hover:bg-amber-400 hover:text-slate-950 text-slate-300 font-bold transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-800/80 hover:bg-amber-400 hover:text-slate-950 text-slate-300 font-bold transition-all shrink-0"
             >
               <span>Volver arriba</span>
               <ArrowUp className="w-3.5 h-3.5" />

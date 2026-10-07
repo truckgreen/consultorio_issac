@@ -625,6 +625,28 @@ async function startServer() {
 
       const apiKey = process.env.GEMINI_API_KEY;
 
+      // RED FLAG EMERGENCY MEDICAL CHECK (Cumplimiento Deontológico y Sanitario)
+      const redFlagsRegex = /\b(pecho|infarto|coraz[oó]n|paro|par[aá]lisis|desmayo|p[eé]rdida de consciencia|p[eé]rdida de conocimiento|asfixia|ahogo|falta de aire|no puedo respirar|dificultad respiratoria|sangrado profuso|hemorragia abundante|fractura expuesta|convulsi[oó]n|ictus|acv)\b/i;
+      if (redFlagsRegex.test(symptomsText)) {
+        return res.json({
+          success: true,
+          triage: {
+            isEmergency: true,
+            recommendedServiceId: 'fisioterapia',
+            specialistArea: 'ATENCIÓN DE URGENCIAS MÉDICAS HOSPITALARIAS',
+            urgencyLevel: 'EMERGENCIA MÉDICA VITAL',
+            triageSummary: '⚠️ ADVERTENCIA DE SEGURIDAD CLÍNICA: Los síntomas ingresados indican una posible emergencia médica vital o situación aguda. La fisioterapia es una disciplina de rehabilitación física y no está indicada para atender urgencias cardiorrespiratorias o traumatismos de riesgo vital.',
+            homeAdvice: [
+              'No te demores agendando consultas ambulatorias de fisioterapia.',
+              'Llama inmediatamente a los servicios de auxilio médico y emergencias (Ven911 / 911).',
+              'Trasládate de inmediato a la sala de emergencias del hospital o clínica más cercana.'
+            ],
+            confidence: 'Protocolo de Seguridad Médica Preventiva',
+            disclaimer: 'Aviso Médico Legal: Por normativa sanitaria, los servicios de rehabilitación y consultas web no sustituyen el auxilio médico de emergencia hospitalaria.'
+          },
+        });
+      }
+
       // Fallback rule-based triage if API key is not present or offline
       if (!apiKey) {
         const lower = symptomsText.toLowerCase();

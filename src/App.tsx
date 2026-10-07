@@ -24,11 +24,14 @@ import { LaunchAuditModal } from './components/LaunchAuditModal';
 import { DeveloperSupportModal } from './components/DeveloperSupportModal';
 import { AppDownloadModal } from './components/AppDownloadModal';
 import { WhatsAppFloatingButton } from './components/WhatsAppFloatingButton';
+import { NavigationTipToast } from './components/NavigationTipToast';
 import { CookieBanner } from './components/CookieBanner';
 import { NotFoundPage } from './components/NotFoundPage';
 import { ServiceItem } from './types';
 import { syncGlobalConfigFromServer } from './lib/supabase';
 import { trackPageView } from './utils/analytics';
+
+const THEME_STORAGE_KEY = 'equilibra_theme_preference';
 
 export function App() {
   const { scrollYProgress } = useScroll();
@@ -59,19 +62,12 @@ export function App() {
 
   // 1. Dark Mode State
   const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('equilibra_theme');
-    if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return localStorage.getItem(THEME_STORAGE_KEY) === 'dark';
   });
 
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('equilibra_theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('equilibra_theme', 'light');
-    }
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem(THEME_STORAGE_KEY, darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
@@ -207,6 +203,9 @@ export function App() {
       {/* 4. Floating Conversion Elements */}
       <WhatsAppFloatingButton />
 
+      {/* Floating navigation tip toast that disappears after a few seconds */}
+      <NavigationTipToast />
+
       {/* Cookie Consent Banner */}
       <CookieBanner
         onOpenPrivacyPolicy={() => setIsPrivacyModalOpen(true)}
@@ -219,6 +218,8 @@ export function App() {
         onClose={handleCloseBooking}
         initialServiceId={selectedServiceIdForBooking}
         onOpenPatientPortal={handleOpenPatientPortal}
+        onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
+        onOpenLegalNotice={() => setIsLegalNoticeOpen(true)}
       />
 
       <ServiceDetailModal

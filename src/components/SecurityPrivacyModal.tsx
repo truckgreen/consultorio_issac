@@ -225,6 +225,26 @@ export const SecurityPrivacyModal: React.FC<SecurityPrivacyModalProps> = ({
                       Solo el personal clínico autorizado (médicos tratantes, fisioterapeutas y personal asistencial acreditado) tiene acceso a los expedientes para la debida atención terapéutica. No compartimos ni vendemos datos a terceros ni agencias de publicidad.
                     </p>
                   </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+                    <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                      <FileCheck className="w-4 h-4 text-amber-500" />
+                      4. Delegado de Protección de Datos & Canal ARCO
+                    </h3>
+                    <p className="leading-relaxed text-xs sm:text-sm">
+                      Para solicitar la rectificación formal de tus datos clínicos, historial de citas o ejercer tus derechos de oposición presencial, puedes dirigirte a nuestro mostrador de atención en Sabana Grande o contactar al canal oficial: <strong>+58 424 272 4617</strong>.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+                    <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                      <ShieldCheck className="w-4 h-4 text-amber-500" />
+                      5. Custodia Sanitaria y Destrucción Segura
+                    </h3>
+                    <p className="leading-relaxed text-xs sm:text-sm">
+                      Las fichas y registros clínicos se conservan en estricto cumplimiento con los lapsos legales establecidos por el Ministerio del Poder Popular para la Salud (MPPS). Una vez cumplido el plazo de archivo asistencial, los registros son sometidos a expurgo y destrucción segura conforme a los protocolos sanitarios.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

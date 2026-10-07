@@ -83,9 +83,11 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({ isOpen, onCl
               </p>
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-1.5 text-xs">
                 <p><strong>Razón Social:</strong> EQUILIBRA C.A. (Centro de Fisioterapia & Bienestar Integral)</p>
+                <p><strong>RIF:</strong> J-50389214-7</p>
                 <p><strong>Domicilio Clínico:</strong> Av. Francisco de Miranda, Edif. Centro Empresarial Sabana Grande, Piso 4, Consultorio 4-B, Caracas 1050, Venezuela.</p>
-                <p><strong>Teléfono de Atención:</strong> +58 424 272 4617</p>
-                <p><strong>Registro de Propiedad Intelectual:</strong>(Todos los derechos reservados)</p>
+                <p><strong>Teléfono de Atención Oficial:</strong> +58 424 272 4617</p>
+                <p><strong>Registro de Salud y Permisología:</strong> Ministerio del Poder Popular para la Salud (MPPS) y Colegio de Fisioterapeutas de Venezuela.</p>
+                <p><strong>Propiedad Intelectual:</strong> Marca registrada con reserva de todos los derechos conforme a la Ley de Propiedad Industrial.</p>
               </div>
             </div>
 
@@ -153,10 +155,36 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({ isOpen, onCl
               </ul>
             </div>
 
-            {/* 7. Ley Aplicable */}
+            {/* 7. Mensajes de Datos y Confirmaciones Electrónicas */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <FileCheck className="w-4 h-4 text-amber-500" />
+                <span>7. Validez de Mensajes de Datos y Confirmaciones Digitales</span>
+              </h4>
+              <p>
+                De conformidad con la Ley sobre Mensajes de Datos y Firmas Electrónicas (Decreto-Ley N° 1.204), los códigos alfanuméricos de reserva, comprobantes descargados en formato digital o PDF, y confirmaciones emitidas a través de la plataforma web o canales oficiales de mensajería (Telegram / WhatsApp) poseen plena validez probatoria y eficacia jurídica para la gestión de citas y constancias de servicio.
+              </p>
+            </div>
+
+            {/* 8. Accesibilidad e Inclusión */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span>8. Accesibilidad Universal y No Discriminación</span>
+              </h4>
+              <p>
+                En apego a la Ley para las Personas con Discapacidad y a los estándares internacionales de accesibilidad web (WCAG 2.1 AA), EQUILIBRA C.A. garantiza el acceso equitativo a la información, la reserva sin barreras, la atención inclusiva a pacientes de movilidad reducida en nuestra sede y la estricta no discriminación por motivos de edad, género, origen o condición de salud.
+              </p>
+            </div>
+
+            {/* 9. Ley Aplicable y Jurisdicción */}
             <div className="space-y-2 border-t border-slate-200 dark:border-slate-800 pt-4">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Scale className="w-4 h-4 text-amber-500" />
+                <span>9. Legislación Aplicable y Jurisdicción</span>
+              </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                El presente Aviso Legal se rige por la legislación de la República Bolivariana de Venezuela. Para cualquier controversia derivada del uso del sitio web, las partes se someten a los tribunales de la ciudad de Caracas, renunciando a cualquier otro fuero que pudiera corresponderles.
+                El presente sitio web y sus términos de uso se rigen íntegramente por el ordenamiento jurídico de la República Bolivariana de Venezuela (Ley del Ejercicio de la Fisioterapia, Ley del Ejercicio de la Medicina, Código de Deontología Médica, Ley Especial contra Delitos Informáticos y Ley de Protección al Consumidor). Para la resolución de cualquier litigio derivado de la utilización de esta plataforma, las partes se someten a la jurisdicción de los tribunales de la Circunscripción Judicial del Área Metropolitana de Caracas.
               </p>
             </div>
           </div>

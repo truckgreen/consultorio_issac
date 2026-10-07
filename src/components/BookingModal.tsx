@@ -63,6 +63,7 @@ interface BookingModalProps {
   onClose: () => void;
   initialServiceId?: string;
   onOpenPrivacyModal?: () => void;
+  onOpenLegalNotice?: () => void;
   onOpenPatientPortal?: (code?: string) => void;
 }
 
@@ -71,6 +72,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onClose,
   initialServiceId,
   onOpenPrivacyModal,
+  onOpenLegalNotice,
   onOpenPatientPortal,
 }) => {
   const formRenderTimestampRef = useRef<number>(Date.now());
@@ -684,7 +686,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
 
               {/* Policy Consent */}
-              <div className="sm:col-span-2 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="sm:col-span-2 p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800">
                 <label className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none leading-relaxed">
                   <input
                     type="checkbox"
@@ -693,7 +695,37 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     className="mt-0.5 w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-700 shrink-0"
                   />
                   <span>
-                    Acepto los términos de confidencialidad y la <strong>política de cancelación</strong> (1ra cancelación gratuita, a partir de la 2da aplica 20% de penalización).
+                    He leído y acepto el{' '}
+                    {onOpenLegalNotice ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenLegalNotice();
+                        }}
+                        className="text-amber-600 dark:text-amber-400 font-bold hover:underline"
+                      >
+                        Aviso Legal
+                      </button>
+                    ) : (
+                      <strong className="text-amber-600 dark:text-amber-400">Aviso Legal</strong>
+                    )}
+                    , la{' '}
+                    {onOpenPrivacyModal ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenPrivacyModal();
+                        }}
+                        className="text-amber-600 dark:text-amber-400 font-bold hover:underline"
+                      >
+                        Privacidad de Datos Sanitarios (ARCO)
+                      </button>
+                    ) : (
+                      <strong className="text-amber-600 dark:text-amber-400">Privacidad de Datos</strong>
+                    )}
+                    {' '}y la <strong>política de cancelación</strong> (1ra cancelación gratuita avisando con 24h, a partir de la 2da aplica 20% de recargo administrativo).
                   </span>
                 </label>
                 {formErrors.privacy && <p className="text-[11px] text-red-500 mt-1">{formErrors.privacy}</p>}
