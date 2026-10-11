@@ -2,24 +2,57 @@ import { WhyUsItem } from '../types';
 
 export const CLINIC_INFO = {
   name: 'EQUILIBRA',
-  tagline: 'Tu camino hacia el bienestar físico comienza aquí',
-  motto: 'El lugar donde la mente, el cuerpo y el movimiento encuentran su equilibrio.',
-  aboutTitle: 'El verdadero bienestar comienza en movimiento',
-  aboutText: 'Combinamos fisioterapia basada en evidencia, entrenamiento y acompañamiento humano para transformar la experiencia de rehabilitación en algo activo, cercano y motivador.',
+  tagline: 'Un refugio, no una sala de espera.',
+  motto: 'Un refugio, no una sala de espera.',
+  brandTagline: 'Un refugio, no una sala de espera.',
+  descriptor: 'Centro de Bienestar Integral',
+  aboutTitle: 'La unión entre la disciplina deportiva y la alineación holística',
+  aboutText: 'Proveer un espacio de salud integral que fusiona la energía del movimiento deportivo con la precisión y el soporte anatómico, ofreciendo una base sólida y un acompañamiento profesional para que cada persona potencie su bienestar, rendimiento y calidad de vida.',
+  mission: 'Proveer un espacio de salud integral que fusiona la energía del movimiento deportivo con la precisión y el soporte anatómico, ofreciendo una base sólida y un acompañamiento profesional para que cada persona potencie su bienestar, rendimiento y calidad de vida.',
+  vision: 'Consolidarnos como el centro de referencia en salud y bienestar integral, reconocido por nuestra capacidad de integrar el dinamismo activo, la estructura médica y el equilibrio exacto en una comunidad sólida y en constante evolución.',
+  colors: {
+    creamy: '#F2EFE8',
+    sealskin: '#0C0C0C',
+    minimalist: '#B1A086',
+    keystoneGray: '#D1CEC9',
+  },
+  values: [
+    {
+      name: 'EQUILIBRIO',
+      desc: 'El punto exacto y necesario entre el esfuerzo físico y la estabilidad estructural.',
+      icon: 'Scale',
+    },
+    {
+      name: 'DISCIPLINA',
+      desc: 'La base firme y constante que sostiene los resultados reales a largo plazo.',
+      icon: 'ShieldCheck',
+    },
+    {
+      name: 'EVOLUCIÓN',
+      desc: 'Movimiento continuo y consciente hacia una mejor versión de uno mismo.',
+      icon: 'TrendingUp',
+    },
+    {
+      name: 'RENDIMIENTO',
+      desc: 'Superación física respaldada por un enfoque profesional, técnico y estructurado.',
+      icon: 'Zap',
+    },
+  ],
   address: {
     country: 'Venezuela',
     city: 'Caracas',
     zone: 'Sabana Grande',
     building: 'Centro Profesional del Este',
-    floor: 'Piso 4, Oficina 48',
-    fullAddress: 'Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 48'
+    floor: 'Piso 4, Oficina 46 & 48',
+    fullAddress: 'Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 46 y 48'
   },
   phone: '0424-272-46-17',
-  phoneDisplay: '0424-272-46-17',
+  phoneDisplay: '+58 412-7471858 / 0424-272-4617',
   phoneRaw: '04242724617',
+  whatsappDirect: '+58 412-7471858',
   instagram: '@fisiojewsiejew',
   hours: [
-    { day: 'Lunes a Sábado', time: '8:00am a 5:00pm' }
+    { day: 'Lunes a Sábado', time: '8:00am a 6:00pm' }
   ]
 };
 

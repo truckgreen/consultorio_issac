@@ -129,18 +129,18 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#E9ECEF] dark:bg-[#0c1017] text-[#212529] dark:text-slate-100 font-sans transition-colors selection:bg-amber-400 selection:text-slate-950 relative">
+    <div className="page-wallpaper min-h-screen text-[#0C0C0C] dark:text-[#F2EFE8] font-sans transition-colors relative">
       {/* Top Animated Reading Progress Bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 origin-left z-[60] pointer-events-none shadow-sm shadow-amber-400/30"
+        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#9E8D74] via-[#B1A086] to-[#D1CEC9] origin-left z-[60] pointer-events-none shadow-sm shadow-[#B1A086]/30"
         style={{ scaleX }}
       />
 
       {/* Subtle global ambient background gradients */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-400/5 dark:bg-amber-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-amber-500/5 dark:bg-amber-400/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 left-1/4 w-80 h-80 bg-slate-400/5 dark:bg-amber-600/5 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#B1A086]/5 dark:bg-[#B1A086]/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-[#B1A086]/5 dark:bg-[#B1A086]/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 left-1/4 w-80 h-80 bg-slate-400/5 dark:bg-[#B1A086]/5 rounded-full blur-3xl" />
       </div>
 
       {/* 1. Sticky Navigation Bar */}
@@ -172,7 +172,7 @@ export function App() {
         <PhilosophySection onOpenBooking={() => handleOpenBooking()} />
         
         <WhyChooseUs onOpenBooking={() => handleOpenBooking()} />
-        
+
         <InteractiveAssessment onOpenBooking={handleOpenBooking} />
         
         <BookingSection

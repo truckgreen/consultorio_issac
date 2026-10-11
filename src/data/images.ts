@@ -12,9 +12,25 @@ export interface ImageAsset {
 }
 
 export const APP_IMAGES = {
+  // Official Brand Book 2026 Assets
+  brand: {
+    logoSealskin: "/brand_book/logo_equilibra_principal_sealskin.svg",
+    logoCreamy: "/brand_book/logo_equilibra_principal_creamy.svg",
+    logoMinimalist: "/brand_book/logo_equilibra_principal_minimalist.svg",
+    logoDescriptivo: "/brand_book/logo_equilibra_descriptivo.svg",
+    isotypeSealskin: "/brand_book/isotipo_tres_barras_sealskin.svg",
+    isotypeCreamy: "/brand_book/isotipo_tres_barras_creamy.svg",
+    isotypeMinimalist: "/brand_book/isotipo_tres_barras_minimalist.svg",
+    fachadaClinica: "/brand_book/01_fachada_clinica_3d.jpg",
+    ropaTecnica: "/brand_book/02_ropa_tecnica_deportiva.jpg",
+    moodboardAplicaciones: "/brand_book/03_aplicaciones_moodboard.jpg",
+    uniformesScrubs: "/brand_book/04_uniformes_medicos_scrubs.jpg",
+    sesionCamilla: "/brand_book/05_sesion_clinica_camilla.jpg",
+  },
+
   // Hero section main image (Clinical rehabilitation & gym setup)
   hero: {
-    src: "/imagenes/consultorio.jpg",
+    src: "/brand_book/01_fachada_clinica_3d.jpg",
     alt: "Centro de Fisioterapia y Rehabilitación Equilibra",
     position: "object-center",
   },
@@ -22,11 +38,11 @@ export const APP_IMAGES = {
   // About Section: "El verdadero bienestar comienza en movimiento"
   about: {
     src: "/imagenes/consultorio.jpg",
-    alt: "Sesión de fisioterapia y rehabilitación activa",
-    position: "object-[center_35%]",
+    alt: "Instalaciones del consultorio Equilibra",
+    position: "object-center",
   },
   aboutSecondary: {
-    src: "/imagenes/fotodeperfil.jpg",
+    src: "/brand_book/02_ropa_tecnica_deportiva.jpg",
     alt: "Especialista acompañando la recuperación del paciente",
     position: "object-top",
   },
@@ -136,5 +152,4 @@ export const APP_IMAGES = {
     alt: "Instalaciones modernas de Equilibra en Sabana Grande",
   },
 };
-
 

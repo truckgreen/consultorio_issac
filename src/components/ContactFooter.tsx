@@ -206,21 +206,21 @@ export const ContactFooter: React.FC<ContactFooterProps> = ({
           {/* Brand Info & Address (Col 1-4) */}
           <div className="lg:col-span-4 space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-amber-400 flex items-center justify-center text-slate-950 shadow-lg shadow-amber-400/20">
-                <Activity className="w-6 h-6 stroke-[2.5]" />
+              <div className="w-11 h-11 rounded-2xl bg-[#0C0C0C] border border-[#B1A086]/50 p-2 flex items-center justify-center text-white shadow-lg shadow-black/40">
+                <img src="/brand_book/isotipo_tres_barras_creamy.svg" alt="EQUILIBRA" className="w-full h-full object-contain" />
               </div>
               <div className="flex flex-col">
                 <span className="text-2xl font-black tracking-widest uppercase font-heading text-white">
                   {CLINIC_INFO.name}
                 </span>
-                <span className="text-xs text-amber-400 font-bold tracking-wider uppercase -mt-0.5">
-                  Centro de Fisioterapia & Bienestar
+                <span className="text-xs text-[#B1A086] font-semibold tracking-wider -mt-0.5">
+                  Un refugio, no una sala de espera.
                 </span>
               </div>
             </div>
 
             <p className="text-sm text-slate-300 leading-relaxed max-w-sm">
-              “{CLINIC_INFO.motto}”
+              Centro especializado en la unión armónica entre la disciplina deportiva, la precisión anatómica y la rehabilitación física en Sabana Grande, Caracas.
             </p>
 
             {/* Address box */}

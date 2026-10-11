@@ -1,58 +1,66 @@
 /* ==========================================================================
-   STELY.CSS - CONFIGURACIÓN FÁCIL DE COLORES Y ESTILO DE EQUILIBRA
+   STELY.CSS - IDENTIDAD OFICIAL EQUILIBRA (BRAND BOOK 2026)
    --------------------------------------------------------------------------
-   ¡Cambia los colores de toda la página aquí de forma súper rápida y sencilla!
-   Solo edita los códigos hexadecimales (por ejemplo: #3A86FF) que ves abajo.
+   Paleta Oficial:
+   - PRINCIPALES:
+     * Creamy:        #F2EFE8 (RGB: 242 239 232)
+     * Sealskin:      #0C0C0C (RGB: 12 12 12)
+   - SECUNDARIAS:
+     * Minimalist:    #B1A086 (RGB: 177 160 134)
+     * Keystone Gray: #D1CEC9 (RGB: 209 206 201)
+   Lema: "Un refugio, no una sala de espera."
    ========================================================================== */
 
 :root {
-  /* ========================================================================
-     1. COLOR PRINCIPAL Y ACENTOS DE MARCA (Botones, detalles, iconos, enlaces)
-     ======================================================================== */
-  --color-primary: #3A86FF;              /* Azul Calma */
-  --color-primary-hover: #2563eb;
-  --color-primary-light: #60a5fa;
-  --color-primary-dark: #1d4ed8;
-  --color-primary-glow: rgba(58, 134, 255, 0.40);
-  --color-primary-soft: rgba(58, 134, 255, 0.12);
+  /* 1. COLOR PRINCIPAL Y ACENTOS DE MARCA (Minimalist Sand #B1A086) */
+  --color-primary: #B1A086;
+  --color-primary-hover: #9E8D74;
+  --color-primary-light: #C9BCAB;
+  --color-primary-dark: #84735B;
+  --color-primary-glow: rgba(177, 160, 134, 0.40);
+  --color-primary-soft: rgba(177, 160, 134, 0.15);
 
-  /* ========================================================================
-     2. COLOR SECUNDARIO / APOYO
-     ======================================================================== */
-  --color-secondary: #52B788;            /* Verde Eucalipto */
-  --color-secondary-hover: #409f73;
+  /* 2. COLOR SECUNDARIO / CONTRASTE (Sealskin Black #0C0C0C) */
+  --color-secondary: #0C0C0C;
+  --color-secondary-hover: #1F1F1F;
+  --color-secondary-light: #2A2A2A;
 
-  /* ========================================================================
-     3. FONDOS GENERALES (Modo Claro vs Modo Oscuro)
-     ======================================================================== */
-  --bg-canvas-light: #E9ECEF;            /* Gris Hielo */
-  --bg-card-light: #ffffff;              /* Fondo de tarjetas modo claro */
-  --text-main-light: #212529;            /* Grafito Oscuro */
-  --text-muted-light: #495057;
-  --border-light: #dee2e6;
+  /* 3. COLORES INSTITUCIONALES BRAND BOOK */
+  --color-creamy: #F2EFE8;
+  --color-sealskin: #0C0C0C;
+  --color-minimalist: #B1A086;
+  --color-keystone: #D1CEC9;
 
-  --bg-canvas-dark: #0c1017;             /* Fondo base modo oscuro */
-  --bg-card-dark: #121824;               /* Fondo de tarjetas modo oscuro */
-  --text-main-dark: #f8fafc;             /* Texto principal modo oscuro */
-  --text-muted-dark: #94a3b8;            /* Texto secundario modo oscuro */
-  --border-dark: rgba(255, 255, 255, 0.08); /* Bordes modo oscuro */
+  /* 4. FONDOS GENERALES (Modo Claro vs Modo Oscuro) */
+  --bg-canvas-light: #F2EFE8;            /* Creamy Oficial */
+  --bg-card-light: #FFFFFF;              /* Fondo de tarjetas modo claro */
+  --text-main-light: #0C0C0C;            /* Sealskin Oficial */
+  --text-muted-light: #5A564F;
+  --border-light: #D1CEC9;               /* Keystone Gray Oficial */
 
-  /* ========================================================================
-     4. CANALES DE COMUNICACIÓN
-     ======================================================================== */
-  --color-whatsapp: #25d366;             /* Verde WhatsApp */
-  --color-telegram: #229ed9;             /* Azul Telegram */
+  --bg-canvas-dark: #0C0C0C;             /* Sealskin Oficial */
+  --bg-card-dark: #141414;               /* Tarjeta oscura refinada */
+  --text-main-dark: #F2EFE8;             /* Creamy Oficial */
+  --text-muted-dark: #B5B0A6;            /* Gris cálido text muted */
+  --border-dark: rgba(209, 206, 201, 0.16); /* Keystone Gray transparente */
 
-  /* ========================================================================
-     5. TIPOGRAFÍAS
-     ======================================================================== */
+  /* 5. CANALES DE COMUNICACIÓN */
+  --color-whatsapp: #25d366;
+  --color-telegram: #229ed9;
+
+  /* 6. TIPOGRAFÍAS */
   --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* ==========================================================================
+   CLASES REUTILIZABLES PARA USAR LOS COLORES DE FORMA DIRECTA
+   ========================================================================== */
+
+/* Botón principal estilizado con los colores definidos arriba */
 .btn-brand-primary {
   background-color: var(--color-primary);
-  color: #212529;
+  color: #0f172a;
   font-weight: 700;
   transition: all 0.2s ease-in-out;
 }
@@ -61,18 +69,22 @@
   box-shadow: 0 10px 25px -5px var(--color-primary-glow);
 }
 
+/* Texto que toma el color primario */
 .text-brand-primary {
   color: var(--color-primary);
 }
 
+/* Borde con el color primario */
 .border-brand-primary {
   border-color: var(--color-primary);
 }
 
+/* Fondo tenue con el color primario */
 .bg-brand-soft {
   background-color: var(--color-primary-soft);
 }
 
+/* Resplandor animado sincronizado con el color primario */
 .glow-brand {
   box-shadow: 0 0 20px 2px var(--color-primary-glow);
 }

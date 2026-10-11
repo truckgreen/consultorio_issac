@@ -100,27 +100,27 @@ export const Navbar: React.FC<NavbarProps> = ({
         id="main-navbar"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled
-          ? 'bg-white/95 dark:bg-[#0c1017]/95 backdrop-blur-md shadow-lg shadow-black/5 dark:shadow-black/20 py-2.5 border-b border-amber-500/15 dark:border-amber-500/10'
-          : 'bg-white/80 dark:bg-[#0c1017]/80 backdrop-blur-sm py-3.5 border-b border-slate-200/50 dark:border-slate-800/40'
+          ? 'bg-[#F2EFE8]/95 dark:bg-[#0C0C0C]/95 backdrop-blur-md shadow-lg shadow-black/5 dark:shadow-black/20 py-2.5 border-b border-[#B1A086]/20 dark:border-[#B1A086]/15'
+          : 'bg-[#F2EFE8]/80 dark:bg-[#0C0C0C]/80 backdrop-blur-sm py-3.5 border-b border-[#D1CEC9]/60 dark:border-slate-800/60'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-2">
-          {/* Brand Logo with Enhanced Vibrant Glow */}
+          {/* Brand Logo with Official Isotype & Tagline */}
           <a
             href="#inicio"
             id="brand-logo-link"
             className="flex items-center gap-2.5 group focus:outline-none shrink-0"
           >
-            <div className="relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center group-hover:scale-105 transition-all duration-300">
-              <img src="/imagenes/logo-equilibra.png" alt="" className="w-full h-full object-contain" />
+            <div className="relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center p-1.5 rounded-xl bg-[#0C0C0C] dark:bg-[#141414] border border-[#B1A086]/40 group-hover:border-[#B1A086] transition-all duration-300 shadow-sm">
+              <img src="/brand_book/isotipo_tres_barras_minimalist.svg" alt="EQUILIBRA Isotipo" className="w-full h-full object-contain" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg sm:text-xl font-black tracking-widest text-slate-900 dark:text-white uppercase font-heading leading-none group-hover:text-amber-500 transition-colors">
+              <span className="text-lg sm:text-xl font-black tracking-widest text-[#0C0C0C] dark:text-[#F2EFE8] uppercase font-heading leading-none group-hover:text-[#B1A086] transition-colors">
                 EQUILIBRA
               </span>
-              <span className="text-[9px] sm:text-[10px] tracking-widest text-amber-600 dark:text-amber-400 font-bold uppercase mt-0.5">
-                Fisioterapia & Bienestar
+              <span className="text-[9px] sm:text-[10px] tracking-wider text-[#B1A086] font-semibold mt-0.5">
+                Un refugio, no una sala de espera.
               </span>
             </div>
           </a>

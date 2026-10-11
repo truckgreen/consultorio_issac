@@ -18,15 +18,15 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
         <div
           className="w-full h-full transform scale-105"
           style={{
-            backgroundImage: "url('/imagenes/consultorio.jpg')",
+            backgroundImage: "url('/brand_book/01_fachada_clinica_3d.jpg')",
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            filter: 'brightness(0.40)',
+            filter: 'brightness(0.36)',
           }}
         />
         {/* Cinematic Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#E9ECEF] via-slate-950/75 to-slate-950/95 dark:from-[#0c1017] dark:via-slate-950/85 dark:to-slate-950/95" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.28),rgba(0,0,0,0))]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#F2EFE8] via-slate-950/75 to-slate-950/95 dark:from-[#0C0C0C] dark:via-slate-950/85 dark:to-slate-950/95" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(177,160,134,0.30),rgba(0,0,0,0))]" />
         
         {/* Subtle dot grid texture */}
         <div className="absolute inset-0 bg-dot-pattern-dark opacity-40 pointer-events-none" />
@@ -92,7 +92,7 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
           <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
           <Sparkles className="w-4 h-4 text-amber-300" />
           <span className="text-xs sm:text-sm font-extrabold tracking-widest uppercase text-amber-300">
-            {CLINIC_INFO.name} • Centro de Rehabilitación & Movimiento
+            {CLINIC_INFO.name} • Centro de Bienestar Integral
           </span>
         </motion.div>
 
@@ -103,12 +103,11 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.12] mb-4 max-w-4xl font-heading [text-wrap:balance]"
         >
-          Tu camino hacia el{' '}
+          Un refugio,{' '}
           <br className="hidden sm:inline" />
-          <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-200">
-            bienestar físico
-          </span>{' '}
-          comienza aquí
+          <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-[#d1c7b7] via-[#b1a086] to-[#f2efe8]">
+            no una sala de espera.
+          </span>
         </motion.h1>
 
         {/* Animated Decorative Line Below Headline */}
@@ -119,14 +118,14 @@ export const Hero = ({ onOpenBooking }: HeroProps) => {
           className="w-36 sm:w-48 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent rounded-full mb-6"
         />
 
-        {/* Slogan Quote from Flyer */}
+        {/* Slogan Quote from Brand Book */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
           className="text-lg sm:text-xl md:text-2xl text-slate-200 font-light italic max-w-3xl mb-10 leading-relaxed border-y border-white/10 py-4 px-2 [text-wrap:balance]"
         >
-          “{CLINIC_INFO.motto}”
+          “La fusión entre la disciplina deportiva de alto rendimiento y la precisión del cuidado anatómico.”
         </motion.p>
 
         {/* Action Buttons with Motion Physics */}

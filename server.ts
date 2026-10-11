@@ -610,6 +610,38 @@ async function startServer() {
     });
   });
 
+  // 1a. Brand Book Assets Catalog
+  app.get('/api/brand-assets', (req, res) => {
+    const brandDir = path.join(process.cwd(), 'public', 'brand_book');
+    const assets: any[] = [];
+    try {
+      if (fs.existsSync(brandDir)) {
+        const files = fs.readdirSync(brandDir);
+        files.forEach((file) => {
+          const fullPath = path.join(brandDir, file);
+          const stat = fs.statSync(fullPath);
+          if (stat.isFile()) {
+            assets.push({
+              name: file,
+              url: `/brand_book/${file}`,
+              sizeBytes: stat.size,
+              extension: path.extname(file).toLowerCase(),
+            });
+          }
+        });
+      }
+    } catch (e: any) {
+      console.warn('[Brand Assets] Note:', e.message);
+    }
+    res.json({
+      success: true,
+      folder: '/public/brand_book',
+      count: assets.length,
+      downloadAllUrl: '/brand_book/equilibra_paquete_completo_imagenes.tar.gz',
+      assets,
+    });
+  });
+
   // 1b. Asistente Virtual Médico & Triage Fisioterapéutico con IA (Gemini API)
   app.post('/api/ai/triage', createRateLimiter(60 * 1000, 20, 'ai_triage'), async (req, res) => {
     try {
