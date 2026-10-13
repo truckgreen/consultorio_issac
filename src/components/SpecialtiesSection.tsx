@@ -30,7 +30,7 @@ export const SpecialtiesSection: React.FC<SpecialtiesSectionProps> = ({ onOpenBo
   };
 
   return (
-    <section id="especialidades" className="py-20 lg:py-28 bg-[var(--page-background-light)] dark:bg-[var(--page-background-dark)] transition-colors relative">
+    <section id="especialidades" className="py-20 lg:py-28 bg-white dark:bg-[#121824] transition-colors relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
@@ -62,13 +62,13 @@ export const SpecialtiesSection: React.FC<SpecialtiesSectionProps> = ({ onOpenBo
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-50px' }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-white dark:bg-[#141414] rounded-2xl p-6 sm:p-8 border border-[#D1CEC9] dark:border-white/10 shadow-sm hover:shadow-lg hover:shadow-[#B1A086]/15 hover:border-[#B1A086] transition-all duration-300 flex flex-col justify-between"
+                className="bg-[#faf8f5] dark:bg-[#161e2c] rounded-3xl p-8 border border-slate-200/80 dark:border-slate-800/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
               >
                 <div>
                   {/* Icon & Title */}
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-xl bg-[#F2EFE8] dark:bg-[#1A1917] border border-[#D1CEC9] dark:border-white/10 text-[#0C0C0C] dark:text-[#F2EFE8] flex items-center justify-center shrink-0">
-                      <IconComponent className="w-6 h-6 stroke-[1.6]" />
+                    <div className="w-14 h-14 rounded-2xl bg-amber-400 dark:bg-amber-500/20 text-slate-950 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-md">
+                      <IconComponent className="w-7 h-7" />
                     </div>
                     <div>
                       <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-heading">

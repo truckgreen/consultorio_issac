@@ -129,21 +129,21 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onOpenBooking }) => {
           viewport={{ once: true, amount: 0.2 }}
           className="text-center max-w-3xl mx-auto mb-12 sm:mb-16"
         >
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-bold uppercase tracking-wider mb-4">
-            <Users className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Especialistas de Primera Línea</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#B1A086]/15 text-[#B1A086] border border-[#B1A086]/40 text-xs font-bold uppercase tracking-widest mb-4">
+            <Users className="w-3.5 h-3.5 text-[#B1A086]" />
+            <span>Staff Clínico & Multidisciplinario</span>
           </div>
 
-          {/* Instagram Title Styling: NUESTRO EQUIPO / FISIOJEWSIJEW */}
+          {/* Title with Akira Expanded Style */}
           <div className="space-y-1">
-            <span className="text-xs uppercase tracking-[0.25em] font-extrabold text-amber-600 dark:text-amber-400 block">
+            <span className="text-xs uppercase tracking-[0.25em] font-extrabold text-[#B1A086] block">
               Nuestro
             </span>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight font-heading uppercase [text-wrap:balance]">
-              EQUIPO
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-[#F2EFE8] tracking-tight font-heading uppercase [text-wrap:balance]">
+              EQUIPO CLÍNICO
             </h2>
-            <span className="text-xs sm:text-sm font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase block">
-              FISIOJEWSIJEW
+            <span className="text-xs sm:text-sm font-bold tracking-widest text-slate-400 dark:text-[#8E8A82] uppercase block">
+              EQUILIBRA • CARACAS
             </span>
           </div>
 

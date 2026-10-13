@@ -53,10 +53,6 @@
     --color-amber-primary: #b1a086;
     --color-amber-light: #c4b59d;
     --color-amber-dark: #84735b;
-    --page-background-light: #f2efe8;
-    --page-background-dark: #0c0c0c;
-    --page-background-image-light: url("/brand_book/fondo_2png");
-    --page-background-image-dark: url("/brand_book/fondo_2oc.png");
   }
 
   html {
@@ -65,40 +61,13 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: var(--page-background-light);
-    background-image: var(--page-background-image-light);
-    background-repeat: repeat;
+    background-color: var(--bg-canvas-light);
     color: var(--text-main-light);
   }
 
   .dark body {
-    background-color: var(--page-background-dark);
-    background-image: var(--page-background-image-dark);
+    background-color: var(--bg-canvas-dark);
     color: var(--text-main-dark);
-  }
-
-  .page-wallpaper {
-    background-color: var(--page-background-light);
-    background-image: var(--page-background-image-light);
-    background-repeat: repeat;
-  }
-
-  .dark .page-wallpaper {
-    background-color: var(--page-background-dark);
-    background-image: var(--page-background-image-dark);
-  }
-
-  .page-wallpaper main > section {
-    background-color: transparent !important;
-    background-image: var(--page-background-image-light);
-    background-repeat: repeat;
-    background-blend-mode: normal;
-  }
-
-  .dark .page-wallpaper main > section {
-    background-color: transparent !important;
-    background-image: var(--page-background-image-dark);
-    background-blend-mode: normal;
   }
 
   h1, h2, h3, h4, h5, h6 {

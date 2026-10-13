@@ -37,9 +37,9 @@ export const APP_IMAGES = {
 
   // About Section: "El verdadero bienestar comienza en movimiento"
   about: {
-    src: "/imagenes/consultorio.jpg",
-    alt: "Instalaciones del consultorio Equilibra",
-    position: "object-center",
+    src: "/brand_book/05_sesion_clinica_camilla.jpg",
+    alt: "Sesión de fisioterapia y rehabilitación activa",
+    position: "object-[center_35%]",
   },
   aboutSecondary: {
     src: "/brand_book/02_ropa_tecnica_deportiva.jpg",
@@ -152,4 +152,5 @@ export const APP_IMAGES = {
     alt: "Instalaciones modernas de Equilibra en Sabana Grande",
   },
 };
+
 

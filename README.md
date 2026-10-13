@@ -93,22 +93,6 @@ VITE_SUPABASE_ANON_KEY=tu-clave-anon-publica
 
 No publiques claves `service_role` ni credenciales privadas en el cliente. La aplicación usa la clave anon pública y la seguridad debe recaer en RLS.
 
-### Correos de confirmación y recordatorios
-
-El servidor Node envía un correo al reservar y programa recordatorios automáticos 24 horas y 2 horas antes de la cita. Para activarlos:
-
-1. Crea una cuenta en Resend y verifica el dominio o remitente que usarás.
-2. Configura en el entorno del **servidor** (no en variables `VITE_*`) las variables `RESEND_API_KEY` y `EMAIL_FROM`, por ejemplo:
-
-   ```dotenv
-   RESEND_API_KEY=re_xxxxxxxxx
-   EMAIL_FROM=EQUILIBRA <citas@tu-dominio.com>
-   ```
-
-3. Mantén el proceso `npm run dev` (desarrollo) o `npm start` (producción) activo para que se despachen los recordatorios. El servidor revisa la agenda cada minuto y conserva los envíos y reintentos en `data/appointments.json`.
-
-Los paquetes que aún no tengan fecha y hora reciben la confirmación al comprarse; sus recordatorios se activan cuando se les programe una sesión. Para incluir reservas hechas directamente desde Android, configura también `SUPABASE_URL` y una clave de servidor con permiso de lectura sobre `appointments`; el servidor detectará esas reservas desde Supabase y las incorporará al correo.
-
 ### Flujo de la web
 
 `src/App.tsx` compone la experiencia pública y conecta las secciones con el flujo de reservas. `src/lib/supabaseClient.ts` expone la configuración básica del cliente público; la implementación del panel y su fallback híbrido se encuentra en `aplicacion/src/lib/supabase.ts`.

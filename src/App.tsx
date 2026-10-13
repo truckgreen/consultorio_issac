@@ -9,6 +9,7 @@ import { TeamSection } from './components/TeamSection';
 import { SpecialtiesSection } from './components/SpecialtiesSection';
 import { PhilosophySection } from './components/PhilosophySection';
 import { WhyChooseUs } from './components/WhyChooseUs';
+import { BrandIdentitySection } from './components/BrandIdentitySection';
 import { InteractiveAssessment } from './components/InteractiveAssessment';
 import { BookingSection } from './components/BookingSection';
 import { BookingModal } from './components/BookingModal';
@@ -129,7 +130,7 @@ export function App() {
   }
 
   return (
-    <div className="page-wallpaper min-h-screen text-[#0C0C0C] dark:text-[#F2EFE8] font-sans transition-colors relative">
+    <div className="min-h-screen bg-[#F2EFE8] dark:bg-[#0C0C0C] text-[#0C0C0C] dark:text-[#F2EFE8] font-sans transition-colors selection:bg-[#B1A086] selection:text-slate-950 relative">
       {/* Top Animated Reading Progress Bar */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#9E8D74] via-[#B1A086] to-[#D1CEC9] origin-left z-[60] pointer-events-none shadow-sm shadow-[#B1A086]/30"
@@ -173,6 +174,9 @@ export function App() {
         
         <WhyChooseUs onOpenBooking={() => handleOpenBooking()} />
 
+        {/* Official Brand Book 2026 Showcase & Image Repository */}
+        <BrandIdentitySection />
+        
         <InteractiveAssessment onOpenBooking={handleOpenBooking} />
         
         <BookingSection

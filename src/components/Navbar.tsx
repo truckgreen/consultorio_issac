@@ -90,6 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Orientación', href: '#triage-medico', id: 'triage-medico' },
     { label: 'Servicios', href: '#servicios', id: 'servicios' },
     { label: 'Equipo', href: '#equipo', id: 'equipo' },
+    { label: 'Brand Book', href: '#identidad-marca', id: 'identidad-marca' },
     { label: 'Reseñas', href: '#testimonios', id: 'testimonios' },
     { label: 'Contacto', href: '#contacto', id: 'contacto' },
   ];

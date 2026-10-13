@@ -5,6 +5,15 @@ import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
+import {
+  sendBookingConfirmationEmail,
+  sendRescheduleConfirmationEmail,
+  sendCancellationEmail,
+  send24HourReminderEmail,
+  send2HourReminderEmail,
+  parseAppointmentDateTime,
+  EmailAppointmentData,
+} from './serverEmail';
 
 // Load environment variables from .env file if present
 dotenv.config();
@@ -165,7 +174,6 @@ function getServerSupabaseClient(): SupabaseClient | null {
 // In-memory appointments fallback cache with persistent disk backing
 const APPOINTMENTS_FILE = path.join(process.cwd(), 'data', 'appointments.json');
 const APPOINTMENTS_ARCHIVE_FILE = path.join(process.cwd(), 'data', 'appointments_archive.json');
-const EMAIL_NOTIFICATION_STATE_FILE = path.join(process.cwd(), 'data', 'email_notifications_state.json');
 
 function loadStoredAppointments(): any[] {
   try {
@@ -191,295 +199,6 @@ function persistAppointmentsToDisk(list: any[]): void {
     fs.writeFileSync(APPOINTMENTS_FILE, JSON.stringify(list, null, 2), 'utf-8');
   } catch (err) {
     console.error('[Server Appointments Disk] Error saving:', err);
-  }
-}
-
-function loadEmailNotificationCursor(): string | null {
-  try {
-    if (!fs.existsSync(EMAIL_NOTIFICATION_STATE_FILE)) return null;
-    const state = JSON.parse(fs.readFileSync(EMAIL_NOTIFICATION_STATE_FILE, 'utf-8'));
-    return typeof state.lastSupabaseCheckAt === 'string' && Number.isFinite(Date.parse(state.lastSupabaseCheckAt))
-      ? state.lastSupabaseCheckAt
-      : null;
-  } catch (err) {
-    console.warn('[Email] No se pudo leer el estado de sincronización:', err);
-    return null;
-  }
-}
-
-function persistEmailNotificationCursor(cursor: string): void {
-  try {
-    const dir = path.dirname(EMAIL_NOTIFICATION_STATE_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(EMAIL_NOTIFICATION_STATE_FILE, JSON.stringify({ lastSupabaseCheckAt: cursor }, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('[Email] No se pudo guardar el estado de sincronización:', err);
-  }
-}
-
-function escapeEmailHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function getAppointmentStartTime(appointment: any): number | null {
-  const dateMatch = String(appointment.fecha || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const timeMatch = String(appointment.hora || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!dateMatch || !timeMatch || /por programar/i.test(`${appointment.fecha} ${appointment.hora}`)) {
-    return null;
-  }
-
-  const [, yearText, monthText, dayText] = dateMatch;
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  let hours = Number(timeMatch[1]);
-  const minutes = Number(timeMatch[2]);
-  const period = timeMatch[3]?.toUpperCase();
-
-  if (month < 1 || month > 12 || day < 1 || day > 31 || minutes > 59) return null;
-  if (period) {
-    if (hours < 1 || hours > 12) return null;
-    if (period === 'PM' && hours < 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-  } else if (hours > 23) {
-    return null;
-  }
-
-  const localDate = new Date(Date.UTC(year, month - 1, day, hours, minutes));
-  if (
-    localDate.getUTCFullYear() !== year ||
-    localDate.getUTCMonth() !== month - 1 ||
-    localDate.getUTCDate() !== day
-  ) {
-    return null;
-  }
-
-  // EQUILIBRA is in Caracas, which uses UTC-4 year-round.
-  return Date.UTC(year, month - 1, day, hours + 4, minutes);
-}
-
-async function sendAppointmentEmail(
-  appointment: any,
-  kind: 'confirmation' | 'reminder_24h' | 'reminder_2h'
-): Promise<{ sent: boolean; configured: boolean; error?: string }> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.EMAIL_FROM?.trim();
-  if (!apiKey || !from) return { sent: false, configured: false };
-
-  const recipient = String(appointment.email || '').trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
-    return { sent: false, configured: true, error: 'Correo del paciente inválido.' };
-  }
-
-  const rawPatientName = `${appointment.nombre || ''} ${appointment.apellido || ''}`.trim() || 'Paciente';
-  const patientName = escapeEmailHtml(rawPatientName);
-  const rawCode = appointment.code || 'EQUILIBRA';
-  const code = escapeEmailHtml(rawCode);
-  const rawService =
-    appointment.selectedPackageName ||
-    appointment.selected_package_name ||
-    appointment.service_title ||
-    appointment.serviceTitle ||
-    appointment.service_id ||
-    appointment.serviceId ||
-    'Consulta';
-  const service = escapeEmailHtml(rawService);
-  const rawDate = appointment.fecha || 'Por programar en el Portal del Paciente';
-  const date = escapeEmailHtml(rawDate);
-  const rawTime = appointment.hora || 'Por programar en el Portal del Paciente';
-  const time = escapeEmailHtml(rawTime);
-  const specialist = escapeEmailHtml(appointment.specialist_name || appointment.specialistName || 'Equipo EQUILIBRA');
-  const location = 'Centro Profesional del Este, piso 4, oficinas 46 y 48, Sabana Grande, Caracas';
-
-  const isConfirmation = kind === 'confirmation';
-  const subject = isConfirmation
-    ? `Confirmación de tu cita ${appointment.code || ''} en EQUILIBRA`
-    : `Recordatorio de tu cita en EQUILIBRA: ${kind === 'reminder_24h' ? '24 horas antes' : '2 horas antes'}`;
-  const heading = isConfirmation
-    ? '¡Tu cita está agendada!'
-    : 'Te recordamos tu próxima cita.';
-  const text = [
-    `Hola ${rawPatientName},`,
-    heading,
-    `Servicio: ${rawService}`,
-    `Fecha: ${rawDate}`,
-    `Hora: ${rawTime}`,
-    `Especialista: ${appointment.specialist_name || appointment.specialistName || 'Equipo EQUILIBRA'}`,
-    `Código: ${rawCode}`,
-    `Sede: ${location}`,
-    'Por favor, llega 10 minutos antes de tu turno.',
-  ].join('\n');
-  const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1e293b;max-width:600px;margin:auto">
-      <h2 style="color:#b45309">${heading}</h2>
-      <p>Hola ${patientName},</p>
-      <p>${isConfirmation ? 'Estos son los datos de tu reserva:' : 'Estos son los datos de tu próxima cita:'}</p>
-      <ul>
-        <li><strong>Servicio:</strong> ${service}</li>
-        <li><strong>Fecha:</strong> ${date}</li>
-        <li><strong>Hora:</strong> ${time}</li>
-        <li><strong>Especialista:</strong> ${specialist}</li>
-        <li><strong>Código de cita:</strong> ${code}</li>
-      </ul>
-      <p><strong>Sede:</strong> ${location}</p>
-      <p>Por favor, llega 10 minutos antes de tu turno.</p>
-      <p>¡Te esperamos!<br>Equipo EQUILIBRA</p>
-    </div>`;
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from, to: [recipient], subject, html, text }),
-    });
-    const responseText = await response.text();
-    if (!response.ok) {
-      throw new Error(`Resend respondió ${response.status}: ${responseText.slice(0, 300)}`);
-    }
-    return { sent: true, configured: true };
-  } catch (err: any) {
-    return { sent: false, configured: true, error: err?.message || 'No se pudo enviar el correo.' };
-  }
-}
-
-let appointmentEmailQueueRunning = false;
-let emailNotificationCursor = loadEmailNotificationCursor();
-
-async function syncRecentSupabaseAppointments(): Promise<void> {
-  const client = getServerSupabaseClient();
-  if (!client) return;
-
-  const syncStartedAt = new Date().toISOString();
-  if (!emailNotificationCursor) {
-    // Start tracking from now so enabling email does not send confirmations for old bookings.
-    emailNotificationCursor = syncStartedAt;
-    persistEmailNotificationCursor(emailNotificationCursor);
-    return;
-  }
-
-  const cursorTimestamp = Date.parse(emailNotificationCursor);
-  if (!Number.isFinite(cursorTimestamp)) {
-    emailNotificationCursor = syncStartedAt;
-    persistEmailNotificationCursor(emailNotificationCursor);
-    return;
-  }
-
-  const lowerBound = new Date(cursorTimestamp - 5 * 60 * 1000).toISOString();
-  const remoteAppointments: any[] = [];
-  const pageSize = 500;
-  let offset = 0;
-
-  try {
-    while (true) {
-      const { data, error } = await client
-        .from('appointments')
-        .select('*')
-        .gte('created_at', lowerBound)
-        .lte('created_at', syncStartedAt)
-        .order('created_at', { ascending: true })
-        .range(offset, offset + pageSize - 1);
-      if (error) throw error;
-      if (!Array.isArray(data)) throw new Error('Supabase no devolvió una lista de citas.');
-      remoteAppointments.push(...data);
-      if (data.length < pageSize) break;
-      offset += pageSize;
-    }
-  } catch (err: any) {
-    console.error('[Email] No se pudieron sincronizar las citas nuevas de Supabase:', err?.message || err);
-    return;
-  }
-
-  let addedAppointments = false;
-  for (const remoteAppointment of remoteAppointments) {
-    const id = String(remoteAppointment.id || '');
-    const createdAt = Date.parse(remoteAppointment.created_at || '');
-    if (
-      !id ||
-      !Number.isFinite(createdAt) ||
-      createdAt < cursorTimestamp ||
-      serverAppointmentsCache.some((appointment) => String(appointment.id) === id)
-    ) {
-      continue;
-    }
-    serverAppointmentsCache.unshift({
-      ...remoteAppointment,
-      id,
-      email_confirmation_status: 'pending',
-    });
-    addedAppointments = true;
-  }
-
-  if (addedAppointments) persistAppointmentsToDisk(serverAppointmentsCache);
-  emailNotificationCursor = syncStartedAt;
-  persistEmailNotificationCursor(emailNotificationCursor);
-}
-
-async function processAppointmentEmailQueue(): Promise<void> {
-  if (appointmentEmailQueueRunning || !process.env.RESEND_API_KEY?.trim() || !process.env.EMAIL_FROM?.trim()) return;
-  appointmentEmailQueueRunning = true;
-
-  try {
-    await syncRecentSupabaseAppointments();
-    const now = Date.now();
-    for (const appointment of serverAppointmentsCache) {
-      const status = String(appointment.status || 'CONFIRMADA').toUpperCase();
-      if (['CANCELADA', 'COMPLETADA', 'NO_ASISTIO'].includes(status)) continue;
-      if (!appointment.email) continue;
-
-      const lastConfirmationAttempt = Date.parse(appointment.email_confirmation_last_attempt_at || '');
-      const confirmationEligible =
-        appointment.email_confirmation_status &&
-        appointment.email_confirmation_status !== 'sent' &&
-        (!Number.isFinite(lastConfirmationAttempt) || now - lastConfirmationAttempt >= 5 * 60 * 1000);
-
-      if (confirmationEligible) {
-        appointment.email_confirmation_last_attempt_at = new Date(now).toISOString();
-        const result = await sendAppointmentEmail(appointment, 'confirmation');
-        if (result.sent) {
-          appointment.email_confirmation_status = 'sent';
-          appointment.email_confirmation_sent_at = new Date().toISOString();
-        } else if (result.error) {
-          console.error(`[Email] No se pudo enviar la confirmación de ${appointment.code}:`, result.error);
-        }
-        persistAppointmentsToDisk(serverAppointmentsCache);
-      }
-
-      const appointmentTime = getAppointmentStartTime(appointment);
-      if (!appointmentTime || appointmentTime <= now) continue;
-      const timeUntilAppointment = appointmentTime - now;
-      const reminderKind = timeUntilAppointment <= 2 * 60 * 60 * 1000
-        ? 'reminder_2h'
-        : timeUntilAppointment <= 24 * 60 * 60 * 1000
-        ? 'reminder_24h'
-        : null;
-      if (!reminderKind) continue;
-
-      const sentAtField = reminderKind === 'reminder_24h' ? 'email_reminder_24h_sent_at' : 'email_reminder_2h_sent_at';
-      const attemptedAtField = reminderKind === 'reminder_24h' ? 'email_reminder_24h_last_attempt_at' : 'email_reminder_2h_last_attempt_at';
-      if (appointment[sentAtField]) continue;
-
-      const lastReminderAttempt = Date.parse(appointment[attemptedAtField] || '');
-      if (Number.isFinite(lastReminderAttempt) && now - lastReminderAttempt < 5 * 60 * 1000) continue;
-
-      appointment[attemptedAtField] = new Date(now).toISOString();
-      const result = await sendAppointmentEmail(appointment, reminderKind);
-      if (result.sent) {
-        appointment[sentAtField] = new Date().toISOString();
-      } else if (result.error) {
-        console.error(`[Email] No se pudo enviar el recordatorio ${reminderKind} de ${appointment.code}:`, result.error);
-      }
-      persistAppointmentsToDisk(serverAppointmentsCache);
-    }
-  } finally {
-    appointmentEmailQueueRunning = false;
   }
 }
 
@@ -1546,14 +1265,6 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
       notes: sanitizeServerInput(rawAppointment.notes || 'Registro verificado por EQUILIBRA', 500),
     };
 
-    const previousAppointment = serverAppointmentsCache.find((item) => item.id === appointment.id);
-    const alreadyConfirmedByEmail = previousAppointment?.email_confirmation_status === 'sent';
-    appointment.email_confirmation_status = alreadyConfirmedByEmail ? 'sent' : 'pending';
-    if (alreadyConfirmedByEmail) {
-      appointment.email_confirmation_sent_at = previousAppointment.email_confirmation_sent_at;
-      appointment.email_confirmation_last_attempt_at = previousAppointment.email_confirmation_last_attempt_at;
-    }
-
     // Always store in server memory cache
     const existingIdx = serverAppointmentsCache.findIndex(
       (a) => a.id === appointment.id
@@ -1564,26 +1275,6 @@ _A partir de este momento recibirás en tiempo real todas las citas agendadas co
       serverAppointmentsCache.unshift(appointment);
     }
     persistAppointmentsToDisk(serverAppointmentsCache);
-
-    let emailConfirmationSent = alreadyConfirmedByEmail;
-    let emailConfirmationError: string | null = null;
-    if (!alreadyConfirmedByEmail) {
-      const emailResult = await sendAppointmentEmail(appointment, 'confirmation');
-      if (emailResult.sent) {
-        emailConfirmationSent = true;
-        appointment.email_confirmation_status = 'sent';
-        appointment.email_confirmation_sent_at = new Date().toISOString();
-        appointment.email_confirmation_last_attempt_at = appointment.email_confirmation_sent_at;
-        persistAppointmentsToDisk(serverAppointmentsCache);
-      } else if (emailResult.configured) {
-        emailConfirmationError = emailResult.error || 'No se pudo enviar la confirmación por correo.';
-        appointment.email_confirmation_last_attempt_at = new Date().toISOString();
-        console.error(`[Email] No se pudo enviar la confirmación de ${appointment.code}:`, emailConfirmationError);
-        persistAppointmentsToDisk(serverAppointmentsCache);
-      } else {
-        emailConfirmationError = 'El servicio de correo no está configurado en el servidor.';
-      }
-    }
 
     let supabaseSaved = false;
     let supabaseError: string | null = null;
@@ -1782,6 +1473,28 @@ _Para reprogramar o verificar el estado de tus citas, visita nuestra web o respo
       }
     }
 
+    // Always attempt automated personalized confirmation email dispatch
+    let emailSent = false;
+    let emailSimulated = false;
+    let emailError: string | null = null;
+    let emailMessageId: string | null = null;
+
+    if (appointment.email && appointment.email.includes('@')) {
+      try {
+        const emailRes = await sendBookingConfirmationEmail(appointment);
+        emailSent = emailRes.success;
+        emailSimulated = Boolean(emailRes.simulated);
+        emailMessageId = emailRes.messageId || null;
+        if (!emailRes.success) {
+          emailError = emailRes.error || 'Error enviando correo';
+        }
+        console.log(`[Server Email] Confirmación para cita ${appointment.code} procesada (Enviado: ${emailSent}, Simulado: ${emailSimulated})`);
+      } catch (emErr: any) {
+        console.warn('[Server Email Auto-Alert Error]:', emErr?.message);
+        emailError = emErr?.message;
+      }
+    }
+
     res.json({
       success: true,
       supabaseSaved,
@@ -1791,8 +1504,10 @@ _Para reprogramar o verificar el estado de tus citas, visita nuestra web o respo
       kapsoPatientSent,
       kapsoAdminSent,
       kapsoError,
-      emailConfirmationSent,
-      emailConfirmationError,
+      emailSent,
+      emailSimulated,
+      emailError,
+      emailMessageId,
       appointment,
     });
   });
@@ -1817,31 +1532,60 @@ _Para reprogramar o verificar el estado de tus citas, visita nuestra web o respo
 
     const idx = serverAppointmentsCache.findIndex((a) => a.id === id || a.code === id);
     if (idx >= 0) {
-      const currentAppointment = serverAppointmentsCache[idx];
-      const slotChanged =
-        (sanitizedUpdates.fecha !== undefined && sanitizedUpdates.fecha !== currentAppointment.fecha) ||
-        (sanitizedUpdates.hora !== undefined && sanitizedUpdates.hora !== currentAppointment.hora);
-      if (slotChanged) {
-        delete currentAppointment.email_reminder_24h_sent_at;
-        delete currentAppointment.email_reminder_24h_last_attempt_at;
-        delete currentAppointment.email_reminder_2h_sent_at;
-        delete currentAppointment.email_reminder_2h_last_attempt_at;
-      }
       serverAppointmentsCache[idx] = { ...serverAppointmentsCache[idx], ...sanitizedUpdates };
       persistAppointmentsToDisk(serverAppointmentsCache);
     }
 
-    const supabaseClient = getServerSupabaseClient();
-    if (supabaseClient) {
+    const fullAppointment = serverAppointmentsCache.find((a) => a.id === id || a.code === id) || { ...sanitizedUpdates, id };
+
+    // 1. Check for RESCHEDULED status or change of date/time
+    const isRescheduled = String(sanitizedUpdates.status || '').toUpperCase() === 'REPROGRAMADA' || Boolean(sanitizedUpdates.rescheduled_from_date);
+    if (isRescheduled && fullAppointment.email && fullAppointment.email.includes('@')) {
       try {
-        const { error } = await supabaseClient.from('appointments').update(sanitizedUpdates).match({ id });
-        if (error) console.warn('[Server PUT appointment warning]:', error.message);
-        if (String(sanitizedUpdates.status || '').toUpperCase() === 'CANCELADA') {
-          const appointment = serverAppointmentsCache.find((item) => item.id === id || item.code === id);
-          if (appointment) await recordPatientCancellation(appointment, sanitizedUpdates, supabaseClient);
+        await sendRescheduleConfirmationEmail(
+          fullAppointment,
+          sanitizedUpdates.rescheduled_from_date || (fullAppointment as any).rescheduledFromDate,
+          sanitizedUpdates.rescheduled_from_time || (fullAppointment as any).rescheduledFromTime
+        );
+        console.log(`[Server Email] Notificación de reprogramación enviada a ${fullAppointment.email} para cita ${fullAppointment.code}`);
+      } catch (err: any) {
+        console.warn('[Server Email Reschedule Alert Error]:', err?.message);
+      }
+
+      // Telegram notification for reschedule
+      const env = getEnvCredentials();
+      if (env.telegramToken && env.telegramChatId) {
+        try {
+          const prevInfo = sanitizedUpdates.rescheduled_from_date ? ` (Anterior: ${sanitizedUpdates.rescheduled_from_date} ${sanitizedUpdates.rescheduled_from_time || ''})` : '';
+          const tgText = `🔄 *CITA REPROGRAMADA EN EQUILIBRA*\n━━━━━━━━━━━━━━━━━━━━━━\n👤 *Paciente:* ${fullAppointment.nombre || ''} ${fullAppointment.apellido || ''}\n🔖 *Código:* \`${fullAppointment.code || id}\`\n📅 *Nueva Fecha:* ${sanitizedUpdates.fecha || fullAppointment.fecha} a las ${sanitizedUpdates.hora || fullAppointment.hora}${prevInfo}\n📝 *Motivo:* ${sanitizedUpdates.notes || 'Reprogramada desde la web'}\n━━━━━━━━━━━━━━━━━━━━━━`;
+          await sendTelegramMessage(env.telegramToken, env.telegramChatId, tgText);
+        } catch (tgErr) {
+          console.warn('[Telegram Reschedule Note]:', tgErr);
         }
-      } catch (err) {
-        console.warn('[Server PUT appointment error]:', err);
+      }
+    }
+
+    // 2. Check for CANCELLED status
+    const isCancelled = String(sanitizedUpdates.status || '').toUpperCase() === 'CANCELADA';
+    if (isCancelled && fullAppointment.email && fullAppointment.email.includes('@')) {
+      try {
+        const cancelReason = sanitizedUpdates.cancellation_reason || sanitizedUpdates.notes || 'Cancelada por el paciente';
+        await sendCancellationEmail(fullAppointment, cancelReason);
+        console.log(`[Server Email] Notificación de cancelación enviada a ${fullAppointment.email} para cita ${fullAppointment.code}`);
+      } catch (err: any) {
+        console.warn('[Server Email Cancel Alert Error]:', err?.message);
+      }
+
+      // Telegram notification for cancellation
+      const env = getEnvCredentials();
+      if (env.telegramToken && env.telegramChatId) {
+        try {
+          const cancelReason = sanitizedUpdates.cancellation_reason || sanitizedUpdates.notes || 'Cancelada por el paciente';
+          const tgText = `⚠️ *CITA CANCELADA EN EQUILIBRA*\n━━━━━━━━━━━━━━━━━━━━━━\n👤 *Paciente:* ${fullAppointment.nombre || ''} ${fullAppointment.apellido || ''}\n🔖 *Código:* \`${fullAppointment.code || id}\`\n📅 *Fecha prevista:* ${fullAppointment.fecha} (${fullAppointment.hora})\n📝 *Motivo:* ${cancelReason}\n━━━━━━━━━━━━━━━━━━━━━━`;
+          await sendTelegramMessage(env.telegramToken, env.telegramChatId, tgText);
+        } catch (tgErr) {
+          console.warn('[Telegram Cancel Note]:', tgErr);
+        }
       }
     }
 
@@ -2179,6 +1923,137 @@ _${cleanMsgText}_
     res.json({ success: true, message: 'Mensaje enviado correctamente.' });
   });
 
+  // 7b. Email Service Status & Manual Test Endpoint
+  app.get('/api/email/status', (req, res) => {
+    const host = process.env.SMTP_HOST || '';
+    const user = process.env.SMTP_USER || '';
+    const pass = process.env.SMTP_PASS || '';
+    const port = process.env.SMTP_PORT || '587';
+    const isConfigured = Boolean(host && user && pass);
+
+    res.json({
+      success: true,
+      isConfigured,
+      host: host || 'No configurado (Modo simulación / logs activo)',
+      port,
+      user: user ? `${user.slice(0, 3)}***` : 'No configurado',
+      reminderScheduleActive: true,
+      reminders: {
+        oneDayBefore: '24 horas antes de la cita',
+        twoHoursBefore: '2 horas antes de la cita',
+        rescheduleAlert: 'Inmediata al reprogramar',
+        cancellationAlert: 'Inmediata al anular',
+      },
+    });
+  });
+
+  app.post('/api/email/test', createRateLimiter(60 * 1000, 10, 'email_test'), async (req, res) => {
+    const { type, email, appointmentData } = req.body || {};
+    const targetEmail = String(email || '').trim().toLowerCase();
+
+    if (!targetEmail || !targetEmail.includes('@')) {
+      return res.status(400).json({ success: false, error: 'Proporciona una dirección de email válida.' });
+    }
+
+    const sampleAppointment: EmailAppointmentData = {
+      id: `test_${Date.now()}`,
+      code: 'EQ-TEST-2026',
+      nombre: appointmentData?.nombre || 'Paciente de Prueba',
+      apellido: appointmentData?.apellido || 'EQUILIBRA',
+      email: targetEmail,
+      telefono: appointmentData?.telefono || '+58 412-0000000',
+      fecha: appointmentData?.fecha || '2026-10-15',
+      hora: appointmentData?.hora || '10:00 AM - 11:00 AM',
+      serviceTitle: appointmentData?.serviceTitle || 'Fisioterapia y Rehabilitación Deportiva',
+      selectedPackageName: appointmentData?.selectedPackageName || 'Evaluación Integral + Tratamiento',
+      servicePrice: appointmentData?.servicePrice || '35 USD',
+      specialistName: appointmentData?.specialistName || 'Lic. Isaac Jewsiejew',
+      packageTotalSessions: 1,
+      packageSessionNumber: 1,
+    };
+
+    try {
+      let result;
+      switch (type) {
+        case 'reschedule':
+          result = await sendRescheduleConfirmationEmail(sampleAppointment, '2026-10-14', '09:00 AM');
+          break;
+        case 'cancellation':
+          result = await sendCancellationEmail(sampleAppointment, 'Prueba de anulación desde el sistema');
+          break;
+        case 'reminder_24h':
+          result = await send24HourReminderEmail(sampleAppointment);
+          break;
+        case 'reminder_2h':
+          result = await send2HourReminderEmail(sampleAppointment);
+          break;
+        case 'confirmation':
+        default:
+          result = await sendBookingConfirmationEmail(sampleAppointment);
+          break;
+      }
+
+      res.json({
+        success: true,
+        type: type || 'confirmation',
+        targetEmail,
+        result,
+        message: result.simulated
+          ? 'Correo procesado y simulado exitosamente en servidor (Configura SMTP_HOST, SMTP_USER y SMTP_PASS en .env para entrega real por internet).'
+          : 'Correo despachado exitosamente mediante servidor SMTP configurado.',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message || 'Error en prueba de correo' });
+    }
+  });
+
+  // Automated Email Reminders Background Engine (Every 15 minutes)
+  const runEmailReminderCheck = async () => {
+    try {
+      const now = new Date();
+      let modified = false;
+
+      for (const appt of serverAppointmentsCache) {
+        const status = String(appt.status || 'CONFIRMADA').toUpperCase();
+        if (status !== 'CONFIRMADA' && status !== 'REPROGRAMADA') continue;
+        if (!appt.email || !appt.email.includes('@')) continue;
+        if (!appt.fecha || !appt.hora) continue;
+
+        const apptDate = parseAppointmentDateTime(appt.fecha, appt.hora);
+        if (!apptDate) continue;
+
+        const diffMs = apptDate.getTime() - now.getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        // 1. Recordatorio 1 día antes (entre 20h y 28h previas a la cita)
+        if (diffHours >= 18 && diffHours <= 28 && !appt.reminder_24h_sent) {
+          console.log(`[Scheduler Reminder] Enviando recordatorio 24 horas antes a ${appt.email} (Cita: ${appt.code})`);
+          appt.reminder_24h_sent = true;
+          modified = true;
+          send24HourReminderEmail(appt).catch((e) => console.warn('[Scheduler 24h note]:', e?.message));
+        }
+
+        // 2. Recordatorio 2 horas antes (entre 0.5h y 2.75h previas a la cita)
+        if (diffHours >= 0.5 && diffHours <= 2.75 && !appt.reminder_2h_sent) {
+          console.log(`[Scheduler Reminder] Enviando recordatorio 2 horas antes a ${appt.email} (Cita: ${appt.code})`);
+          appt.reminder_2h_sent = true;
+          modified = true;
+          send2HourReminderEmail(appt).catch((e) => console.warn('[Scheduler 2h note]:', e?.message));
+        }
+      }
+
+      if (modified) {
+        persistAppointmentsToDisk(serverAppointmentsCache);
+      }
+    } catch (schedErr) {
+      console.warn('[Scheduler Check Error]:', schedErr);
+    }
+  };
+
+  // Run reminder check 10 seconds after boot and then every 15 minutes
+  setTimeout(runEmailReminderCheck, 10000);
+  setInterval(runEmailReminderCheck, 15 * 60 * 1000);
+
   // 8. Vite Middleware for Development / Static Serve for Production
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -2197,10 +2072,6 @@ _${cleanMsgText}_
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[EQUILIBRA Server] Servidor activo en http://0.0.0.0:${PORT}`);
   });
-  void processAppointmentEmailQueue();
-  setInterval(() => {
-    void processAppointmentEmailQueue();
-  }, 60 * 1000);
 }
 
 startServer().catch((err) => {

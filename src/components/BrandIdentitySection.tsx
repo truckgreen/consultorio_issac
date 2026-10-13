@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { CLINIC_INFO } from '../data/featuresData';
 import { APP_IMAGES } from '../data/images';
+import { BrandGraphicElements } from './BrandGraphicElements';
 
 export const BrandIdentitySection: React.FC = () => {
   const [copiedColor, setCopiedColor] = useState<string | null>(null);
@@ -316,15 +317,23 @@ export const BrandIdentitySection: React.FC = () => {
             <div>
               <div className="inline-flex items-center gap-2 text-xs font-bold text-[#B1A086] uppercase tracking-wider mb-1">
                 <Layers className="w-3.5 h-3.5" />
-                <span>Activos Vectoriales Oficiales</span>
+                <span>Activos Vectoriales Oficiales & Galería Completa</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-[#F2EFE8] font-heading">
                 Logotipos, Isotipo y Descarga Directa
               </h3>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href="/brand_book/equilibra_imagenes_completas.zip"
+                download="EQUILIBRA_PAQUETE_COMPLETO_IMAGENES.zip"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#B1A086] text-slate-950 hover:bg-[#9E8D74] font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+              >
+                <Download className="w-4 h-4" />
+                <span>Descargar Carpeta con Todas las Imágenes (ZIP)</span>
+              </a>
               <span className="text-xs text-slate-500 dark:text-[#B5B0A6]">
-                Ubicación del repositorio: <strong className="text-slate-800 dark:text-slate-200">/brand_book/</strong>
+                Carpeta: <strong className="text-slate-800 dark:text-slate-200">/public/brand_book/</strong>
               </span>
             </div>
           </div>
@@ -369,6 +378,9 @@ export const BrandIdentitySection: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* 24 Official Brand Graphic Elements (Page 17) */}
+        <BrandGraphicElements />
 
       </div>
 

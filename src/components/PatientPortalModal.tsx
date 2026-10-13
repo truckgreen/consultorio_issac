@@ -551,7 +551,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
           prev.map((item) => (item.id === updated.id ? updated : item))
         );
         setRescheduleSuccessMessage(
-          `¡Cita reprogramada exitosamente para el ${rescheduleDate} a las ${rescheduleTime}!`
+          `¡Cita reprogramada exitosamente para el ${rescheduleDate} a las ${rescheduleTime}! Hemos enviado una notificación a tu correo con los nuevos detalles y los recordatorios automáticos (24h y 2h antes) han sido reprogramados.`
         );
         setIsRescheduling(false);
       } else {
@@ -584,8 +584,8 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
           success: true,
           penaltyFee: result.penaltyAmount,
           message: result.isSecondOrMore
-            ? 'Cita cancelada con recargo administrativo del 20% aplicado.'
-            : 'Cita cancelada exitosamente (1ra cancelación 100% gratuita).',
+            ? 'Cita cancelada con recargo administrativo del 20% aplicado. Hemos enviado la constancia a tu correo.'
+            : 'Cita cancelada exitosamente (1ra cancelación 100% gratuita). Hemos enviado la constancia a tu correo.',
           isSecondOrMore: result.isSecondOrMore,
         });
         setIsCanceling(false);

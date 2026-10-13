@@ -1125,6 +1125,22 @@ export const BookingSection: React.FC<BookingSectionProps> = ({
                   </div>
                 )}
 
+                {/* Automated Email Confirmation & Reminders Banner */}
+                <div className="p-4 rounded-xl bg-[#FAF9F7] dark:bg-[#141414] border border-[#B1A086]/40 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#B1A086]/20 flex items-center justify-center shrink-0 text-[#B1A086] mt-0.5">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs text-slate-700 dark:text-[#D1CEC9] leading-relaxed">
+                    <p className="font-bold text-slate-900 dark:text-[#F2EFE8] mb-0.5">
+                      Confirmación por Correo y Recordatorios Programados
+                    </p>
+                    <p>
+                      Hemos enviado un correo personalizado con el comprobante y detalles a <strong className="text-slate-950 dark:text-white">{latestAppointment.email}</strong>. 
+                      Además, el sistema te enviará recordatorios automáticos <strong>1 día antes (24h)</strong> y <strong>2 horas antes</strong> de tu turno.
+                    </p>
+                  </div>
+                </div>
+
                 {/* Appointment Summary Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800">

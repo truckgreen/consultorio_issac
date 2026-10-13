@@ -8,7 +8,7 @@
    - SECUNDARIAS:
      * Minimalist:    #B1A086 (RGB: 177 160 134)
      * Keystone Gray: #D1CEC9 (RGB: 209 206 201)
-   Lema: "Un refugio, no una sala de espera."
+   Tagline: "Un refugio, no una sala de espera."
    ========================================================================== */
 
 :root {
@@ -48,9 +48,52 @@
   --color-whatsapp: #25d366;
   --color-telegram: #229ed9;
 
-  /* 6. TIPOGRAFÍAS */
-  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* 6. TIPOGRAFÍAS DEL BRAND BOOK (Página 16)
+     - Principal (Títulos): Akira Expanded / Unbounded (Super Bold, amplio, técnico)
+     - Secundaria (Textos): Garet Book / Plus Jakarta Sans (Geométrica, limpia) */
+  --font-heading: 'Unbounded', 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ==========================================================================
+   PATRONES GRÁFICOS Y TEXTURAS DEL BRAND BOOK (Página 18)
+   ========================================================================== */
+
+/* 1. Patrón oficial de Isotipos de Tres Barras en Repetición Geométrica */
+.bg-pattern-isotype-dark {
+  background-color: #0c0c0c;
+  background-image: radial-gradient(rgba(177, 160, 134, 0.08) 1.5px, transparent 1.5px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 32px 32px, 64px 64px, 64px 64px;
+}
+
+.bg-pattern-isotype-light {
+  background-color: #f2efe8;
+  background-image: radial-gradient(rgba(177, 160, 134, 0.14) 1.5px, transparent 1.5px),
+    linear-gradient(to right, rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+  background-size: 32px 32px, 64px 64px, 64px 64px;
+}
+
+/* 2. Corte Angular Diagonal Característico de Portadas de Capítulo (Páginas 4, 7, 9, 19, 23) */
+.brand-diagonal-cut-dark {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 3.5vw), 0 100%);
+}
+
+.brand-diagonal-cut-inverted {
+  clip-path: polygon(0 3.5vw, 100% 0, 100% 100%, 0 100%);
+}
+
+/* 3. Tipografía Akira Style Utility */
+.font-akira {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.font-garet {
+  font-family: var(--font-sans);
 }
 
 /* ==========================================================================
