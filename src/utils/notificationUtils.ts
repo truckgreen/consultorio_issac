@@ -132,7 +132,7 @@ export function generatePatientWhatsAppConfirmationUrl(appointment: ConfirmedApp
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
 }
 
-export function generateWhatsAppAlertUrl(appointment: ConfirmedAppointment, specialistPhone = '584126388484'): string {
+export function generateWhatsAppAlertUrl(appointment: ConfirmedAppointment, specialistPhone = '584242724617'): string {
   const totalSessions = appointment.packageTotalSessions || Number(appointment.selectedPackageName?.match(/(\d+)\s*sesiones?/i)?.[1] || 1);
   const sessionNumber = appointment.packageSessionNumber || 1;
   const packageCode = appointment.packageCode || appointment.code;

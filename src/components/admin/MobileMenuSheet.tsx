@@ -249,7 +249,7 @@ export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = ({
           </div>
           <div className="flex items-center gap-1.5">
             <Phone className="w-3.5 h-3.5 text-amber-500" />
-            <span>+58 414 239.88.99 • Lun a Sáb</span>
+            <span>+58 424-2724617 • Lun a Sáb</span>
           </div>
         </div>
 

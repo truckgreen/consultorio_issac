@@ -3612,7 +3612,7 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                         </div>
                         <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                           <span className="text-slate-400 text-[10px] block font-bold uppercase">Contacto Directo</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">+58 412 123 4567 • info@equilibra.com</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">+58 424-2724617 • info@equilibra.com</span>
                         </div>
                       </div>
                     </div>

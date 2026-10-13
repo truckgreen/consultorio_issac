@@ -702,7 +702,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>+58 414 239.88.99 / +58 212 762.11.44</span>
+                <span>+58 424-2724617</span>
               </div>
 
               <div className="flex items-center gap-2">

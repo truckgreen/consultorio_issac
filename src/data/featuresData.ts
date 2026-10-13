@@ -46,10 +46,10 @@ export const CLINIC_INFO = {
     floor: 'Piso 4, Oficina 46 & 48',
     fullAddress: 'Caracas, Sabana Grande, Centro Profesional del Este, piso 4, oficina 46 y 48'
   },
-  phone: '0424-272-46-17',
-  phoneDisplay: '+58 412-7471858 / 0424-272-4617',
+  phone: '0424-2724617',
+  phoneDisplay: '+58 424-2724617',
   phoneRaw: '04242724617',
-  whatsappDirect: '+58 412-7471858',
+  whatsappDirect: '+58 424-2724617',
   instagram: '@fisiojewsiejew',
   hours: [
     { day: 'Lunes a Sábado', time: '8:00am a 6:00pm' }

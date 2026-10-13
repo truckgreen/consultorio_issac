@@ -35,11 +35,15 @@ export interface EmailAppointmentData {
 
 // Read email configuration from environment
 function getEmailConfig() {
-  const host = process.env.SMTP_HOST || '';
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const user = process.env.SMTP_USER || '';
-  const pass = process.env.SMTP_PASS || '';
-  const from = process.env.SMTP_FROM || '"EQUILIBRA - Bienestar Integral" <contacto@equilibrave.com>';
+  const host = (process.env.SMTP_HOST || '').trim();
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const user = (process.env.SMTP_USER || '').trim();
+  // Strip whitespace from passwords if user enters Google app password format with spaces
+  let pass = (process.env.SMTP_PASS || '').trim();
+  if (pass.replace(/\s+/g, '').length === 16) {
+    pass = pass.replace(/\s+/g, '');
+  }
+  const from = process.env.SMTP_FROM || `"EQUILIBRA - Bienestar Integral" <${user || 'contacto@equilibrave.com'}>`;
 
   const isConfigured = Boolean(host && user && pass);
 
@@ -132,7 +136,7 @@ function generateEmailFooter(): string {
           📍 Av. Francisco de Miranda, Sabana Grande, Centro Profesional del Este, Piso 4, Oficinas 46 y 48, Caracas, Venezuela.
         </p>
         <p style="margin: 0 0 12px 0;">
-          📞 Teléfono de Citas: +58 412-7471858 / 0424-272-4617 • Instagram: @fisiojewsiejew
+          📞 Teléfono de Citas: +58 424-2724617 • Instagram: @fisiojewsiejew
         </p>
         <div style="height: 1px; width: 80%; background-color: #262626; margin: 12px auto;"></div>
         <p style="margin: 0; font-size: 11px; color: #666;">
@@ -449,7 +453,7 @@ export async function sendCancellationEmail(
             <strong>Motivo registrado:</strong> ${motivo}
           </div>
           <p style="margin: 0 0 20px 0; color: #6C757D; font-size: 13px;">
-            Si deseas agendar una nueva fecha en el futuro o retomar tu tratamiento, puedes hacerlo en cualquier momento desde nuestra página web o vía WhatsApp al +58 412-7471858.
+            Si deseas agendar una nueva fecha en el futuro o retomar tu tratamiento, puedes hacerlo en cualquier momento desde nuestra página web o vía WhatsApp al +58 424-2724617.
           </p>
           <div style="text-align: center; margin: 24px 0 10px 0;">
             <a href="https://consultorio-equilibra.onrender.com/#servicios" style="background-color: ${BRAND_COLORS.sealskin}; color: ${BRAND_COLORS.creamy}; padding: 12px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 13px; display: inline-block; border: 2px solid ${BRAND_COLORS.minimalist};">
@@ -599,7 +603,7 @@ export async function send2HourReminderEmail(data: EmailAppointmentData): Promis
             Av. Francisco de Miranda, Sabana Grande, Centro Profesional del Este, Piso 4, Oficinas 46 y 48 (Caracas). Al llegar, por favor anuncia tu código de cita <strong>${code}</strong> en recepción.
           </p>
           <p style="margin: 0 0 20px 0; color: #495057;">
-            Si tienes algún retraso o eventualidad en el tráfico, puedes escribirnos por WhatsApp al <a href="https://wa.me/584127471858" style="color: #28A745; font-weight: bold;">+58 412-7471858</a>.
+            Si tienes algún retraso o eventualidad en el tráfico, puedes escribirnos por WhatsApp al <a href="https://wa.me/584242724617" style="color: #28A745; font-weight: bold;">+58 424-2724617</a>.
           </p>
           <div style="text-align: center; margin: 20px 0 10px 0;">
             <a href="https://maps.google.com/?q=Centro+Profesional+del+Este+Caracas" style="background-color: ${BRAND_COLORS.sealskin}; color: ${BRAND_COLORS.creamy}; padding: 12px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 13px; display: inline-block; border: 2px solid ${BRAND_COLORS.minimalist};">

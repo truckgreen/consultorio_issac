@@ -224,7 +224,7 @@ export const BetaNoticeBanner: React.FC = () => {
                   {/* Footer Actions */}
                   <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
                     <a
-                      href={`https://wa.me/584126388484?text=${encodeURIComponent(
+                      href={`https://wa.me/584242724617?text=${encodeURIComponent(
                         'Hola equipo EQUILIBRA, estoy visitando la web y tengo una consulta o sugerencia durante la fase beta.'
                       )}`}
                       target="_blank"
@@ -286,7 +286,7 @@ export const BetaNoticeBanner: React.FC = () => {
                           type="text"
                           value={reporterContact}
                           onChange={(e) => setReporterContact(e.target.value)}
-                          placeholder="Ej. 04126388484 o tu@correo.com"
+                          placeholder="Ej. 04121234567 o tu@correo.com"
                           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm sm:text-xs md:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition-all"
                         />
                       </div>

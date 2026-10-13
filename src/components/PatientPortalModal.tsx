@@ -1515,7 +1515,7 @@ export const PatientPortalModal: React.FC<PatientPortalModalProps> = ({
                     </button>
 
                     <a
-                      href={`https://wa.me/584126388484?text=${encodeURIComponent(
+                      href={`https://wa.me/584242724617?text=${encodeURIComponent(
                         generateWhatsAppReminderMessage(foundAppointment)
                       )}`}
                       target="_blank"
