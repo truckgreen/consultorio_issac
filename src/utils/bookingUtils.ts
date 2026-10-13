@@ -326,7 +326,9 @@ export function subscribeToAppointments(onChange: (appointments: ConfirmedAppoin
 /**
  * Save appointment with input sanitization, security event tracking, and storage sync
  */
-export async function saveAppointmentToDatabase(appointment: ConfirmedAppointment): Promise<{ success: boolean; error?: string }> {
+export async function saveAppointmentToDatabase(
+  appointment: ConfirmedAppointment
+): Promise<{ success: boolean; error?: string; emailConfirmationSent?: boolean; emailConfirmationError?: string }> {
   // Sanitize all payload fields before storing
   const cleanAppointment: ConfirmedAppointment = {
     ...appointment,
@@ -380,7 +382,11 @@ export async function saveAppointmentToDatabase(appointment: ConfirmedAppointmen
     if (res.ok) {
       const json = await res.json();
       if (json.success) {
-        return { success: true };
+        return {
+          success: true,
+          emailConfirmationSent: typeof json.emailConfirmationSent === 'boolean' ? json.emailConfirmationSent : undefined,
+          emailConfirmationError: typeof json.emailConfirmationError === 'string' ? json.emailConfirmationError : undefined,
+        };
       }
     }
   } catch (apiErr) {

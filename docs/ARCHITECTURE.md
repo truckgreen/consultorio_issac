@@ -87,7 +87,9 @@ Las políticas incluidas permiten `FOR ALL` a `public` y, por tanto, no son sufi
 3. Se validan nombre, apellido, teléfono, correo, fecha y hora.
 4. Se genera una cita y un código `EQ-XXXX`.
 5. Se persiste localmente y se intenta sincronizar con Supabase.
-6. Se muestra un comprobante o modal de éxito.
+6. El servidor intenta enviar la confirmación por correo mediante Resend.
+7. Un proceso del servidor revisa cada minuto la agenda y envía recordatorios 24 horas y 2 horas antes; registra intentos y envíos en `data/appointments.json` y reintenta fallos. Las citas creadas directamente en Supabase por Android se detectan mediante un cursor en `data/email_notifications_state.json`.
+8. Se muestra un comprobante o modal de éxito con el resultado de la confirmación por correo.
 
 ### Gestión administrativa
 
@@ -105,6 +107,9 @@ El personal puede crear citas, filtrar la agenda, modificar estados, abrir el ex
 ## Checklist de puesta en producción
 
 - [ ] Configurar variables de entorno fuera del control de versiones.
+- [ ] Configurar `RESEND_API_KEY` y `EMAIL_FROM` en el servidor y verificar el remitente en Resend.
+- [ ] Para reservas Android, dar al servidor acceso de lectura a `appointments` en Supabase.
+- [ ] Mantener un único proceso del servidor con almacenamiento persistente para `data/appointments.json`, necesario para los recordatorios.
 - [ ] Crear el esquema con nombres de columnas unificados.
 - [ ] Diseñar y probar políticas RLS con usuarios reales y anónimos.
 - [ ] Activar autenticación y autorización administrativa.

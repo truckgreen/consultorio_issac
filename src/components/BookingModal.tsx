@@ -116,6 +116,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [securityError, setSecurityError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [createdAppointment, setCreatedAppointment] = useState<ConfirmedAppointment | null>(null);
+  const [emailConfirmationSent, setEmailConfirmationSent] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (initialServiceId) {
@@ -270,7 +271,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         status: 'confirmada',
       };
 
-      await saveAppointmentToDatabase(newAppointment);
+      const saveResult = await saveAppointmentToDatabase(newAppointment);
+      setEmailConfirmationSent(saveResult.emailConfirmationSent ?? null);
       setBookingCode(secureCode);
       setCreatedAppointment(newAppointment);
       setIsSubmitting(false);
@@ -295,6 +297,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setFormErrors({});
     setSecurityError(null);
     setCreatedAppointment(null);
+    setEmailConfirmationSent(null);
   };
 
   return (
@@ -797,6 +800,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   Con este único código podrás seleccionar tus 10 días en el calendario del portal y verlos resaltados en tu horario en tiempo real.
                 </p>
               )}
+            </div>
+
+            <div className={`p-3 rounded-xl border text-left text-xs ${
+              emailConfirmationSent
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'
+            }`}>
+              {emailConfirmationSent
+                ? `Enviamos la confirmación a ${createdAppointment.email} y programamos recordatorios 1 día y 2 horas antes.`
+                : 'Tu cita quedó registrada, pero no pudimos confirmar el envío del correo. Revisa con la clínica si no recibes la confirmación.'}
             </div>
 
             <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-left space-y-2">
