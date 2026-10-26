@@ -9,7 +9,6 @@ import { TeamSection } from './components/TeamSection';
 import { SpecialtiesSection } from './components/SpecialtiesSection';
 import { PhilosophySection } from './components/PhilosophySection';
 import { WhyChooseUs } from './components/WhyChooseUs';
-import { BrandIdentitySection } from './components/BrandIdentitySection';
 import { InteractiveAssessment } from './components/InteractiveAssessment';
 import { BookingSection } from './components/BookingSection';
 import { BookingModal } from './components/BookingModal';
@@ -173,9 +172,6 @@ export function App() {
         <PhilosophySection onOpenBooking={() => handleOpenBooking()} />
         
         <WhyChooseUs onOpenBooking={() => handleOpenBooking()} />
-
-        {/* Official Brand Book 2026 Showcase & Image Repository */}
-        <BrandIdentitySection />
         
         <InteractiveAssessment onOpenBooking={handleOpenBooking} />
         
