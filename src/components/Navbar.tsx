@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -15,13 +15,19 @@ import {
   KeyRound,
   Code2,
   Sparkles,
+  Settings2,
 } from 'lucide-react';
 import { CLINIC_INFO } from '../data/featuresData';
+
+export type AppView = 'inicio' | 'servicios' | 'triage' | 'equipo' | 'citas' | 'testimonios' | 'contacto';
 
 interface NavbarProps {
   darkMode: boolean;
   onToggleDarkMode: () => void;
   onOpenBooking: (serviceId?: string) => void;
+  activeView?: AppView;
+  onSelectView?: (view: AppView) => void;
+  onOpenGeminiBot?: () => void;
   onOpenPrivacyModal?: () => void;
   onOpenPatientPortal?: () => void;
   onOpenSpecialistAccess?: () => void;
@@ -32,6 +38,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   darkMode,
   onToggleDarkMode,
   onOpenBooking,
+  activeView = 'inicio',
+  onSelectView,
+  onOpenGeminiBot,
   onOpenPrivacyModal,
   onOpenPatientPortal,
   onOpenSpecialistAccess,
@@ -39,27 +48,39 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('inicio');
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
-
-      // Simple active section detection based on scroll position
-      const sections = ['inicio', 'sobre-nosotros', 'servicios', 'equipo', 'especialidades', 'contacto'];
-      const scrollPos = window.scrollY + 200;
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const el = document.getElementById(sections[i]);
-        if (el && el.offsetTop <= scrollPos) {
-          setActiveSection(sections[i]);
-          break;
-        }
-      }
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Close tools dropdown when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node)) {
+        setToolsMenuOpen(false);
+      }
+    };
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && toolsMenuOpen) {
+        setToolsMenuOpen(false);
+      }
+    };
+    if (toolsMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('keydown', handleEscKey);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        window.removeEventListener('keydown', handleEscKey);
+      };
+    }
+  }, [toolsMenuOpen]);
 
   // Prevent background scrolling while mobile drawer is open
   useEffect(() => {
@@ -85,157 +106,232 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   }, [mobileMenuOpen]);
 
-  const navLinks = [
-    { label: 'Inicio', href: '#inicio', id: 'inicio' },
-    { label: 'Orientación', href: '#triage-medico', id: 'triage-medico' },
-    { label: 'Servicios', href: '#servicios', id: 'servicios' },
-    { label: 'Equipo', href: '#equipo', id: 'equipo' },
-    { label: 'Reseñas', href: '#testimonios', id: 'testimonios' },
-    { label: 'Contacto', href: '#contacto', id: 'contacto' },
+  const navLinks: { label: string; viewId: AppView; href: string }[] = [
+    { label: 'Inicio', viewId: 'inicio', href: '#/inicio' },
+    { label: 'Servicios', viewId: 'servicios', href: '#/servicios' },
+    { label: 'Orientación', viewId: 'triage', href: '#/triage' },
+    { label: 'Equipo', viewId: 'equipo', href: '#/equipo' },
+    { label: 'Citas Online', viewId: 'citas', href: '#/citas' },
+    { label: 'Reseñas', viewId: 'testimonios', href: '#/testimonios' },
+    { label: 'Contacto', viewId: 'contacto', href: '#/contacto' },
   ];
+
+  const handleLinkClick = (e: React.MouseEvent, viewId: AppView) => {
+    e.preventDefault();
+    if (onSelectView) {
+      onSelectView(viewId);
+    }
+    setMobileMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <>
       <header
         id="main-navbar"
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        isScrolled
-          ? 'bg-[#F2EFE8]/95 dark:bg-[#0C0C0C]/95 backdrop-blur-md shadow-lg shadow-black/5 dark:shadow-black/20 py-2.5 border-b border-[#B1A086]/20 dark:border-[#B1A086]/15'
-          : 'bg-[#F2EFE8]/80 dark:bg-[#0C0C0C]/80 backdrop-blur-sm py-3.5 border-b border-[#D1CEC9]/60 dark:border-slate-800/60'
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-2">
-          {/* Brand Logo with Official Isotype & Tagline */}
-          <a
-            href="#inicio"
-            id="brand-logo-link"
-            className="flex items-center gap-2.5 group focus:outline-none shrink-0"
-          >
-            <div className="relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center p-1.5 rounded-xl bg-[#0C0C0C] dark:bg-[#141414] border border-[#B1A086]/40 group-hover:border-[#B1A086] transition-all duration-300 shadow-sm">
-              <img src="/brand_book/isotipo_tres_barras_minimalist.svg" alt="EQUILIBRA Isotipo" className="w-full h-full object-contain" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg sm:text-xl font-black tracking-widest text-[#0C0C0C] dark:text-[#F2EFE8] uppercase font-heading leading-none group-hover:text-[#B1A086] transition-colors">
-                EQUILIBRA
-              </span>
-              <span className="text-[9px] sm:text-[10px] tracking-wider text-[#B1A086] font-semibold mt-0.5">
-                Un refugio, no una sala de espera.
-              </span>
-            </div>
-          </a>
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 overflow-x-clip ${
+          isScrolled
+            ? 'bg-[#F2EFE8]/95 dark:bg-[#0C0C0C]/95 backdrop-blur-md shadow-lg shadow-black/5 dark:shadow-black/20 py-2.5 border-b border-[#B1A086]/20 dark:border-[#B1A086]/15'
+            : 'bg-[#F2EFE8]/80 dark:bg-[#0C0C0C]/80 backdrop-blur-sm py-3.5 border-b border-[#D1CEC9]/60 dark:border-slate-800/60'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-1.5 lg:gap-3">
+            {/* Brand Logo with Official Isotype & Tagline */}
+            <a
+              href="#/inicio"
+              onClick={(e) => handleLinkClick(e, 'inicio')}
+              id="brand-logo-link"
+              className="flex items-center gap-2 group focus:outline-none shrink-0"
+            >
+              <div className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center p-1 rounded-xl bg-[#0C0C0C] dark:bg-[#141414] border border-[#B1A086]/40 group-hover:border-[#B1A086] transition-all duration-300 shadow-sm shrink-0">
+                <img src="/brand_book/isotipo_tres_barras_minimalist.svg" alt="EQUILIBRA Isotipo" className="w-full h-full object-contain" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-base sm:text-lg font-black tracking-widest text-[#0C0C0C] dark:text-[#F2EFE8] uppercase font-heading leading-none group-hover:text-[#B1A086] transition-colors">
+                  EQUILIBRA
+                </span>
+                <span className="text-[8.5px] sm:text-[9.5px] tracking-wider text-[#B1A086] font-semibold mt-0.5 truncate max-w-[170px] sm:max-w-none">
+                  Un refugio, no una sala de espera.
+                </span>
+              </div>
+            </a>
 
-          {/* Desktop Navigation Links with Animated Active Indicator */}
-          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 p-1 rounded-full bg-slate-100/70 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60">
-            {navLinks.map((link) => {
-              const isActive = activeSection === link.id;
-              const isHovered = hoveredLink === link.id;
-              return (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  onMouseEnter={() => setHoveredLink(link.id)}
-                  onMouseLeave={() => setHoveredLink(null)}
-                  className={`relative px-3.5 py-1.5 text-xs xl:text-sm font-semibold rounded-full transition-colors duration-200 whitespace-nowrap ${
-                    isActive
-                      ? 'text-slate-950 dark:text-amber-300 font-bold'
-                      : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'
-                  }`}
+            {/* Desktop Navigation Links with Animated Active Indicator */}
+            <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 p-1 rounded-full bg-slate-100/70 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 shrink-0">
+              {navLinks.map((link) => {
+                const isActive = activeView === link.viewId;
+                return (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    onClick={(e) => handleLinkClick(e, link.viewId)}
+                    onMouseEnter={() => setHoveredLink(link.viewId)}
+                    onMouseLeave={() => setHoveredLink(null)}
+                    className={`relative px-2.5 xl:px-3 py-1.5 text-xs xl:text-sm font-semibold rounded-full transition-colors duration-200 whitespace-nowrap cursor-pointer ${
+                      isActive
+                        ? 'text-slate-950 dark:text-amber-300 font-bold'
+                        : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'
+                    }`}
+                  >
+                    {/* Motion pill for active item */}
+                    {isActive && (
+                      <motion.span
+                        layoutId="activeNavPill"
+                        className="absolute inset-0 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-amber-400/30 dark:border-amber-500/20"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10">{link.label}</span>
+                  </a>
+                );
+              })}
+            </nav>
+
+            {/* Right Action Buttons */}
+            <div className="hidden md:flex items-center gap-1.5 xl:gap-2 shrink-0">
+              {/* Gemini AI Assistant Button */}
+              {onOpenGeminiBot && (
+                <button
+                  type="button"
+                  onClick={onOpenGeminiBot}
+                  title="Consultar al Asistente Clínico Inteligente (Gemini 3.8 Flash)"
+                  className="flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 text-xs font-bold text-amber-950 dark:text-amber-300 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 rounded-full transition-all shadow-xs shrink-0 cursor-pointer"
                 >
-                  {/* Motion pill for active or hovered item */}
-                  {isActive && (
-                    <motion.span
-                      layoutId="activeNavPill"
-                      className="absolute inset-0 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-amber-400/30 dark:border-amber-500/20"
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">{link.label}</span>
-                </a>
-              );
-            })}
-          </nav>
-
-          {/* Right Action Buttons */}
-          <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Patient Portal / Search appointment */}
-            {onOpenPatientPortal && (
-              <button
-                type="button"
-                onClick={onOpenPatientPortal}
-                title="Consultar, validar o reprogramar tu cita"
-                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-amber-600 dark:text-slate-200 dark:hover:text-amber-400 bg-slate-100/90 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 rounded-full transition-all border border-slate-200 dark:border-slate-700 shadow-sm whitespace-nowrap"
-              >
-                <Search className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                <span>Validar Cita</span>
-              </button>
-            )}
-
-            {/* Specialist & Admin Protected Access */}
-            {onOpenSpecialistAccess && (
-              <button
-                type="button"
-                onClick={onOpenSpecialistAccess}
-                title="Acceso exclusivo para Especialistas & Dirección Médica"
-                className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors border border-slate-200 dark:border-slate-700"
-                aria-label="Acceso Especialistas y Administrador"
-              >
-                <KeyRound className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-              </button>
-            )}
-
-            {/* Privacy / ARCO rights button */}
-            {onOpenPrivacyModal && (
-              <button
-                type="button"
-                onClick={onOpenPrivacyModal}
-                title="Políticas de Privacidad, Cifrado y Auditoría ARCO"
-                className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-full transition-colors border border-emerald-200 dark:border-emerald-800/50"
-                aria-label="Privacidad y Seguridad"
-              >
-                <ShieldCheck className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Developer Support / Help */}
-            {onOpenDeveloperSupport && (
-              <button
-                type="button"
-                onClick={onOpenDeveloperSupport}
-                title="Contacto con el desarrollador & Soporte técnico web"
-                className="hidden xl:flex p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-full transition-colors border border-indigo-200 dark:border-indigo-800/50"
-                aria-label="Soporte Técnico"
-              >
-                <Code2 className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Dark Mode Toggle */}
-            <button
-              id="theme-toggle-btn"
-              onClick={onToggleDarkMode}
-              aria-label={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-              className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors border border-slate-200 dark:border-slate-700"
-            >
-              {darkMode ? (
-                <Sun className="w-4 h-4 text-amber-400 hover:rotate-45 transition-transform duration-300" />
-              ) : (
-                <Moon className="w-4 h-4 text-slate-700 hover:-rotate-12 transition-transform duration-300" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-spin-slow shrink-0" />
+                  <span className="hidden xl:inline">Asistente IA</span>
+                  <span className="xl:hidden">IA</span>
+                </button>
               )}
-            </button>
 
-            {/* Book Appointment CTA with Glow Animation */}
-            <button
-              id="header-booking-btn"
-              onClick={() => onOpenBooking()}
-              className="relative group flex items-center gap-1.5 px-4 py-2 text-xs xl:text-sm font-black text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 active:scale-95 rounded-full shadow-md shadow-amber-400/25 hover:shadow-amber-500/40 transition-all whitespace-nowrap overflow-hidden btn-glow-amber"
-            >
-              {/* Subtle shimmer sheen */}
-              <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-              <Calendar className="w-3.5 h-3.5 text-slate-950 relative z-10" />
-              <span className="relative z-10">Reserva tu cita</span>
-            </button>
-          </div>
+              {/* Patient Portal / Search appointment */}
+              {onOpenPatientPortal && (
+                <button
+                  type="button"
+                  onClick={onOpenPatientPortal}
+                  title="Consultar, validar o reprogramar tu cita con tu código"
+                  className="flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-amber-600 dark:text-slate-200 dark:hover:text-amber-400 bg-slate-100/90 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 rounded-full transition-all border border-slate-200 dark:border-slate-700 shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span className="hidden xl:inline">Validar Cita</span>
+                </button>
+              )}
+
+              {/* Tools Dropdown: Specialist Access, Privacy & Dev support */}
+              <div className="relative shrink-0" ref={toolsMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setToolsMenuOpen(!toolsMenuOpen)}
+                  title="Opciones y Accesos Clínicos (Especialistas, Privacidad, Soporte)"
+                  className={`p-2 rounded-full transition-colors border cursor-pointer ${
+                    toolsMenuOpen
+                      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-400'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700'
+                  }`}
+                  aria-label="Menú de herramientas clínicas y administrativas"
+                >
+                  <Settings2 className="w-4 h-4" />
+                </button>
+
+                <AnimatePresence>
+                  {toolsMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#141414] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-2 z-50 overflow-hidden"
+                    >
+                      <div className="px-3 py-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+                        Accesos & Sistema
+                      </div>
+
+                      {onOpenSpecialistAccess && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolsMenuOpen(false);
+                            onOpenSpecialistAccess();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-colors text-left cursor-pointer"
+                        >
+                          <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0">
+                            <KeyRound className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-900 dark:text-white">Acceso Especialistas</div>
+                            <div className="text-[10px] text-slate-400">Dirección y personal médico</div>
+                          </div>
+                        </button>
+                      )}
+
+                      {onOpenPrivacyModal && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolsMenuOpen(false);
+                            onOpenPrivacyModal();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-colors text-left cursor-pointer"
+                        >
+                          <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-900 dark:text-white">Privacidad & ARCO</div>
+                            <div className="text-[10px] text-slate-400">Cifrado y derechos del paciente</div>
+                          </div>
+                        </button>
+                      )}
+
+                      {onOpenDeveloperSupport && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolsMenuOpen(false);
+                            onOpenDeveloperSupport();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-colors text-left cursor-pointer"
+                        >
+                          <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                            <Code2 className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-900 dark:text-white">Soporte Desarrollador</div>
+                            <div className="text-[10px] text-slate-400">Soporte técnico web</div>
+                          </div>
+                        </button>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Dark Mode Toggle */}
+              <button
+                id="theme-toggle-btn"
+                onClick={onToggleDarkMode}
+                aria-label={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+                className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors border border-slate-200 dark:border-slate-700 shrink-0 cursor-pointer"
+              >
+                {darkMode ? (
+                  <Sun className="w-4 h-4 text-amber-400 hover:rotate-45 transition-transform duration-300" />
+                ) : (
+                  <Moon className="w-4 h-4 text-slate-700 hover:-rotate-12 transition-transform duration-300" />
+                )}
+              </button>
+
+              {/* Book Appointment CTA with Brand Gold Styling */}
+              <button
+                id="header-booking-btn"
+                onClick={() => onOpenBooking()}
+                className="relative group flex items-center gap-1.5 px-3.5 xl:px-4 py-1.5 xl:py-2 text-xs xl:text-sm font-black text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 active:scale-95 rounded-full shadow-md shadow-amber-400/20 hover:shadow-amber-500/35 transition-all whitespace-nowrap overflow-hidden shrink-0 btn-glow-amber cursor-pointer"
+              >
+                <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                <Calendar className="w-3.5 h-3.5 text-slate-950 relative z-10 shrink-0" />
+                <span className="relative z-10">Agendar Cita</span>
+              </button>
+            </div>
 
           {/* Mobile Menu Toggle & Theme */}
           <div className="flex md:hidden items-center gap-2">
@@ -317,14 +413,34 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                   {/* Nav Links */}
                   <div className="flex flex-col gap-1">
+                    {/* Gemini AI Assistant Featured Button in Mobile Drawer */}
+                    {onOpenGeminiBot && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          onOpenGeminiBot();
+                        }}
+                        className="flex items-center justify-between px-4 py-3 text-sm font-bold rounded-2xl bg-gradient-to-r from-amber-400/20 via-amber-300/15 to-transparent text-amber-950 dark:text-amber-300 border border-amber-400/30 mb-1"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-amber-500 animate-spin-slow" />
+                          <span>Asistente IA (Gemini 3.8)</span>
+                        </div>
+                        <span className="text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-amber-400 text-slate-950">
+                          Chat
+                        </span>
+                      </button>
+                    )}
+
                     {navLinks.map((link) => {
-                      const isActive = activeSection === link.id;
+                      const isActive = activeView === link.viewId;
                       return (
                         <a
                           key={link.label}
                           href={link.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={`flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-2xl transition-all ${
+                          onClick={(e) => handleLinkClick(e, link.viewId)}
+                          className={`flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-2xl transition-all cursor-pointer ${
                             isActive
                               ? 'bg-amber-500/10 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/20'
                               : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70'

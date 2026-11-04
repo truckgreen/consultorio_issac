@@ -804,7 +804,171 @@ Debes responder ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
     }
   });
 
-  // 2. Global configuration endpoint (Syncs credentials with token masking for non-staff)
+  // 1c. Asistente Conversacional Inteligente con Gemini (Gemini 3.8 Flash)
+  app.post('/api/gemini/chat', createRateLimiter(60 * 1000, 35, 'gemini_chat'), async (req, res) => {
+    try {
+      const { message, history } = req.body || {};
+      const userMessage = sanitizeServerInput(message || '', 1200);
+
+      if (!userMessage || userMessage.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Por favor escribe un mensaje o pregunta para el asistente.',
+        });
+      }
+
+      // RED FLAG EMERGENCY CHECK
+      const redFlagsRegex = /\b(pecho|infarto|coraz[oó]n|paro|par[aá]lisis|desmayo|p[eé]rdida de consciencia|p[eé]rdida de conocimiento|asfixia|ahogo|falta de aire|no puedo respirar|dificultad respiratoria|sangrado profuso|hemorragia abundante|fractura expuesta|convulsi[oó]n|ictus|acv)\b/i;
+      if (redFlagsRegex.test(userMessage)) {
+        return res.json({
+          success: true,
+          reply: `⚠️ **AVISO DE SEGURIDAD CLÍNICA URGENTE**
+
+Los síntomas que mencionas podrían indicar una emergencia médica aguda o de riesgo vital. 
+
+La fisioterapia y rehabilitación no están indicadas para atender emergencias cardiorrespiratorias o neurológicas agudas.
+
+**Recomendaciones inmediatas:**
+1. No te demores agendando consultas ambulatorias.
+2. Comunícate de inmediato con el servicio de emergencias médicas de tu localidad (**Ven911 / 911**).
+3. Acude sin demora a la sala de emergencias del centro de salud u hospital más cercano.`,
+          isEmergency: true,
+          suggestedActions: [
+            { label: 'Llamar a Emergencias (911)', action: 'tel:911' },
+            { label: 'Contactar Consultorio (0424-2724617)', action: 'tel:04242724617' },
+          ],
+        });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      const systemInstruction = `Eres "EquilibraBot", el Asistente Clínico Inteligente oficial de "EQUILIBRA - Centro de Fisioterapia & Bienestar Integral" en Caracas, Venezuela.
+Tu objetivo es orientar a los pacientes con empatía, tono profesional y rigurosidad biomecánica.
+
+INFORMACIÓN OFICIAL DE LA CLÍNICA EQUILIBRA:
+- Eslogan y Filosofía: "Un refugio, no una sala de espera". Tratamiento individual 1 a 1, sin masificación, con base en evidencia científica.
+- Ubicación: Sabana Grande, Caracas, Venezuela (fácil acceso en Metro y vehículo).
+- Teléfono / WhatsApp oficial del consultorio: 0424-2724617.
+- Correo de avisos y citas: equilibraavisos@gmail.com.
+- Horarios de atención: Lunes a Viernes de 7:30 AM a 6:00 PM. Sábados de 8:00 AM a 2:00 PM.
+- Especialidades médicas y fisioterapéuticas disponibles:
+  1. Fisioterapia Traumatológica y Ortopédica: Dolor de espalda, cervicalgias, lumbalgias, hernias discales, ciática, tendinitis, esguinces.
+  2. Fisioterapia Deportiva y Readaptación: Sobrecargas, desgarros musculares, lesiones de ligamentos, corredores, atletas de gimnasio y crossfit.
+  3. Fisioterapia Geriátrica: Movilidad articular, prevención de caídas, fortalecimiento y artrosis en adultos mayores.
+  4. Fisioterapia Pediátrica: Neurodesarrollo, reeducación postural infantil y escoliosis.
+  5. Fisioterapia Estética y Postquirúrgica: Drenaje linfático manual y recuperación postoperatoria.
+  6. Entrenamiento Funcional Terapéutico y acondicionamiento.
+  7. Nutrición Clínica y Deportiva antiinflamatoria.
+  8. Psicología de la Salud y manejo biopsicosocial del dolor crónico.
+
+PAUTAS DE RESPUESTA:
+- Responde siempre en español claro, cálido y profesional.
+- Utiliza formato Markdown limpio (viñetas, negritas) para que la lectura sea muy agradable y fácil.
+- Si el usuario te pregunta por síntomas o dolor, analiza con empatía qué estructura podría estar involucrada, qué especialista de EQUILIBRA es el más adecuado, brinda 2 o 3 recomendaciones iniciales seguras (hielo/calor, pausas activas, postura) e invítalo a agendar su cita de evaluación presencial en la web o por el 0424-2724617.
+- Si te preguntan cómo agendar, explícales que pueden hacerlo directamente en la pestaña "Citas Online" de la página o haciendo clic en el botón de reservar.
+- Si te preguntan precios u horarios, indícales el horario oficial y que las tarifas y paquetes están disponibles en la sección "Citas Online".`;
+
+      if (apiKey && apiKey.trim().length > 0) {
+        try {
+          const ai = new GoogleGenAI({
+            apiKey: apiKey.trim(),
+            httpOptions: {
+              headers: {
+                'User-Agent': 'aistudio-build',
+              },
+            },
+          });
+
+          const contents: any[] = [];
+          if (Array.isArray(history)) {
+            for (const item of history.slice(-6)) {
+              if (item && item.content) {
+                contents.push({
+                  role: item.role === 'model' || item.role === 'assistant' ? 'model' : 'user',
+                  parts: [{ text: sanitizeServerInput(String(item.content), 800) }],
+                });
+              }
+            }
+          }
+          contents.push({
+            role: 'user',
+            parts: [{ text: userMessage }],
+          });
+
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.8-flash',
+            contents,
+            config: {
+              systemInstruction,
+              temperature: 0.6,
+            },
+          });
+
+          const reply = response.text || 'Hola, soy el asistente de EQUILIBRA. ¿En qué podemos ayudarte hoy con tu recuperación física?';
+          return res.json({
+            success: true,
+            reply,
+            source: 'gemini-3.8-flash',
+          });
+        } catch (geminiCallErr: any) {
+          console.warn('[Gemini API call failed, using graceful fallback]:', geminiCallErr?.message);
+        }
+      }
+
+      // Intelligent Fallback when GEMINI_API_KEY is not set or offline
+      const lower = userMessage.toLowerCase();
+      let fallbackReply = `¡Hola! Bienvenido a **EQUILIBRA - Fisioterapia & Bienestar Integral** en Caracas.
+
+Estamos ubicados en **Sabana Grande, Caracas** y atendemos de **Lunes a Viernes de 7:30 AM a 6:00 PM** y **Sábados de 8:00 AM a 2:00 PM**.
+
+Puedes comunicarte directamente con nuestro consultorio al **0424-2724617** o agendar tu cita en línea directamente en esta web.`;
+
+      if (lower.includes('espalda') || lower.includes('lumbar') || lower.includes('cuello') || lower.includes('cervical') || lower.includes('ciática') || lower.includes('columna')) {
+        fallbackReply = `Para molestias en columna, zona lumbar o cuello, nuestro servicio recomendado es **Fisioterapia Traumatológica y Terapia Manual**.
+
+**Orientación inicial:**
+- Evita permanecer más de 45 minutos seguidos en la misma posición sentada.
+- Si el dolor es punzante o reciente, aplica compresas frías por 15 minutos. Si es rigidez muscular matutina, el calor suave relaja los tejidos.
+- Te sugerimos una **Evaluación Biomecánica 1 a 1** en EQUILIBRA para determinar el origen exacto y aliviar la presión sobre los nervios o vértebras.
+
+¿Deseas agendar tu cita ahora o necesitas información sobre nuestros fisioterapeutas?`;
+      } else if (lower.includes('deporte') || lower.includes('correr') || lower.includes('rodilla') || lower.includes('tobillo') || lower.includes('gym') || lower.includes('desgarro')) {
+        fallbackReply = `Para deportistas y personas activas, contamos con el área de **Fisioterapia Deportiva & Readaptación Funcional**.
+
+**Recomendaciones:**
+- Suspende las cargas de impacto mientras persista el dolor agudo.
+- Nuestro equipo evalúa tu gesto deportivo, fuerza excéntrica y movilidad para que regreses al entrenamiento sin riesgo de recaída.
+- Puedes coordinar tu valoración con nuestros especialistas en Sabana Grande.`;
+      } else if (lower.includes('precio') || lower.includes('costo') || lower.includes('tarifa') || lower.includes('cuanto')) {
+        fallbackReply = `En **EQUILIBRA** ofrecemos opciones accesibles tanto en sesiones individuales como en paquetes terapéuticos (con descuento por sesión).
+
+Puedes ver todas las tarifas actualizadas y agendar tu sesión en tiempo real desde la sección **"Citas Online"** en el menú superior, o consultarnos al WhatsApp **0424-2724617**.`;
+      } else if (lower.includes('horario') || lower.includes('hora') || lower.includes('dias') || lower.includes('sábado')) {
+        fallbackReply = `Nuestros horarios de atención en consultorio son:
+- **Lunes a Viernes:** 7:30 AM – 6:00 PM (Jornada continua)
+- **Sábados:** 8:00 AM – 2:00 PM
+- **Domingos:** Cerrado
+
+Las citas se programan por turnos para garantizar tu atención personalizada sin tiempos de espera.`;
+      } else if (lower.includes('donde') || lower.includes('ubicacion') || lower.includes('direccion') || lower.includes('llegar')) {
+        fallbackReply = `Nos encontramos en **Sabana Grande, Caracas, Venezuela**, en una zona segura y de fácil acceso tanto en Metro como en vehículo particular.
+
+Puedes consultar el mapa detallado en la sección de **Contacto** o llamarnos al **0424-2724617** para guiarte en tu llegada.`;
+      }
+
+      res.json({
+        success: true,
+        reply: fallbackReply,
+        source: 'clinical-fallback',
+      });
+    } catch (err: any) {
+      console.error('[Gemini Chat Error]:', err?.message);
+      res.status(500).json({
+        success: false,
+        error: 'No pudimos procesar tu consulta en este instante. Por favor contáctanos al 0424-2724617.',
+      });
+    }
+  });
   app.get('/api/config', (req, res) => {
     const isAuth = isStaffAuthenticated(req);
     const {

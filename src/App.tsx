@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useScroll, useSpring } from 'motion/react';
-import { Navbar } from './components/Navbar';
-import { Hero } from './components/Hero';
+import { Navbar, AppView } from './components/Navbar';
+import { HomeView } from './components/HomeView';
+import { SubviewHeader } from './components/SubviewHeader';
+import { GeminiBotWidget } from './components/GeminiBotWidget';
 import { AboutSection } from './components/AboutSection';
 import { ServicesGrid } from './components/ServicesGrid';
 import { ServiceDetailModal } from './components/ServiceDetailModal';
@@ -41,6 +43,43 @@ export function App() {
     restDelta: 0.001,
   });
 
+  // 1. Multi-view Routing State based on URL Hash
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    try {
+      const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+      const validViews: AppView[] = ['inicio', 'servicios', 'triage', 'equipo', 'citas', 'testimonios', 'contacto'];
+      if (validViews.includes(hash as AppView)) {
+        return hash as AppView;
+      }
+    } catch {}
+    return 'inicio';
+  });
+
+  // Listen to hash changes (browser back/forward buttons & direct links)
+  useEffect(() => {
+    const handleHashChange = () => {
+      try {
+        const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+        const validViews: AppView[] = ['inicio', 'servicios', 'triage', 'equipo', 'citas', 'testimonios', 'contacto'];
+        if (validViews.includes(hash as AppView)) {
+          setCurrentView(hash as AppView);
+        } else if (!hash || hash === 'inicio') {
+          setCurrentView('inicio');
+        }
+      } catch {}
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleNavigateView = (view: AppView) => {
+    setCurrentView(view);
+    window.location.hash = `#/${view}`;
+    trackPageView(view);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Global config sync across all devices & direct link detection
   useEffect(() => {
     syncGlobalConfigFromServer();
@@ -60,7 +99,7 @@ export function App() {
     }
   }, []);
 
-  // 1. Dark Mode State
+  // 2. Dark Mode State
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return localStorage.getItem(THEME_STORAGE_KEY) === 'dark';
   });
@@ -72,7 +111,7 @@ export function App() {
 
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
-  // 2. Modals State
+  // 3. Modals State
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedServiceIdForBooking, setSelectedServiceIdForBooking] = useState<string | undefined>(undefined);
   const [selectedDetailService, setSelectedDetailService] = useState<ServiceItem | null>(null);
@@ -86,7 +125,10 @@ export function App() {
   const [isDeveloperSupportOpen, setIsDeveloperSupportOpen] = useState(false);
   const [isAppDownloadOpen, setIsAppDownloadOpen] = useState(false);
 
-  // 3. Custom 404 State
+  // 4. Gemini AI Chatbot Widget State
+  const [isGeminiBotOpen, setIsGeminiBotOpen] = useState(false);
+
+  // 5. Custom 404 State
   const [is404Active, setIs404Active] = useState<boolean>(() => {
     const path = window.location.pathname;
     return path !== '/' && path !== '' && path !== '/index.html';
@@ -112,12 +154,23 @@ export function App() {
     window.dispatchEvent(new CustomEvent('equilibra_open_cookie_settings'));
   };
 
+  const handleOpenGeminiBot = (initialPrompt?: string) => {
+    setIsGeminiBotOpen(true);
+    // If prompt passed, trigger custom event that widget can catch or prefill
+    if (initialPrompt) {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('equilibra_gemini_prompt', { detail: initialPrompt }));
+      }, 150);
+    }
+  };
+
   if (is404Active) {
     return (
       <NotFoundPage
         onGoHome={() => {
           window.history.pushState({}, '', '/');
           setIs404Active(false);
+          setCurrentView('inicio');
         }}
         onOpenBooking={() => {
           window.history.pushState({}, '', '/');
@@ -130,65 +183,109 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#F2EFE8] dark:bg-[#0C0C0C] text-[#0C0C0C] dark:text-[#F2EFE8] font-sans transition-colors selection:bg-[#B1A086] selection:text-slate-950 relative">
-      {/* Top Animated Reading Progress Bar */}
+      {/* Top Reading Progress Bar */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#9E8D74] via-[#B1A086] to-[#D1CEC9] origin-left z-[60] pointer-events-none shadow-sm shadow-[#B1A086]/30"
         style={{ scaleX }}
       />
 
-      {/* Subtle global ambient background gradients */}
+      {/* Ambient background gradients */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#B1A086]/5 dark:bg-[#B1A086]/5 rounded-full blur-3xl" />
         <div className="absolute top-1/3 -right-40 w-96 h-96 bg-[#B1A086]/5 dark:bg-[#B1A086]/5 rounded-full blur-3xl" />
         <div className="absolute bottom-20 left-1/4 w-80 h-80 bg-slate-400/5 dark:bg-[#B1A086]/5 rounded-full blur-3xl" />
       </div>
 
-      {/* 1. Sticky Navigation Bar */}
+      {/* 1. Header Navigation with View Switcher & Gemini Assistant */}
       <Navbar
         darkMode={darkMode}
         onToggleDarkMode={toggleDarkMode}
         onOpenBooking={handleOpenBooking}
+        activeView={currentView}
+        onSelectView={handleNavigateView}
+        onOpenGeminiBot={() => setIsGeminiBotOpen(true)}
         onOpenPatientPortal={() => handleOpenPatientPortal()}
         onOpenSpecialistAccess={() => setIsSpecialistAccessOpen(true)}
         onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
         onOpenDeveloperSupport={() => setIsDeveloperSupportOpen(true)}
       />
 
-      {/* 2. Main Page Sections */}
-      <main>
-        <Hero onOpenBooking={() => handleOpenBooking()} />
-        
-        <AboutSection onOpenBooking={() => handleOpenBooking()} />
-        
-        <ServicesGrid
-          onSelectService={(service) => setSelectedDetailService(service)}
-          onOpenBooking={handleOpenBooking}
-        />
-        
-        <TeamSection onOpenBooking={handleOpenBooking} />
-        
-        <SpecialtiesSection onOpenBooking={handleOpenBooking} />
-        
-        <PhilosophySection onOpenBooking={() => handleOpenBooking()} />
-        
-        <WhyChooseUs onOpenBooking={() => handleOpenBooking()} />
-        
-        <InteractiveAssessment onOpenBooking={handleOpenBooking} />
-        
-        <BookingSection
-          onOpenPatientPortal={handleOpenPatientPortal}
-          onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
-        />
+      {/* 2. Subview Context Header (Rendered on non-home views) */}
+      <SubviewHeader
+        view={currentView}
+        onGoHome={() => handleNavigateView('inicio')}
+        onOpenBooking={() => handleOpenBooking()}
+        onOpenGeminiBot={() => setIsGeminiBotOpen(true)}
+      />
 
-        {/* Google Business Profile Information Card */}
-        <GoogleBusinessCard />
-        
-        <TestimonialsSection />
-        
-        <InteractiveFaq />
+      {/* 3. Main Views Content */}
+      <main className="relative z-10">
+        {/* VIEW: INICIO (HOME - Alto Impacto, Intuitivo, Hub de Navegación) */}
+        {currentView === 'inicio' && (
+          <HomeView
+            onNavigateView={handleNavigateView}
+            onOpenBooking={handleOpenBooking}
+            onOpenGeminiBot={handleOpenGeminiBot}
+            onSelectService={(service) => setSelectedDetailService(service)}
+          />
+        )}
+
+        {/* VIEW: SERVICIOS & ESPECIALIDADES */}
+        {currentView === 'servicios' && (
+          <div className="pb-16 space-y-12">
+            <ServicesGrid
+              onSelectService={(service) => setSelectedDetailService(service)}
+              onOpenBooking={handleOpenBooking}
+            />
+            <SpecialtiesSection onOpenBooking={handleOpenBooking} />
+          </div>
+        )}
+
+        {/* VIEW: ORIENTACIÓN CLÍNICA & TRIAGE */}
+        {currentView === 'triage' && (
+          <div className="pb-16 space-y-12">
+            <InteractiveAssessment onOpenBooking={handleOpenBooking} />
+          </div>
+        )}
+
+        {/* VIEW: EQUIPO MÉDICO & FILOSOFÍA */}
+        {currentView === 'equipo' && (
+          <div className="pb-16 space-y-12">
+            <AboutSection onOpenBooking={() => handleOpenBooking()} />
+            <TeamSection onOpenBooking={handleOpenBooking} />
+            <PhilosophySection onOpenBooking={() => handleOpenBooking()} />
+            <WhyChooseUs onOpenBooking={() => handleOpenBooking()} />
+          </div>
+        )}
+
+        {/* VIEW: CITAS ONLINE DIRECTAS */}
+        {currentView === 'citas' && (
+          <div className="pb-16">
+            <BookingSection
+              onOpenPatientPortal={handleOpenPatientPortal}
+              onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
+            />
+          </div>
+        )}
+
+        {/* VIEW: RESEÑAS, TESTIMONIOS & FAQ */}
+        {currentView === 'testimonios' && (
+          <div className="pb-16 space-y-12">
+            <GoogleBusinessCard />
+            <TestimonialsSection />
+            <InteractiveFaq />
+          </div>
+        )}
+
+        {/* VIEW: CONTACTO & UBICACIÓN */}
+        {currentView === 'contacto' && (
+          <div className="pb-12 space-y-12">
+            <GoogleBusinessCard />
+          </div>
+        )}
       </main>
 
-      {/* 3. Footer */}
+      {/* 4. Global Footer */}
       <ContactFooter
         onOpenBooking={() => handleOpenBooking()}
         onOpenPatientPortal={() => handleOpenPatientPortal()}
@@ -200,10 +297,18 @@ export function App() {
         onOpenDeveloperSupport={() => setIsDeveloperSupportOpen(true)}
       />
 
-      {/* 4. Floating Conversion Elements */}
+      {/* 5. Floating Interactive Gemini Assistant Widget */}
+      <GeminiBotWidget
+        isOpen={isGeminiBotOpen}
+        onOpen={() => setIsGeminiBotOpen(true)}
+        onClose={() => setIsGeminiBotOpen(false)}
+        onOpenBooking={handleOpenBooking}
+      />
+
+      {/* 6. Floating Conversion Elements */}
       <WhatsAppFloatingButton />
 
-      {/* Floating navigation tip toast that disappears after a few seconds */}
+      {/* Floating navigation tip toast */}
       <NavigationTipToast />
 
       {/* Cookie Consent Banner */}
@@ -212,7 +317,7 @@ export function App() {
         onOpenLegalNotice={() => setIsLegalNoticeOpen(true)}
       />
 
-      {/* 5. Global Modals */}
+      {/* 7. Global Modals */}
       <BookingModal
         isOpen={isBookingModalOpen}
         onClose={handleCloseBooking}
@@ -248,13 +353,11 @@ export function App() {
         onClose={() => setIsPrivacyModalOpen(false)}
       />
 
-      {/* Legal & Terms Modal */}
       <LegalNoticeModal
         isOpen={isLegalNoticeOpen}
         onClose={() => setIsLegalNoticeOpen(false)}
       />
 
-      {/* Audit Checklist Modal */}
       <LaunchAuditModal
         isOpen={isLaunchAuditOpen}
         onClose={() => setIsLaunchAuditOpen(false)}
