@@ -35,6 +35,7 @@ interface StoredAppConfig {
   kapsoEnabled?: boolean;
   kapsoNotifyPatient?: boolean;
   kapsoNotifyAdmin?: boolean;
+  geminiApiKey?: string;
   updatedAt?: string;
 }
 
@@ -840,7 +841,14 @@ La fisioterapia y rehabilitación no están indicadas para atender emergencias c
         });
       }
 
-      const apiKey = process.env.GEMINI_API_KEY;
+      const diskConfig = readDiskConfig();
+      const apiKey = (
+        process.env.GEMINI_API_KEY ||
+        process.env.API_KEY ||
+        process.env.VITE_GEMINI_API_KEY ||
+        diskConfig.geminiApiKey ||
+        ''
+      ).trim();
 
       const systemInstruction = `Eres "EquilibraBot", el Asistente Clínico Inteligente oficial de "EQUILIBRA - Centro de Fisioterapia & Bienestar Integral" en Caracas, Venezuela.
 Tu objetivo es orientar a los pacientes con empatía, tono profesional y rigurosidad biomecánica.

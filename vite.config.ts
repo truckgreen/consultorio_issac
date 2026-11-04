@@ -28,6 +28,9 @@ export default defineConfig(() => {
     define: {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl),
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabaseKey),
+      'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(
+        process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || ''
+      ),
     },
     resolve: {
       alias: {

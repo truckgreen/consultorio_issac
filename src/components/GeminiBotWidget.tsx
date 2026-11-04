@@ -14,6 +14,11 @@ import {
   Clock,
   ChevronDown,
 } from 'lucide-react';
+import {
+  getAutonomousClinicalResponse,
+  callDirectGeminiApi,
+  getStoredGeminiApiKey,
+} from '../utils/clinicalBotEngine';
 
 export interface ChatMessage {
   id: string;
@@ -108,55 +113,82 @@ Estoy entrenado para orientarte sobre:
     setIsLoading(true);
 
     try {
-      // Build history for context
-      const historyPayload = messages
-        .filter((m) => m.id !== 'welcome-1')
-        .slice(-6)
-        .map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
+      let replyText = '';
+      let isEmergencyFlag = false;
 
-      const res = await fetch('/api/gemini/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          history: historyPayload,
-        }),
-      });
+      // 1. Intento primario: Consultar al endpoint backend de Node.js (/api/gemini/chat)
+      try {
+        const historyPayload = messages
+          .filter((m) => m.id !== 'welcome-1')
+          .slice(-6)
+          .map((m) => ({
+            role: m.role,
+            content: m.content,
+          }));
 
-      const data = await res.json();
+        const res = await fetch('/api/gemini/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            history: historyPayload,
+          }),
+        });
 
-      if (data.success && data.reply) {
-        const botMsg: ChatMessage = {
-          id: `bot_${Date.now()}`,
-          role: 'model',
-          content: data.reply,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isEmergency: Boolean(data.isEmergency),
-        };
-        setMessages((prev) => [...prev, botMsg]);
-        if (!isOpen) {
-          setUnreadCount((c) => c + 1);
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data && data.success && data.reply) {
+            replyText = data.reply;
+            isEmergencyFlag = Boolean(data.isEmergency);
+          }
         }
-      } else {
-        const fallbackMsg: ChatMessage = {
-          id: `bot_err_${Date.now()}`,
-          role: 'model',
-          content: data.error || 'Disculpa, no pude procesar la respuesta. Puedes llamarnos directamente al consultorio al **0424-2724617**.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setMessages((prev) => [...prev, fallbackMsg]);
+      } catch (serverErr) {
+        // En servidores estáticos (cPanel, Vercel, Netlify sin backend Node) la ruta /api dará 404 o fetch error
+        console.warn('[GeminiWidget] Servidor Node no disponible o hosting estático:', serverErr);
       }
-    } catch {
-      const networkMsg: ChatMessage = {
-        id: `bot_net_${Date.now()}`,
+
+      // 2. Intento secundario: Si no hubo respuesta del servidor, consultar directamente a Google Gemini si hay API Key en .env
+      if (!replyText) {
+        const directKey = getStoredGeminiApiKey();
+        if (directKey) {
+          try {
+            replyText = await callDirectGeminiApi(directKey, text, messages);
+          } catch (directErr) {
+            console.warn('[GeminiWidget] Llamada directa a Gemini falló, usando motor clínico autónomo:', directErr);
+          }
+        }
+      }
+
+      // 3. Garantía clínica: Motor Autónomo de Triage de EQUILIBRA (Garantiza respuesta inmediata y precisa 100% offline)
+      if (!replyText) {
+        const localResult = getAutonomousClinicalResponse(text);
+        replyText = localResult.reply;
+        isEmergencyFlag = Boolean(localResult.isEmergency);
+      }
+
+      const botMsg: ChatMessage = {
+        id: `bot_${Date.now()}`,
         role: 'model',
-        content: 'Hubo una pausa en la conexión con el servidor. Nuestro consultorio está disponible directamente en WhatsApp o llamada al **0424-2724617**.',
+        content: replyText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isEmergency: isEmergencyFlag,
       };
-      setMessages((prev) => [...prev, networkMsg]);
+
+      setMessages((prev) => [...prev, botMsg]);
+      if (!isOpen) {
+        setUnreadCount((c) => c + 1);
+      }
+    } catch (unhandledErr) {
+      console.error('[GeminiWidget] Error no controlado:', unhandledErr);
+      const safeFallback = getAutonomousClinicalResponse(text);
+      const botMsg: ChatMessage = {
+        id: `bot_err_${Date.now()}`,
+        role: 'model',
+        content: safeFallback.reply,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isEmergency: Boolean(safeFallback.isEmergency),
+      };
+      setMessages((prev) => [...prev, botMsg]);
     } finally {
       setIsLoading(false);
     }
@@ -310,7 +342,7 @@ Estoy entrenado para orientarte sobre:
                   type="button"
                   onClick={handleResetChat}
                   title="Reiniciar conversación"
-                  className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -318,7 +350,7 @@ Estoy entrenado para orientarte sobre:
                   type="button"
                   onClick={onClose}
                   title="Minimizar ventana"
-                  className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
