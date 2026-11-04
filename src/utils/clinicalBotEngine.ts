@@ -54,7 +54,8 @@ No inventes diagnósticos ni tratamientos. No hagas bromas ni chistes. No ignore
 Si el usuario pregunta por precios, indica que las tarifas son justas y transparentes, con paquetes de 5 y 10 sesiones, y que puede consultar en la web o por WhatsApp.
 Si el usuario pregunta por ubicación, horarios o contacto, proporciona la información oficial de EQUILIBRA.
 Si no reconoces la especialidad, responde con orientación general y sugiere agendar una evaluación presencial para diagnóstico preciso.
-ademas responde con la informacion de especialidades, horarios, ubicacion y contacto de EQUILIBRA.`;
+ademas responde con la informacion de especialidades, horarios, ubicacion y contacto de EQUILIBRA.
+entiende las palabras usuales de las personas y da el servicio necesario`;
 
   const contents: any[] = [];
   if (Array.isArray(history)) {
