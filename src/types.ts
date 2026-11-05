@@ -172,6 +172,8 @@ export interface TimeSlotInfo {
 export interface Appointment {
   id: string;
   code: string;
+  patientId?: string;
+  patient_id?: string;
   service_id?: string;
   serviceId?: string;
   service_title?: string;
@@ -221,6 +223,35 @@ export interface Appointment {
   sessionCompleted?: boolean;
 }
 
+export interface PatientAppointmentStats {
+  totalBooked: number;
+  completed: number;
+  confirmed: number;
+  pending: number;
+  canceled: number;
+  rescheduled: number;
+  noShow: number;
+  attendanceRate: number; // Porcentaje de asistencia 0 - 100%
+  totalSpent: number;
+}
+
+export interface ClinicalTimelineEvent {
+  id: string;
+  date: string; // YYYY-MM-DD
+  time?: string;
+  type: 'evolucion' | 'sesion' | 'evaluacion_inicial' | 'nota_medica' | 'cancelacion' | 'reprogramacion';
+  title: string;
+  specialistName?: string;
+  serviceName?: string;
+  painScore?: number; // EVA 0-10
+  evolutionNotes?: string;
+  homeExercises?: string[];
+  status?: AppointmentStatus | string;
+  appointmentCode?: string;
+  appointmentId?: string;
+  createdAt?: string;
+}
+
 export type ConfirmedAppointment = Appointment;
 
 export interface MedicalRecordDocument {
@@ -256,6 +287,11 @@ export interface PatientRecord {
   };
   totalAppointments: number;
   completedAppointments: number;
+  canceledAppointments?: number;
+  rescheduledAppointments?: number;
+  pendingAppointments?: number;
+  confirmedAppointments?: number;
+  attendanceRate?: number;
   lastVisit: string;
   totalSpent: number;
   firstVisitDate: string;

@@ -10,6 +10,12 @@ import {
 } from './security';
 import { notifySpecialistNewAppointment } from './notificationUtils';
 import { sendTelegramBookingAlert } from './telegramBot';
+import {
+  getStoredPatients,
+  saveStoredPatient,
+  generatePatientId,
+  isAppointmentOfPatient,
+} from './patientUtils';
 
 export const STANDARD_WEEKDAY_SLOTS = [
   '08:00 AM - 09:00 AM',
@@ -327,11 +333,42 @@ export function subscribeToAppointments(onChange: (appointments: ConfirmedAppoin
  * Save appointment with input sanitization, security event tracking, and storage sync
  */
 export async function saveAppointmentToDatabase(appointment: ConfirmedAppointment): Promise<{ success: boolean; error?: string }> {
+  // Ensure patientId is assigned and linked to a patient profile
+  let assignedPatientId = appointment.patientId || appointment.patient_id;
+  if (!assignedPatientId) {
+    try {
+      const existingPatients = getStoredPatients();
+      const matched = existingPatients.find((p) => isAppointmentOfPatient(appointment, p));
+      if (matched) {
+        assignedPatientId = matched.id;
+      } else {
+        assignedPatientId = generatePatientId();
+        // Auto-register patient profile so they have a persistent ID and history tracking
+        saveStoredPatient({
+          id: assignedPatientId,
+          nombre: sanitizeString(appointment.nombre, 60),
+          apellido: sanitizeString(appointment.apellido, 60),
+          telefono: sanitizeString(appointment.telefono, 30),
+          email: sanitizeString(appointment.email, 100).toLowerCase(),
+          totalAppointments: 1,
+          completedAppointments: 0,
+          lastVisit: appointment.fecha || new Date().toISOString().split('T')[0],
+          totalSpent: 0,
+          firstVisitDate: appointment.fecha || new Date().toISOString().split('T')[0],
+          medicalConditions: appointment.motivoConsulta ? sanitizeString(appointment.motivoConsulta, 200) : undefined,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch {}
+  }
+
   // Sanitize all payload fields before storing
   const cleanAppointment: ConfirmedAppointment = {
     ...appointment,
     id: sanitizeString(appointment.id),
     code: sanitizeString(appointment.code),
+    patientId: assignedPatientId,
+    patient_id: assignedPatientId,
     serviceId: sanitizeString(appointment.serviceId),
     selectedPackageName: appointment.selectedPackageName ? sanitizeString(appointment.selectedPackageName) : undefined,
     selectedPackagePrice: appointment.selectedPackagePrice ? sanitizeString(String(appointment.selectedPackagePrice)) : undefined,

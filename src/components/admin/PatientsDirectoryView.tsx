@@ -23,6 +23,11 @@ import {
   BadgeAlert
 } from 'lucide-react';
 import { Appointment, PatientRecord, MedicalRecordDocument } from '../../types';
+import { 
+  formatPatientDisplayId, 
+  filterAppointmentsForPatient, 
+  calculatePatientAppointmentStats 
+} from '../../utils/patientUtils';
 
 interface PatientsDirectoryViewProps {
   patients: PatientRecord[];
@@ -260,13 +265,9 @@ export const PatientsDirectoryView: React.FC<PatientsDirectoryViewProps> = ({
       {/* Patients Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredPatients.map(patient => {
-          const patientApps = appointments.filter(
-            a =>
-              ((a.nombre || '').toLowerCase().trim() === (patient.nombre || '').toLowerCase().trim() &&
-               (a.apellido || '').toLowerCase().trim() === (patient.apellido || '').toLowerCase().trim()) ||
-              (a.telefono && patient.telefono && a.telefono.replace(/\D/g, '') === patient.telefono.replace(/\D/g, ''))
-          );
-
+          const patientApps = filterAppointmentsForPatient(patient, appointments);
+          const stats = calculatePatientAppointmentStats(patient, patientApps);
+          const displayId = formatPatientDisplayId(patient.id);
           const docsCount = patient.documents?.length || 0;
 
           return (
@@ -276,20 +277,23 @@ export const PatientsDirectoryView: React.FC<PatientsDirectoryViewProps> = ({
             >
               <div className="space-y-3.5">
                 
-                {/* Top Row: Avatar, Name, and Quick Edit/Delete */}
+                {/* Top Row: Avatar, Name, ID Badge, and Quick Edit/Delete */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-11 h-11 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 font-black text-base flex items-center justify-center shrink-0">
                       {patient.nombre.charAt(0)}{patient.apellido.charAt(0)}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <h3 className="text-sm font-black text-slate-900 dark:text-white truncate">
                           {patient.nombre} {patient.apellido}
                         </h3>
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-[10px] font-mono font-black shrink-0">
+                          {displayId}
+                        </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 flex items-center gap-1.5 truncate">
-                        {patient.cedula && <span className="font-mono font-bold text-slate-600 dark:text-slate-300">{patient.cedula}</span>}
+                      <p className="text-[11px] text-slate-400 flex items-center gap-1.5 truncate mt-0.5">
+                        {patient.cedula && <span className="font-mono font-bold text-slate-600 dark:text-slate-300">C.I. {patient.cedula}</span>}
                         {patient.cedula && <span>•</span>}
                         {patient.edad && <span>{patient.edad} años</span>}
                         <span>•</span>
@@ -394,18 +398,30 @@ export const PatientsDirectoryView: React.FC<PatientsDirectoryViewProps> = ({
                   )}
                 </div>
 
-                {/* Metrics Footer (Spent and Appointments) */}
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40">
-                    <span className="text-slate-400 block text-[9px]">Total Invertido</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                      ${patient.totalSpent || 0} USD
+                {/* Comprehensive Appointment Metrics Counters */}
+                <div className="grid grid-cols-4 gap-1.5 text-center text-[10px]">
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-slate-400 block text-[9px]">Agendadas</span>
+                    <span className="font-black text-slate-900 dark:text-white text-xs">
+                      {stats.totalBooked}
                     </span>
                   </div>
-                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40">
-                    <span className="text-slate-400 block text-[9px]">Citas en Agenda</span>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {patientApps.length} {patientApps.length === 1 ? 'cita' : 'citas'}
+                  <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40">
+                    <span className="text-emerald-700 dark:text-emerald-400 block text-[9px]">Asistidas</span>
+                    <span className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
+                      {stats.completed}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-rose-50/60 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-800/40">
+                    <span className="text-rose-700 dark:text-rose-400 block text-[9px]">Canceladas</span>
+                    <span className="font-black text-rose-600 dark:text-rose-400 text-xs">
+                      {stats.canceled}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40">
+                    <span className="text-blue-700 dark:text-blue-400 block text-[9px]">Asistencia</span>
+                    <span className="font-black text-blue-600 dark:text-blue-400 text-xs">
+                      {stats.attendanceRate}%
                     </span>
                   </div>
                 </div>
@@ -439,3 +455,4 @@ export const PatientsDirectoryView: React.FC<PatientsDirectoryViewProps> = ({
     </div>
   );
 };
+

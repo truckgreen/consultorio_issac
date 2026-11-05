@@ -1,0 +1,1200 @@
+import { SlotStatus, TimeSlotInfo, ConfirmedAppointment } from '../types';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { SERVICES_DATA } from '../data/servicesData';
+import {
+  sanitizeString,
+  generateSecureCode,
+  recordSecurityEvent,
+  maskSensitiveData,
+  getStaffAuthHeaders,
+} from './security';
+import { notifySpecialistNewAppointment } from './notificationUtils';
+import { sendTelegramBookingAlert } from './telegramBot';
+import {
+  getStoredPatients,
+  saveStoredPatient,
+  generatePatientId,
+  isAppointmentOfPatient,
+} from './patientUtils';
+
+export const STANDARD_WEEKDAY_SLOTS = [
+  '08:00 AM - 09:00 AM',
+  '09:00 AM - 10:00 AM',
+  '10:00 AM - 11:00 AM',
+  '11:00 AM - 12:00 PM',
+  '02:00 PM - 03:00 PM',
+  '03:00 PM - 04:00 PM',
+  '04:00 PM - 05:00 PM',
+  '05:00 PM - 06:00 PM',
+  '06:00 PM - 07:00 PM',
+];
+
+export const SATURDAY_SLOTS = [
+  '09:00 AM - 10:00 AM',
+  '10:00 AM - 11:00 AM',
+  '11:00 AM - 12:00 PM',
+  '12:00 PM - 01:00 PM',
+  '01:00 PM - 02:00 PM',
+];
+
+const LOCAL_STORAGE_APPOINTMENTS_KEY = 'equilibra_saved_appointments';
+
+export function getSavedAppointments(): ConfirmedAppointment[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_APPOINTMENTS_KEY);
+    const rawAlt1 = localStorage.getItem('equilibra_appointments');
+    const rawAlt2 = localStorage.getItem('appointments');
+
+    const pool: ConfirmedAppointment[] = [];
+    const seen = new Set<string>();
+
+    const parseAndAdd = (str: string | null) => {
+      if (!str) return;
+      try {
+        const arr = JSON.parse(str);
+        if (Array.isArray(arr)) {
+          for (const item of arr) {
+            const key = String(item.id || item.code || '');
+            if (key && !seen.has(key) && !key.startsWith('seed_') && !key.startsWith('demo_')) {
+              seen.add(key);
+              pool.push(item);
+            }
+          }
+        }
+      } catch {}
+    };
+
+    parseAndAdd(raw);
+    parseAndAdd(rawAlt1);
+    parseAndAdd(rawAlt2);
+
+    return pool;
+  } catch (e) {
+    console.error('Error reading saved appointments:', e);
+    return [];
+  }
+}
+
+export function saveAppointmentToStorage(appointment: ConfirmedAppointment): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getSavedAppointments();
+    const updated = [appointment, ...current.filter((a) => a.id !== appointment.id)];
+    localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(updated));
+    localStorage.setItem('equilibra_appointments', JSON.stringify(updated));
+    if (appointment.code) {
+      localStorage.setItem('equilibra_last_booked_code', appointment.code);
+    }
+    window.dispatchEvent(new CustomEvent('equilibra_appointment_saved', { detail: appointment }));
+  } catch (e) {
+    console.error('Error saving appointment:', e);
+  }
+}
+
+/**
+ * Robustly extracts the real booking code or looks it up from local memory,
+ * NEVER inventing a new random code for an existing appointment record.
+ */
+function extractOrPreserveCode(row: any, fallbackList: ConfirmedAppointment[]): string {
+  // 1. Direct explicit code candidates
+  const candidates = [
+    row.code,
+    row.codigo,
+    row.booking_code,
+    row.bookingCode,
+    row.appointment_code,
+    row.appointmentCode,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) {
+      return sanitizeString(c.trim().toUpperCase());
+    }
+  }
+
+  // 2. Check localList by id
+  if (row.id) {
+    const localMatch = fallbackList.find((l) => l.id === String(row.id));
+    if (localMatch && localMatch.code) {
+      return localMatch.code;
+    }
+  }
+
+  // 3. Check if code is embedded in ID string (e.g. app_1725..._EQ8K3N7P2W)
+  if (typeof row.id === 'string' && row.id.includes('EQ')) {
+    const match = row.id.match(/EQ[A-Z0-9]{4,12}/i);
+    if (match) {
+      const pure = match[0].toUpperCase();
+      if (pure.length >= 10) {
+        return `EQ-${pure.slice(2, 6)}-${pure.slice(6, 10)}`;
+      }
+      return pure;
+    }
+  }
+
+  // 4. If an id exists without a code, generate deterministic code so it never changes
+  if (row.id) {
+    const cleanId = String(row.id).replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const token = cleanId.slice(-8).padEnd(8, '0');
+    return `EQ-${token.slice(0, 4)}-${token.slice(4, 8)}`;
+  }
+
+  return 'EQ-0000-0000';
+}
+
+export async function getAppointmentsFromDatabase(): Promise<ConfirmedAppointment[]> {
+  const localList = getSavedAppointments();
+  let serverList: ConfirmedAppointment[] = [];
+  let supabaseList: ConfirmedAppointment[] = [];
+
+  // 1. Try server API first
+  try {
+    const res = await fetch('/api/appointments', {
+      headers: getStaffAuthHeaders(),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        serverList = json.data.map((row: any) => ({
+          id: String(row.id),
+          code: extractOrPreserveCode(row, localList),
+          serviceId: sanitizeString(row.service_id || row.serviceId || 'fisioterapia'),
+          servicePrice: row.service_price || row.servicePrice || (row.amount ? `${row.amount} USD` : undefined),
+          selectedPackageName: row.selected_package_name || row.package_name || row.selectedPackageName || undefined,
+          selectedPackagePrice: row.selected_package_price || row.selectedPackagePrice || undefined,
+          selectedPackageDescription: row.selected_package_description || row.selectedPackageDescription || undefined,
+          packageCode: row.package_code || row.packageCode || undefined,
+          packageTotalSessions: Number(row.package_total_sessions || row.packageTotalSessions || 1),
+          packageSessionNumber: Number(row.package_session_number || row.packageSessionNumber || 1),
+          specialistId: row.specialist_id || row.specialistId || undefined,
+          specialistName: row.specialist_name || row.specialistName || 'Lic. Isaac Jewsiejew',
+          nombre: sanitizeString(row.nombre || ''),
+          apellido: sanitizeString(row.apellido || ''),
+          telefono: sanitizeString(row.telefono || ''),
+          email: sanitizeString(row.email || ''),
+          fecha: sanitizeString(row.fecha || ''),
+          hora: sanitizeString(row.hora || ''),
+          motivoConsulta: sanitizeString(row.motivo_consulta || row.motivo || row.motivoConsulta || '', 600),
+          primeraVisita: Boolean(row.primera_visita ?? row.primeraVisita),
+          createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+          status: row.status === 'PENDIENTE'
+            ? 'pendiente_validacion'
+            : row.status === 'CANCELADA'
+            ? 'cancelada'
+            : row.status === 'REPROGRAMADA'
+            ? 'reprogramada'
+            : (row.status || 'confirmada').toLowerCase(),
+          cancellationCount: row.cancellation_count || row.cancellationCount || 0,
+          cancellationFeePercent: row.cancellation_fee_percent || row.cancellationFeePercent || 0,
+          cancellationFeeAmount: row.cancellation_fee_amount || row.cancellationFeeAmount || 0,
+          cancellationReason: row.cancellation_reason || row.cancellationReason || undefined,
+          canceledAt: row.canceled_at || row.canceledAt || undefined,
+          rescheduledCount: row.rescheduled_count || row.rescheduledCount || 0,
+          rescheduledFromDate: row.rescheduled_from_date || row.rescheduledFromDate || undefined,
+          rescheduledFromTime: row.rescheduled_from_time || row.rescheduledFromTime || undefined,
+          rescheduledAt: row.rescheduled_at || row.rescheduledAt || undefined,
+        })) as ConfirmedAppointment[];
+      }
+    }
+  } catch (apiErr) {
+    // Continue
+  }
+
+  // 2. Direct Supabase client if configured
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        supabaseList = data.map((row) => ({
+          id: String(row.id),
+          code: extractOrPreserveCode(row, localList),
+          serviceId: sanitizeString(row.service_id || 'fisioterapia'),
+          servicePrice: row.service_price || (row.amount ? `${row.amount} USD` : undefined),
+          selectedPackageName: row.selected_package_name || row.package_name || undefined,
+          selectedPackagePrice: row.selected_package_price || undefined,
+          selectedPackageDescription: row.selected_package_description || undefined,
+          packageCode: row.package_code || undefined,
+          packageTotalSessions: Number(row.package_total_sessions || 1),
+          packageSessionNumber: Number(row.package_session_number || 1),
+          specialistId: row.specialist_id || undefined,
+          specialistName: row.specialist_name || 'Lic. Isaac Jewsiejew',
+          nombre: sanitizeString(row.nombre || ''),
+          apellido: sanitizeString(row.apellido || ''),
+          telefono: sanitizeString(row.telefono || ''),
+          email: sanitizeString(row.email || ''),
+          fecha: sanitizeString(row.fecha || ''),
+          hora: sanitizeString(row.hora || ''),
+          motivoConsulta: sanitizeString(row.motivo_consulta || row.motivo || '', 600),
+          primeraVisita: Boolean(row.primera_visita),
+          createdAt: row.created_at || new Date().toISOString(),
+          status: row.status === 'PENDIENTE'
+            ? 'pendiente_validacion'
+            : row.status === 'CANCELADA'
+            ? 'cancelada'
+            : row.status === 'REPROGRAMADA'
+            ? 'reprogramada'
+            : (row.status || 'confirmada').toLowerCase(),
+          cancellationCount: row.cancellation_count || 0,
+          cancellationFeePercent: row.cancellation_fee_percent || 0,
+          cancellationFeeAmount: row.cancellation_fee_amount || 0,
+          cancellationReason: row.cancellation_reason || undefined,
+          canceledAt: row.canceled_at || undefined,
+          rescheduledCount: row.rescheduled_count || 0,
+          rescheduledFromDate: row.rescheduled_from_date || undefined,
+          rescheduledFromTime: row.rescheduled_from_time || undefined,
+          rescheduledAt: row.rescheduled_at || undefined,
+        })) as ConfirmedAppointment[];
+      }
+    } catch (e) {
+      console.warn('Supabase fetch note:', e);
+    }
+  }
+
+  // Deduplicate and consolidate all sources intelligently
+  // We prioritize localList for the user's current device while enriching with server/Supabase
+  const map = new Map<string, ConfirmedAppointment>();
+
+  const addOrMerge = (incoming: ConfirmedAppointment) => {
+    const idKey = incoming.id ? `id:${incoming.id}` : null;
+    const cleanCode = incoming.code ? incoming.code.toUpperCase().replace(/[^A-Z0-9]/g, '') : null;
+    const codeKey = cleanCode ? `code:${cleanCode}` : null;
+
+    let existing: ConfirmedAppointment | undefined;
+    if (idKey && map.has(idKey)) existing = map.get(idKey);
+    else if (codeKey && map.has(codeKey)) existing = map.get(codeKey);
+
+    if (!existing) {
+      const copy = { ...incoming };
+      if (idKey) map.set(idKey, copy);
+      if (codeKey) map.set(codeKey, copy);
+    } else {
+      const mergedItem: ConfirmedAppointment = {
+        ...existing,
+        ...incoming,
+        // Always preserve legitimate code
+        code: (existing.code && existing.code.startsWith('EQ-')) ? existing.code : (incoming.code || existing.code),
+        nombre: incoming.nombre || existing.nombre,
+        apellido: incoming.apellido || existing.apellido,
+        telefono: incoming.telefono || existing.telefono,
+        email: incoming.email || existing.email,
+        fecha: incoming.fecha || existing.fecha,
+        hora: incoming.hora || existing.hora,
+        selectedPackageName: incoming.selectedPackageName || existing.selectedPackageName,
+        servicePrice: incoming.servicePrice || existing.servicePrice,
+        specialistName: incoming.specialistName || existing.specialistName,
+      };
+      if (idKey) map.set(idKey, mergedItem);
+      if (codeKey) map.set(codeKey, mergedItem);
+    }
+  };
+
+  for (const item of localList) addOrMerge(item);
+  for (const item of serverList) addOrMerge(item);
+  for (const item of supabaseList) addOrMerge(item);
+
+  const seenUnique = new Set<string>();
+  const merged: ConfirmedAppointment[] = [];
+  for (const item of map.values()) {
+    const uKey = item.id || item.code;
+    if (uKey && !seenUnique.has(uKey)) {
+      seenUnique.add(uKey);
+      merged.push(item);
+    }
+  }
+
+  if (merged.length > 0 && typeof window !== 'undefined') {
+    localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(merged));
+  }
+
+  return merged;
+}
+
+export function subscribeToAppointments(onChange: (appointments: ConfirmedAppointment[]) => void): (() => void) | null {
+  if (!isSupabaseConfigured) return null;
+
+  const channel = supabase
+    .channel('public-appointments')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async () => {
+      const refreshed = await getAppointmentsFromDatabase();
+      onChange(refreshed);
+    })
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Save appointment with input sanitization, security event tracking, and storage sync
+ */
+export async function saveAppointmentToDatabase(appointment: ConfirmedAppointment): Promise<{ success: boolean; error?: string }> {
+  // Ensure patientId is assigned and linked to a patient profile
+  let assignedPatientId = appointment.patientId || appointment.patient_id;
+  if (!assignedPatientId) {
+    try {
+      const existingPatients = getStoredPatients();
+      const matched = existingPatients.find((p) => isAppointmentOfPatient(appointment, p));
+      if (matched) {
+        assignedPatientId = matched.id;
+      } else {
+        assignedPatientId = generatePatientId();
+        // Auto-register patient profile so they have a persistent ID and history tracking
+        saveStoredPatient({
+          id: assignedPatientId,
+          nombre: sanitizeString(appointment.nombre, 60),
+          apellido: sanitizeString(appointment.apellido, 60),
+          telefono: sanitizeString(appointment.telefono, 30),
+          email: sanitizeString(appointment.email, 100).toLowerCase(),
+          totalAppointments: 1,
+          completedAppointments: 0,
+          lastVisit: appointment.fecha || new Date().toISOString().split('T')[0],
+          totalSpent: 0,
+          firstVisitDate: appointment.fecha || new Date().toISOString().split('T')[0],
+          medicalConditions: appointment.motivoConsulta ? sanitizeString(appointment.motivoConsulta, 200) : undefined,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch {}
+  }
+
+  // Sanitize all payload fields before storing
+  const cleanAppointment: ConfirmedAppointment = {
+    ...appointment,
+    id: sanitizeString(appointment.id),
+    code: sanitizeString(appointment.code),
+    patientId: assignedPatientId,
+    patient_id: assignedPatientId,
+    serviceId: sanitizeString(appointment.serviceId),
+    selectedPackageName: appointment.selectedPackageName ? sanitizeString(appointment.selectedPackageName) : undefined,
+    selectedPackagePrice: appointment.selectedPackagePrice ? sanitizeString(String(appointment.selectedPackagePrice)) : undefined,
+    packageCode: appointment.packageCode ? sanitizeString(appointment.packageCode) : undefined,
+    packageTotalSessions: appointment.packageTotalSessions,
+    packageSessionNumber: appointment.packageSessionNumber,
+    specialistId: appointment.specialistId ? sanitizeString(appointment.specialistId) : undefined,
+    specialistName: appointment.specialistName ? sanitizeString(appointment.specialistName) : 'Lic. Isaac Jewsiejew',
+    nombre: sanitizeString(appointment.nombre, 60),
+    apellido: sanitizeString(appointment.apellido, 60),
+    telefono: sanitizeString(appointment.telefono, 30),
+    email: sanitizeString(appointment.email, 100).toLowerCase(),
+    fecha: sanitizeString(appointment.fecha),
+    hora: sanitizeString(appointment.hora),
+    motivoConsulta: sanitizeString(appointment.motivoConsulta || '', 600),
+    painScore: appointment.painScore !== undefined ? Math.max(0, Math.min(10, Math.round(appointment.painScore))) : undefined,
+    evolutionNotes: appointment.evolutionNotes ? sanitizeString(appointment.evolutionNotes, 1000) : undefined,
+    homeExercises: Array.isArray(appointment.homeExercises) ? appointment.homeExercises.map((e) => sanitizeString(e, 200)) : undefined,
+  };
+
+  // Always keep a local encrypted/sanitized copy for instant UI feedback
+  saveAppointmentToStorage(cleanAppointment);
+
+  // Trigger specialist & clinic notification alert
+  notifySpecialistNewAppointment(cleanAppointment);
+
+  // Send real-time Telegram Bot notification alert (both client + server)
+  sendTelegramBookingAlert(cleanAppointment).catch(err => {
+    console.warn('Telegram bot alert error:', err);
+  });
+
+  // Record security audit event
+  recordSecurityEvent({
+    action: 'BOOKING_SUCCESS',
+    severity: 'INFO',
+    details: `Cita médica agendada [${cleanAppointment.code}] para ${maskSensitiveData('name', `${cleanAppointment.nombre} ${cleanAppointment.apellido}`)} el ${cleanAppointment.fecha} (${cleanAppointment.hora}) con ${cleanAppointment.specialistName || 'Especialista'}.`,
+  });
+
+  // 1. Call server API endpoint (persists to Supabase via server secrets and sends Telegram alert)
+  try {
+    const res = await fetch('/api/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cleanAppointment),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success) {
+        return { success: true };
+      }
+    }
+  } catch (apiErr) {
+    console.warn('Server API appointments POST note, falling back to direct client:', apiErr);
+  }
+
+  if (!isSupabaseConfigured) {
+    return { success: true };
+  }
+
+  try {
+    const service = SERVICES_DATA.find((s) => s.id === cleanAppointment.serviceId);
+    const serviceTitle = service?.title || cleanAppointment.serviceId;
+    const servicePrice = cleanAppointment.selectedPackagePrice || cleanAppointment.servicePrice || (service ? `${service.priceFormatted} USD` : '35 USD');
+    const amount = Number.parseFloat(String(servicePrice).replace(/[^\d.]/g, '')) || (service ? service.price : 35);
+
+    const { error } = await supabase.from('appointments').upsert([
+      {
+        id: cleanAppointment.id,
+        code: cleanAppointment.code,
+        service_id: cleanAppointment.serviceId,
+        service_title: serviceTitle,
+        service_price: servicePrice,
+        amount: amount,
+        selected_package_name: cleanAppointment.selectedPackageName || null,
+        selected_package_price: cleanAppointment.selectedPackagePrice || null,
+        package_code: cleanAppointment.packageCode || null,
+        package_total_sessions: cleanAppointment.packageTotalSessions || 1,
+        package_session_number: cleanAppointment.packageSessionNumber || 1,
+        nombre: cleanAppointment.nombre,
+        apellido: cleanAppointment.apellido,
+        telefono: cleanAppointment.telefono,
+        email: cleanAppointment.email,
+        fecha: cleanAppointment.fecha,
+        hora: cleanAppointment.hora,
+        motivo_consulta: cleanAppointment.motivoConsulta || '',
+        motivo: cleanAppointment.motivoConsulta || '',
+        primera_visita: cleanAppointment.primeraVisita,
+        status: cleanAppointment.status === 'pendiente_validacion'
+          ? 'PENDIENTE'
+          : cleanAppointment.status === 'cancelada'
+          ? 'CANCELADA'
+          : cleanAppointment.status === 'reprogramada'
+          ? 'REPROGRAMADA'
+          : 'CONFIRMADA',
+        specialist_id: cleanAppointment.specialistId || null,
+        specialist_name: cleanAppointment.specialistName || 'Lic. Isaac Jewsiejew',
+        notes: 'Registro verificado por escudo de seguridad EQUILIBRA',
+        created_at: cleanAppointment.createdAt || new Date().toISOString(),
+      },
+    ]);
+
+    if (error) {
+      console.warn('Supabase direct insertion note:', error.message);
+      return { success: true };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Supabase request error:', err);
+    return { success: true };
+  }
+}
+
+/**
+ * Reschedule an existing appointment to a new date & time
+ */
+export async function rescheduleAppointmentInDatabase(
+  appointmentIdOrCode: string,
+  newDate: string,
+  newTime: string,
+  rescheduleReason?: string
+): Promise<{ success: boolean; updatedAppointment?: ConfirmedAppointment; error?: string }> {
+  let all = getSavedAppointments();
+  let index = all.findIndex(
+    (a) =>
+      a.id === appointmentIdOrCode ||
+      a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+      a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  );
+
+  if (index === -1) {
+    all = await getAppointmentsFromDatabase();
+    index = all.findIndex(
+      (a) =>
+        a.id === appointmentIdOrCode ||
+        a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+        a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    );
+  }
+
+  if (index === -1) {
+    return { success: false, error: 'No se encontró la cita a reprogramar.' };
+  }
+
+  const app = all[index];
+  const updated: ConfirmedAppointment = {
+    ...app,
+    rescheduledFromDate: app.fecha,
+    rescheduledFromTime: app.hora,
+    fecha: sanitizeString(newDate),
+    hora: sanitizeString(newTime),
+    status: 'reprogramada',
+    rescheduledCount: (app.rescheduledCount || 0) + 1,
+    rescheduledAt: new Date().toISOString(),
+    notes: rescheduleReason
+      ? `Reprogramada: ${sanitizeString(rescheduleReason)}. Anterior: ${app.fecha} (${app.hora})`
+      : `Reprogramada desde ${app.fecha} (${app.hora})`,
+  };
+
+  saveAppointmentToStorage(updated);
+
+  // Sync to server API
+  try {
+    void fetch(`/api/appointments/${app.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fecha: updated.fecha,
+        hora: updated.hora,
+        status: 'REPROGRAMADA',
+        rescheduled_from_date: updated.rescheduledFromDate,
+        rescheduled_from_time: updated.rescheduledFromTime,
+        rescheduled_count: updated.rescheduledCount,
+        rescheduled_at: updated.rescheduledAt,
+        notes: updated.notes,
+      }),
+    });
+  } catch {}
+
+  recordSecurityEvent({
+    action: 'BOOKING_SUCCESS',
+    severity: 'INFO',
+    details: `Cita [${app.code}] reprogramada con éxito al ${newDate} (${newTime}).`,
+  });
+
+  if (isSupabaseConfigured) {
+    try {
+      await supabase
+        .from('appointments')
+        .update({
+          fecha: updated.fecha,
+          hora: updated.hora,
+          status: 'REPROGRAMADA',
+          rescheduled_from_date: updated.rescheduledFromDate,
+          rescheduled_from_time: updated.rescheduledFromTime,
+          rescheduled_count: updated.rescheduledCount,
+          rescheduled_at: updated.rescheduledAt,
+          notes: updated.notes,
+        })
+        .or(`id.eq.${app.id},code.eq.${app.code}`);
+    } catch (e) {
+      console.warn('Error updating reschedule in Supabase:', e);
+    }
+  }
+
+  return { success: true, updatedAppointment: updated };
+}
+
+/**
+ * Cancellation Policy Helper:
+ * Calculate patient cancellation count and apply 20% penalty fee starting on the 2nd cancellation.
+ */
+export function getPatientCancellationCount(patientPhoneOrEmail: string): number {
+  if (!patientPhoneOrEmail) return 0;
+  const cleanKey = patientPhoneOrEmail.replace(/[^\d+a-zA-Z0-9@._-]/g, '').toLowerCase();
+  const all = getSavedAppointments();
+  return all.filter((a) => {
+    const matchEmail = a.email && a.email.toLowerCase().includes(cleanKey);
+    const matchPhone = a.telefono && a.telefono.replace(/[^\d]/g, '').includes(cleanKey.replace(/[^\d]/g, ''));
+    const isCanceled = a.status === 'cancelada' || a.status === 'CANCELADA';
+    return (matchEmail || matchPhone) && isCanceled;
+  }).length;
+}
+
+/**
+ * Cancel an appointment with cancellation fee calculation (0% on 1st, 20% on 2nd and subsequent cancellations)
+ */
+export async function cancelAppointmentInDatabase(
+  appointmentIdOrCode: string,
+  cancellationReason: string
+): Promise<{
+  success: boolean;
+  isSecondOrMore: boolean;
+  cancellationCount: number;
+  penaltyPercent: number;
+  penaltyAmount: number;
+  updatedAppointment?: ConfirmedAppointment;
+  error?: string;
+}> {
+  let currentLocal = getSavedAppointments();
+  let index = currentLocal.findIndex(
+    (a) =>
+      a.id === appointmentIdOrCode ||
+      a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+      a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  );
+
+  if (index === -1) {
+    currentLocal = await getAppointmentsFromDatabase();
+    index = currentLocal.findIndex(
+      (a) =>
+        a.id === appointmentIdOrCode ||
+        a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+        a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    );
+  }
+
+  if (index === -1) {
+    return {
+      success: false,
+      isSecondOrMore: false,
+      cancellationCount: 0,
+      penaltyPercent: 0,
+      penaltyAmount: 0,
+      error: 'No se encontró la cita para cancelar.',
+    };
+  }
+
+  const app = currentLocal[index];
+  const priorCancellations = getPatientCancellationCount(app.email || app.telefono);
+  const currentCancellationNumber = priorCancellations + 1;
+
+  // 2nd cancellation or more = 20% penalty fee policy
+  const isSecondOrMore = currentCancellationNumber >= 2;
+  const penaltyPercent = isSecondOrMore ? 20 : 0;
+
+  // Base price extraction
+  const rawPrice = String(app.selectedPackagePrice || app.servicePrice || '35');
+  const basePriceNum = Number.parseFloat(rawPrice.replace(/[^\d.]/g, '')) || 35;
+  const penaltyAmount = isSecondOrMore ? Math.round(basePriceNum * 0.20 * 100) / 100 : 0;
+
+  const updated: ConfirmedAppointment = {
+    ...app,
+    status: 'cancelada',
+    cancellationCount: currentCancellationNumber,
+    cancellationFeePercent: penaltyPercent,
+    cancellationFeeAmount: penaltyAmount,
+    cancellationReason: sanitizeString(cancellationReason || 'Cancelación solicitada por paciente', 400),
+    canceledAt: new Date().toISOString(),
+    notes: `Cancelación #${currentCancellationNumber}. Penalización: ${penaltyPercent}% ($${penaltyAmount} USD). Motivo: ${cancellationReason}`,
+  };
+
+  saveAppointmentToStorage(updated);
+
+  // Sync to server API
+  try {
+    void fetch(`/api/appointments/${app.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'CANCELADA',
+        cancellation_count: currentCancellationNumber,
+        cancellation_fee_percent: penaltyPercent,
+        cancellation_fee_amount: penaltyAmount,
+        cancellation_reason: updated.cancellationReason,
+        canceled_at: updated.canceledAt,
+        notes: updated.notes,
+      }),
+    });
+  } catch {}
+
+  recordSecurityEvent({
+    action: 'APPOINTMENT_CANCEL_REQUEST',
+    severity: isSecondOrMore ? 'WARNING' : 'INFO',
+    details: `Cita [${app.code}] cancelada (Cancelación #${currentCancellationNumber}). Penalización aplicada: ${penaltyPercent}% ($${penaltyAmount} USD).`,
+  });
+
+  if (isSupabaseConfigured) {
+    try {
+      await supabase
+        .from('appointments')
+        .update({
+          status: 'CANCELADA',
+          cancellation_count: currentCancellationNumber,
+          cancellation_fee_percent: penaltyPercent,
+          cancellation_fee_amount: penaltyAmount,
+          cancellation_reason: updated.cancellationReason,
+          canceled_at: updated.canceledAt,
+          notes: updated.notes,
+        })
+        .or(`id.eq.${app.id},code.eq.${app.code}`);
+    } catch (e) {
+      console.warn('Error updating cancellation in Supabase:', e);
+    }
+  }
+
+  return {
+    success: true,
+    isSecondOrMore,
+    cancellationCount: currentCancellationNumber,
+    penaltyPercent,
+    penaltyAmount,
+    updatedAppointment: updated,
+  };
+}
+
+/**
+ * Updates patient clinical evolution, pain score (EVA 1-10) and home exercises
+ */
+export async function updateAppointmentClinicalEvolution(
+  appointmentIdOrCode: string,
+  painScore: number,
+  notes?: string,
+  homeExercises?: string[]
+): Promise<{ success: boolean; updatedAppointment?: ConfirmedAppointment; error?: string }> {
+  let all = getSavedAppointments();
+  let index = all.findIndex(
+    (a) =>
+      a.id === appointmentIdOrCode ||
+      a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+      a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  );
+
+  if (index === -1) {
+    all = await getAppointmentsFromDatabase();
+    index = all.findIndex(
+      (a) =>
+        a.id === appointmentIdOrCode ||
+        a.code.toUpperCase() === appointmentIdOrCode.toUpperCase() ||
+        a.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === appointmentIdOrCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    );
+  }
+
+  if (index === -1) {
+    return { success: false, error: 'No se encontró la cita clínica.' };
+  }
+
+  const app = all[index];
+  const cleanPain = Math.max(0, Math.min(10, Math.round(painScore)));
+  const updated: ConfirmedAppointment = {
+    ...app,
+    painScore: cleanPain,
+    evolutionNotes: notes ? sanitizeString(notes, 1000) : app.evolutionNotes,
+    homeExercises: homeExercises || app.homeExercises,
+  };
+
+  saveAppointmentToStorage(updated);
+
+  if (isSupabaseConfigured) {
+    try {
+      await supabase
+        .from('appointments')
+        .update({
+          notes: notes ? `${app.notes ? app.notes + ' | ' : ''}EVA: ${cleanPain}/10. ${notes}` : app.notes,
+        })
+        .or(`id.eq.${app.id},code.eq.${app.code}`);
+    } catch (e) {
+      console.warn('Supabase clinical evolution update note:', e);
+    }
+  }
+
+  return { success: true, updatedAppointment: updated };
+}
+
+/**
+ * Save contact message with sanitization and security audit tracking
+ */
+export async function saveContactMessageToDatabase(data: {
+  nombre: string;
+  email: string;
+  telefono?: string;
+  mensaje: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const cleanData = {
+    nombre: sanitizeString(data.nombre, 60),
+    email: sanitizeString(data.email, 100).toLowerCase(),
+    telefono: data.telefono ? sanitizeString(data.telefono, 30) : undefined,
+    mensaje: sanitizeString(data.mensaje, 1000),
+  };
+
+  recordSecurityEvent({
+    action: 'CONTACT_SENT',
+    severity: 'INFO',
+    details: `Mensaje de contacto seguro recibido de ${maskSensitiveData('email', cleanData.email)}.`,
+  });
+
+  if (!isSupabaseConfigured) {
+    return { success: true };
+  }
+
+  try {
+    const { error } = await supabase.from('contact_messages').insert([
+      {
+        id: `msg_${Date.now()}_${generateSecureCode()}`,
+        nombre: cleanData.nombre,
+        email: cleanData.email,
+        telefono: cleanData.telefono || null,
+        mensaje: cleanData.mensaje,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    if (error) {
+      console.warn('Supabase contact message error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error de conexión' };
+  }
+}
+
+/**
+ * Sends a technical support ticket / inquiry to the developer team
+ */
+export async function saveDeveloperTicketToDatabase(data: {
+  nombre: string;
+  email: string;
+  tipoConsulta: string;
+  telefono?: string;
+  asunto: string;
+  mensaje: string;
+}): Promise<{ success: boolean; ticketId?: string; error?: string }> {
+  const ticketId = `DEV-${generateSecureCode()}`;
+  const cleanData = {
+    nombre: sanitizeString(data.nombre, 60),
+    email: sanitizeString(data.email, 100).toLowerCase(),
+    tipoConsulta: sanitizeString(data.tipoConsulta, 50),
+    telefono: data.telefono ? sanitizeString(data.telefono, 30) : undefined,
+    asunto: sanitizeString(data.asunto, 120),
+    mensaje: sanitizeString(data.mensaje, 1500),
+  };
+
+  recordSecurityEvent({
+    action: 'SUPPORT_TICKET_SENT',
+    severity: 'INFO',
+    details: `Ticket de soporte técnico (${ticketId}) generado por ${maskSensitiveData('email', cleanData.email)} [${cleanData.tipoConsulta}].`,
+  });
+
+  if (!isSupabaseConfigured) {
+    return { success: true, ticketId };
+  }
+
+  try {
+    const { error } = await supabase.from('support_tickets').insert([
+      {
+        id: ticketId,
+        nombre: cleanData.nombre,
+        email: cleanData.email,
+        telefono: cleanData.telefono || null,
+        tipo_consulta: cleanData.tipoConsulta,
+        asunto: cleanData.asunto,
+        mensaje: cleanData.mensaje,
+        status: 'abierto',
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    if (error) {
+      // Fallback: also try contact_messages if support_tickets table is not yet created
+      await supabase.from('contact_messages').insert([
+        {
+          id: ticketId,
+          nombre: `[SOPORTE DEV] ${cleanData.nombre}`,
+          email: cleanData.email,
+          telefono: cleanData.telefono || null,
+          mensaje: `[Tipo: ${cleanData.tipoConsulta}] ${cleanData.asunto} - ${cleanData.mensaje}`,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    }
+    return { success: true, ticketId };
+  } catch (err: any) {
+    return { success: true, ticketId };
+  }
+}
+
+/**
+ * Returns the slots and their availability for a specific date (YYYY-MM-DD)
+ */
+export function getSlotsForDate(
+  dateStr: string,
+  _serviceId?: string,
+  appointments: ConfirmedAppointment[] = getSavedAppointments()
+): TimeSlotInfo[] {
+  if (!dateStr) return [];
+
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const dateObj = new Date(year, month - 1, day);
+  const dayOfWeek = dateObj.getDay(); // 0 is Sunday, 6 is Saturday
+
+  if (dayOfWeek === 0) {
+    // Sunday: Clinic is closed
+    return [];
+  }
+
+  const baseSlots = dayOfWeek === 6 ? SATURDAY_SLOTS : STANDARD_WEEKDAY_SLOTS;
+
+  return baseSlots.map((time) => {
+    // Check if this slot is already booked in the database
+    const booked = appointments.find(
+      (app) => app.fecha === dateStr && app.hora === time
+    );
+
+    if (booked) {
+      return {
+        time,
+        status: (booked.status === 'pendiente_validacion' ? 'por_confirmar' : 'ocupado') as SlotStatus,
+        notes: `Horario reservado (${booked.code})`,
+      };
+    }
+
+    return {
+      time,
+      status: 'disponible' as SlotStatus,
+      notes: 'Disponible para agendar inmediatamente',
+    };
+  });
+}
+
+/**
+ * Generates ICS calendar file content
+ */
+export function generateIcsCalendar(
+  appointment: ConfirmedAppointment,
+  serviceTitle: string,
+  clinicAddress: string,
+  clinicPhone: string
+): void {
+  const cleanTitle = sanitizeString(serviceTitle);
+  const cleanNombre = sanitizeString(appointment.nombre);
+  const cleanApellido = sanitizeString(appointment.apellido);
+
+  const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Equilibra//Cita Medica//ES
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+SUMMARY:Cita: ${cleanTitle} - Equilibra (${appointment.code})
+DESCRIPTION:Consulta para ${cleanNombre} ${cleanApellido}\\nServicio: ${cleanTitle}\\nFecha: ${appointment.fecha} - ${appointment.hora}\\nTeléfono de contacto: ${appointment.telefono}\\nUbicación: ${clinicAddress}\\nTeléfono Clínica: ${clinicPhone}
+LOCATION:${clinicAddress}
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR`;
+
+  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `Cita-Equilibra-${appointment.code}.ics`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+/**
+ * Deletes a single appointment from localStorage, server disk/memory, and Supabase.
+ */
+export async function deleteAppointmentFromStorageAndServer(idOrCode: string): Promise<boolean> {
+  if (!idOrCode) return false;
+
+  // 1. Remove from local storage
+  if (typeof window !== 'undefined') {
+    try {
+      const current = getSavedAppointments();
+      const filtered = current.filter((a) => a.id !== idOrCode && a.code !== idOrCode);
+      localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(filtered));
+      localStorage.setItem('equilibra_appointments', JSON.stringify(filtered));
+      const lastCode = localStorage.getItem('equilibra_last_booked_code');
+      if (lastCode === idOrCode) {
+        localStorage.removeItem('equilibra_last_booked_code');
+      }
+      window.dispatchEvent(new CustomEvent('equilibra_appointment_deleted', { detail: { idOrCode } }));
+    } catch (e) {
+      console.error('Error removing appointment from localStorage:', e);
+    }
+  }
+
+  // 2. Remove from backend server
+  try {
+    await fetch(`/api/appointments/${encodeURIComponent(idOrCode)}`, {
+      method: 'DELETE',
+      headers: getStaffAuthHeaders(),
+    });
+  } catch (err) {
+    console.warn('[deleteAppointment] Server call error:', err);
+  }
+
+  // 3. Remove from Supabase if configured
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('appointments').delete().or(`id.eq.${idOrCode},code.eq.${idOrCode}`);
+    } catch (err) {
+      console.warn('[deleteAppointment] Supabase delete error:', err);
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Permanently clears all appointments across localStorage, the server disk/memory cache, and Supabase.
+ */
+export async function clearAllAppointmentsFromSystem(): Promise<{ success: boolean; message: string }> {
+  // 1. Clear all localStorage appointment keys
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_APPOINTMENTS_KEY);
+      localStorage.removeItem('equilibra_appointments');
+      localStorage.removeItem('appointments');
+      localStorage.removeItem('equilibra_last_booked_code');
+      window.dispatchEvent(new CustomEvent('equilibra_appointments_cleared'));
+      window.dispatchEvent(new CustomEvent('equilibra_appointment_saved', { detail: null }));
+    } catch (e) {
+      console.error('Error clearing local appointments:', e);
+    }
+  }
+
+  // 2. Clear server memory and disk
+  try {
+    const res = await fetch('/api/appointments/all', {
+      method: 'DELETE',
+      headers: getStaffAuthHeaders(),
+    });
+    if (!res.ok) {
+      console.warn('[clearAllAppointments] Server returned status:', res.status);
+    }
+  } catch (err) {
+    console.warn('[clearAllAppointments] Server delete error:', err);
+  }
+
+  // 3. Clear Supabase table if configured
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('appointments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    } catch (err) {
+      console.warn('[clearAllAppointments] Supabase delete error:', err);
+    }
+  }
+
+  return {
+    success: true,
+    message: 'Todas las citas han sido eliminadas exitosamente.',
+  };
+}
+
+export const LOCAL_STORAGE_ARCHIVE_KEY = 'equilibra_appointments_archive';
+
+/**
+ * Returns locally archived appointments from previous monthly cutoffs
+ */
+export function getArchivedAppointments(): ConfirmedAppointment[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_ARCHIVE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error('Error reading archived appointments from localStorage:', e);
+    return [];
+  }
+}
+
+/**
+ * Performs a monthly cut-off:
+ * 1. Safely archives appointments before cutoffDate to localStorage archive, server disk archive, and Supabase appointments_archive (Option 5).
+ * 2. Depurates active appointments before cutoffDate from localStorage, server disk/memory, and Supabase.
+ * 3. Leaves patient master clinical profiles untouched.
+ */
+export async function performMonthlyCutoff(
+  cutoffDate: string,
+  onlyCompletedOrCanceled: boolean = false
+): Promise<{ success: boolean; deletedCount: number; archivedCount: number; remainingCount: number; message: string }> {
+  if (!cutoffDate) {
+    return { success: false, deletedCount: 0, archivedCount: 0, remainingCount: 0, message: 'Fecha de corte requerida' };
+  }
+
+  // 1. Filter and save local appointments + store in local archive
+  const current = getSavedAppointments();
+  const toKeep: ConfirmedAppointment[] = [];
+  const toArchive: ConfirmedAppointment[] = [];
+  let localDeleted = 0;
+
+  current.forEach((a) => {
+    const isPrior = a.fecha && a.fecha < cutoffDate;
+    const isCompletedOrCanceled = a.status === 'completada' || a.status === 'cancelada';
+    const shouldDelete = isPrior && (!onlyCompletedOrCanceled || isCompletedOrCanceled);
+
+    if (shouldDelete) {
+      localDeleted++;
+      toArchive.push(a);
+    } else {
+      toKeep.push(a);
+    }
+  });
+
+  if (typeof window !== 'undefined') {
+    try {
+      if (toArchive.length > 0) {
+        const existingArchive = getArchivedAppointments();
+        const combinedArchive = [...toArchive, ...existingArchive];
+        const seen = new Set<string>();
+        const uniqueArchive = combinedArchive.filter((item) => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
+        localStorage.setItem(LOCAL_STORAGE_ARCHIVE_KEY, JSON.stringify(uniqueArchive));
+      }
+
+      localStorage.setItem(LOCAL_STORAGE_APPOINTMENTS_KEY, JSON.stringify(toKeep));
+      localStorage.setItem('equilibra_appointments', JSON.stringify(toKeep));
+      window.dispatchEvent(new CustomEvent('equilibra_appointments_cleared'));
+      window.dispatchEvent(new CustomEvent('equilibra_appointment_saved', { detail: null }));
+    } catch (e) {
+      console.warn('[performMonthlyCutoff] localStorage error:', e);
+    }
+  }
+
+  // 2. Call server endpoint with historical archiving
+  let serverDeleted = 0;
+  let serverArchived = 0;
+  try {
+    const res = await fetch('/api/appointments/monthly-cutoff', {
+      method: 'POST',
+      headers: {
+        ...getStaffAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        cutoffDate,
+        onlyCompletedOrCanceled,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      serverDeleted = data.deletedCount || 0;
+      serverArchived = data.archivedCount || serverDeleted;
+    }
+  } catch (err) {
+    console.warn('[performMonthlyCutoff] Server API note:', err);
+  }
+
+  // 3. Backup to Supabase appointments_archive and delete from appointments if client is ready
+  if (isSupabaseConfigured && supabase && toArchive.length > 0) {
+    try {
+      const archiveRows = toArchive.map((item) => ({
+        id: item.id,
+        code: item.code,
+        nombre: item.nombre,
+        apellido: item.apellido,
+        email: item.email,
+        telefono: item.telefono,
+        fecha: item.fecha,
+        hora: item.hora,
+        service_id: item.serviceId,
+        service_title: item.selectedPackageName || item.servicePrice,
+        status: item.status,
+        specialist_name: item.specialistName,
+        amount: item.amount,
+        notes: item.notes,
+        created_at: item.createdAt || new Date().toISOString(),
+        archived_at: new Date().toISOString(),
+      }));
+      await supabase.from('appointments_archive').upsert(archiveRows);
+    } catch (archErr) {
+      console.warn('[performMonthlyCutoff] Supabase archive insert note:', archErr);
+    }
+
+    try {
+      let q = supabase.from('appointments').delete().lt('fecha', cutoffDate);
+      if (onlyCompletedOrCanceled) {
+        q = q.in('status', ['COMPLETADA', 'CANCELADA', 'completada', 'cancelada']);
+      }
+      await q;
+    } catch (supaErr) {
+      console.warn('[performMonthlyCutoff] Supabase delete note:', supaErr);
+    }
+  }
+
+  const effectiveDeleted = Math.max(localDeleted, serverDeleted);
+  return {
+    success: true,
+    deletedCount: effectiveDeleted,
+    archivedCount: effectiveDeleted,
+    remainingCount: toKeep.length,
+    message: `Corte mensual procesado. Se respaldaron en el Archivo Histórico y se liberaron ${effectiveDeleted} citas anteriores al ${cutoffDate}.`,
+  };
+}

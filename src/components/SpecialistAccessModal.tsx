@@ -66,6 +66,7 @@ import {
   getStoredPatients,
   saveStoredPatient,
   deleteStoredPatient,
+  formatPatientDisplayId,
 } from '../utils/patientUtils';
 import { deletePatientFromDb } from '../lib/supabase';
 import { PatientRegistrationModal } from './PatientRegistrationModal';
@@ -1016,6 +1017,8 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     packageCode?: string;
     portalCode?: string;
     cancellationCount?: number;
+    completedVisits?: number;
+    rescheduledCount?: number;
   }>();
 
   // First seed with registered clinical patient records
@@ -1117,9 +1120,21 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
     if (!appNombre && !appApellido) return;
 
     const key = `${appNombre.toLowerCase()}_${appApellido.toLowerCase()}`;
+    const statusLower = (app.status || '').toLowerCase();
+    const isCancelled = statusLower === 'cancelada';
+    const isRescheduled = statusLower === 'reprogramada' || (app.rescheduledCount && app.rescheduledCount > 0);
+    const isCompleted = statusLower === 'completada';
+
     const existing = uniquePatientsMap.get(key);
     if (existing) {
       existing.totalVisits += 1;
+      if (isCompleted) existing.completedVisits = (existing.completedVisits || 0) + 1;
+      if (isCancelled) existing.cancellationCount = (existing.cancellationCount || 0) + 1;
+      if (isRescheduled) existing.rescheduledCount = (existing.rescheduledCount || 0) + 1;
+
+      if (!existing.id && (app.patientId || app.patient_id)) {
+        existing.id = app.patientId || app.patient_id;
+      }
       if (app.fecha && app.fecha >= existing.lastVisitDate) {
         existing.lastVisitDate = app.fecha;
         existing.lastSpecialist = app.specialistName || existing.lastSpecialist || 'Especialista';
@@ -1139,20 +1154,24 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
       }
       if (app.cancellationCount) existing.cancellationCount = Math.max(existing.cancellationCount || 0, app.cancellationCount);
     } else {
+      const generatedId = app.patientId || app.patient_id || `PAC-${Math.abs(key.split('').reduce((acc, c) => acc + c.charCodeAt(0), 1000) % 9000 + 1000)}`;
       uniquePatientsMap.set(key, {
+        id: generatedId,
         name: `${appNombre} ${appApellido}`.trim(),
         nombre: appNombre,
         apellido: appApellido,
         phone: app.telefono || '',
         email: app.email || '',
         totalVisits: 1,
+        completedVisits: isCompleted ? 1 : 0,
+        rescheduledCount: isRescheduled ? 1 : 0,
         hasPackage: Boolean((app.packageTotalSessions || 0) > 1 || app.packageCode),
         packageName: app.selectedPackageName,
         packageUsedSessions: app.packageSessionNumber || 1,
         packageTotalSessions: app.packageTotalSessions || 0,
         packageCode: app.packageCode,
         portalCode: app.packageCode || app.code,
-        cancellationCount: app.cancellationCount || 0,
+        cancellationCount: isCancelled ? 1 : (app.cancellationCount || 0),
         lastVisitDate: app.fecha || todayStr,
         lastSpecialist: app.specialistName || 'Especialista',
         lastReason: app.motivoConsulta,
@@ -2207,16 +2226,21 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                               <div>
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="min-w-0">
-                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base truncate">
-                                      {pat.name}
-                                    </h4>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base truncate">
+                                        {pat.name}
+                                      </h4>
+                                      <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-[10px] font-mono font-black shrink-0">
+                                        {formatPatientDisplayId(pat.id || existingRecord?.id)}
+                                      </span>
+                                    </div>
                                     {pat.cedula && (
                                       <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                                         C.I. / DNI: <span className="font-bold text-slate-700 dark:text-slate-300">{pat.cedula}</span>
                                       </p>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-1.5 shrink-0">
+                                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                                     {pat.hasPackage ? (
                                       <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border shadow-xs flex items-center gap-1 ${
                                         (pat.packageTotalSessions || 0) - (pat.packageUsedSessions || 0) <= 1
@@ -2232,8 +2256,13 @@ export const SpecialistAccessModal: React.FC<SpecialistAccessModalProps> = ({
                                       </span>
                                     )}
                                     {pat.cancellationCount > 0 && (
-                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/70 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
                                         CANCELACIONES: {pat.cancellationCount}
+                                      </span>
+                                    )}
+                                    {pat.rescheduledCount > 0 && (
+                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                        REPROGRAMADAS: {pat.rescheduledCount}
                                       </span>
                                     )}
                                     {pat.isRegisteredRecord && (
