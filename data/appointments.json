@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "id": "apt_verify_1793880686",
+    "code": "EQ-VERIF-101",
+    "nombre": "Paciente",
+    "apellido": "Prueba",
+    "email": "paezjose481@gmail.com",
+    "telefono": "0424-2724617",
+    "fecha": "2026-11-12",
+    "hora": "11:00 AM",
+    "serviceId": "fisioterapia",
+    "serviceTitle": "Fisioterapia Traumatológica",
+    "specialistName": "Lic. Isaac Jewsiejew",
+    "motivoConsulta": "Dolor en la zona cervical y hombro",
+    "service_id": "fisioterapia",
+    "service_title": "Fisioterapia Traumatológica",
+    "motivo": "Dolor en la zona cervical y hombro",
+    "notes": "Registro verificado por EQUILIBRA"
+  }
+]

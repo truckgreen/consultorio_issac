@@ -33,17 +33,17 @@ export interface EmailAppointmentData {
   rescheduled_from_time?: string;
 }
 
-// Read email configuration from environment
+// Read email configuration from environment or persistent clinic defaults
 function getEmailConfig() {
-  const host = (process.env.SMTP_HOST || '').trim();
+  const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
   const port = parseInt(process.env.SMTP_PORT || '465', 10);
-  const user = (process.env.SMTP_USER || '').trim();
+  const user = (process.env.SMTP_USER || 'equilibraavisos@gmail.com').trim();
   // Strip whitespace from passwords if user enters Google app password format with spaces
-  let pass = (process.env.SMTP_PASS || '').trim();
+  let pass = (process.env.SMTP_PASS || 'kuikiehilwwvzlyu').trim();
   if (pass.replace(/\s+/g, '').length === 16) {
     pass = pass.replace(/\s+/g, '');
   }
-  const from = process.env.SMTP_FROM || `"EQUILIBRA - Bienestar Integral" <${user || 'contacto@equilibrave.com'}>`;
+  const from = process.env.SMTP_FROM || `"EQUILIBRA - Fisioterapia & Bienestar" <${user}>`;
 
   const isConfigured = Boolean(host && user && pass);
 
