@@ -11,6 +11,7 @@ import {
   sendCancellationEmail,
   send24HourReminderEmail,
   send2HourReminderEmail,
+  sendDeveloperSupportEmail,
   parseAppointmentDateTime,
   EmailAppointmentData,
 } from './serverEmail';
@@ -2095,7 +2096,98 @@ _${cleanMsgText}_
     res.json({ success: true, message: 'Mensaje enviado correctamente.' });
   });
 
-  // 7b. Email Service Status & Manual Test Endpoint
+  // 7b. Developer Support Ticket API (Sends email to paezjose481@gmail.com and Telegram notification)
+  app.post('/api/developer/ticket', createRateLimiter(5 * 60 * 1000, 15, 'dev_ticket'), async (req, res) => {
+    try {
+      const body = req.body || {};
+      const ticketId = body.ticketId ? sanitizeServerInput(body.ticketId, 30) : `DEV-${Math.floor(100000 + Math.random() * 900000)}`;
+      const cleanData = {
+        ticketId,
+        nombre: sanitizeServerInput(body.nombre, 60),
+        email: sanitizeServerInput(body.email, 120).toLowerCase(),
+        telefono: body.telefono ? sanitizeServerInput(body.telefono, 30) : undefined,
+        tipoConsulta: sanitizeServerInput(body.tipoConsulta || 'duda_general', 50),
+        asunto: sanitizeServerInput(body.asunto || 'Consulta Técnica', 150),
+        mensaje: sanitizeServerInput(body.mensaje, 2000),
+      };
+
+      if (!cleanData.nombre || !cleanData.email || !cleanData.mensaje) {
+        return res.status(400).json({ success: false, error: 'Nombre, email y mensaje son campos obligatorios.' });
+      }
+
+      // 1. Save to database / Supabase
+      const supabaseClient = getServerSupabaseClient();
+      if (supabaseClient) {
+        try {
+          await supabaseClient.from('support_tickets').insert([
+            {
+              id: cleanData.ticketId,
+              nombre: cleanData.nombre,
+              email: cleanData.email,
+              telefono: cleanData.telefono || null,
+              tipo_consulta: cleanData.tipoConsulta,
+              asunto: cleanData.asunto,
+              mensaje: cleanData.mensaje,
+              status: 'abierto',
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        } catch {
+          try {
+            await supabaseClient.from('contact_messages').insert([
+              {
+                id: cleanData.ticketId,
+                name: `[TICKET DEV] ${cleanData.nombre}`,
+                email: cleanData.email,
+                phone: cleanData.telefono || '',
+                message: `[${cleanData.tipoConsulta}] ${cleanData.asunto}: ${cleanData.mensaje}`,
+                created_at: new Date().toISOString(),
+              },
+            ]);
+          } catch {}
+        }
+      }
+
+      // 2. Send Real Email to the Developer (paezjose481@gmail.com) via Gmail SMTP
+      const emailResult = await sendDeveloperSupportEmail(cleanData);
+
+      // 3. Send Telegram alert if configured
+      const env = getEnvCredentials();
+      if (env.telegramToken && env.telegramChatId) {
+        try {
+          const text =
+`🛠️ *¡NUEVO TICKET PARA EL DESARROLLADOR!*
+━━━━━━━━━━━━━━━━━━━━━━
+🎫 *Ticket:* \`#${cleanData.ticketId}\`
+👤 *De:* ${cleanData.nombre}
+📧 *Email:* \`${cleanData.email}\`
+📞 *Teléfono:* \`${cleanData.telefono || 'No especificado'}\`
+📌 *Tipo:* ${cleanData.tipoConsulta}
+📝 *Asunto:* ${cleanData.asunto}
+━━━━━━━━━━━━━━━━━━━━━━
+💬 *Mensaje:*
+_${(cleanData.mensaje || '').slice(0, 500)}_`;
+          await sendTelegramMessage(env.telegramToken, env.telegramChatId, text);
+        } catch (tgErr) {
+          console.warn('[Developer Ticket] Telegram alert note:', tgErr);
+        }
+      }
+
+      console.log(`[Developer Ticket] Procesado ticket #${cleanData.ticketId} para desarrollador: emailSent=${emailResult.success}`);
+
+      return res.json({
+        success: true,
+        ticketId: cleanData.ticketId,
+        emailSent: Boolean(emailResult.success),
+        message: 'Ticket enviado exitosamente al desarrollador por correo electrónico.',
+      });
+    } catch (err: any) {
+      console.error('[Developer Ticket Error]:', err);
+      return res.status(500).json({ success: false, error: err?.message || 'Error interno del servidor.' });
+    }
+  });
+
+  // 7c. Email Service Status & Manual Test Endpoint
   app.get('/api/email/status', (req, res) => {
     const host = process.env.SMTP_HOST || '';
     const user = process.env.SMTP_USER || '';

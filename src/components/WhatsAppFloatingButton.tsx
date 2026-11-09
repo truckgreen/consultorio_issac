@@ -6,16 +6,28 @@ import { trackWhatsAppClick } from '../utils/analytics';
 export const WhatsAppFloatingButton: React.FC = () => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
-    // Show polite tooltip invitation after 3 seconds on first visit
-    const timer = setTimeout(() => {
+    // Show polite tooltip invitation after 3.2 seconds on first visit
+    const showTimer = setTimeout(() => {
       if (!hasInteracted) {
         setShowTooltip(true);
       }
-    }, 3500);
-    return () => clearTimeout(timer);
+    }, 3200);
+    return () => clearTimeout(showTimer);
   }, [hasInteracted]);
+
+  useEffect(() => {
+    if (!showTooltip || isPaused) return;
+
+    // Auto-dismiss after 6.5 seconds
+    const hideTimer = setTimeout(() => {
+      setShowTooltip(false);
+    }, 6500);
+
+    return () => clearTimeout(hideTimer);
+  }, [showTooltip, isPaused]);
 
   const defaultMessage = encodeURIComponent(
     '¡Hola EQUILIBRA! 👋 Me gustaría solicitar información sobre citas de fisioterapia, disponibilidad y valoración clínica.'
@@ -38,7 +50,9 @@ export const WhatsAppFloatingButton: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.9 }}
             transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-            className="mb-3 max-w-[280px] sm:max-w-xs bg-white dark:bg-[#151d2a] rounded-2xl p-3.5 shadow-2xl border border-slate-200/90 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs relative"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            className="mb-3 max-w-[280px] sm:max-w-xs bg-white dark:bg-[#151d2a] rounded-2xl p-3.5 shadow-2xl border border-slate-200/90 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs relative overflow-hidden"
           >
             {/* Close tooltip button */}
             <button
@@ -46,7 +60,7 @@ export const WhatsAppFloatingButton: React.FC = () => {
                 setShowTooltip(false);
                 setHasInteracted(true);
               }}
-              className="absolute top-2.5 right-2.5 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md"
+              className="absolute top-2.5 right-2.5 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md transition-colors"
               aria-label="Cerrar mensaje"
             >
               <X className="w-3.5 h-3.5" />
@@ -77,8 +91,18 @@ export const WhatsAppFloatingButton: React.FC = () => {
               <span>Chatear por WhatsApp</span>
             </a>
 
+            {/* Auto-dismiss progress bar indicator */}
+            {!isPaused && (
+              <motion.div
+                initial={{ scaleX: 1 }}
+                animate={{ scaleX: 0 }}
+                transition={{ duration: 6.5, ease: 'linear' }}
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500/50 origin-left pointer-events-none"
+              />
+            )}
+
             {/* Bubble Tail arrow pointing down right */}
-            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-[#151d2a] border-r border-b border-slate-200/90 dark:border-slate-800 transform rotate-45" />
+            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-[#151d2a] border-r border-b border-slate-200/90 dark:border-slate-800 transform rotate-45 pointer-events-none" />
           </motion.div>
         )}
       </AnimatePresence>

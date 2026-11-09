@@ -848,6 +848,25 @@ export async function saveDeveloperTicketToDatabase(data: {
     details: `Ticket de soporte técnico (${ticketId}) generado por ${maskSensitiveData('email', cleanData.email)} [${cleanData.tipoConsulta}].`,
   });
 
+  // 1. Send via server API endpoint (sends email to developer paezjose481@gmail.com and Telegram notification)
+  try {
+    const res = await fetch('/api/developer/ticket', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId, ...cleanData }),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success) {
+        return { success: true, ticketId: json.ticketId || ticketId };
+      }
+    }
+  } catch (apiErr) {
+    console.warn('[Developer Ticket] Server API note, falling back to direct persistence:', apiErr);
+  }
+
+  // 2. Direct Supabase fallback if configured
   if (!isSupabaseConfigured) {
     return { success: true, ticketId };
   }

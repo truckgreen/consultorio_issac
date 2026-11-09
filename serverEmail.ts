@@ -671,3 +671,228 @@ export function parseAppointmentDateTime(fechaStr: string, horaStr: string): Dat
     return null;
   }
 }
+
+/**
+ * 7. Envío de Notificación de Ticket y Mensaje al Desarrollador por Correo
+ */
+export interface DeveloperTicketEmailData {
+  ticketId: string;
+  nombre: string;
+  email: string;
+  telefono?: string;
+  tipoConsulta: string;
+  asunto: string;
+  mensaje: string;
+  developerEmail?: string;
+}
+
+export async function sendDeveloperSupportEmail(
+  data: DeveloperTicketEmailData
+): Promise<{ success: boolean; simulated?: boolean; messageId?: string; error?: string }> {
+  const config = getEmailConfig();
+  const targetDevEmail = (data.developerEmail || process.env.DEVELOPER_EMAIL || 'paezjose481@gmail.com').trim();
+
+  const getTipoConsultaLabel = (tipo: string) => {
+    switch (tipo) {
+      case 'reporte_error': return '🐛 Reporte de Error o Bug';
+      case 'problema_reserva': return '📅 Problema con Reserva / Calendario';
+      case 'validacion_cita': return '🔍 Validación de Código de Cita';
+      case 'sugerencia_mejora': return '💡 Sugerencia o Nueva Función';
+      case 'duda_general': return '❓ Duda sobre la Plataforma Web';
+      default: return '🛠️ Consulta Técnica General';
+    }
+  };
+
+  const tipoLabel = getTipoConsultaLabel(data.tipoConsulta);
+  const nowStr = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+
+  const htmlDev = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Nuevo Ticket para el Desarrollador</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #080808; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #F2EFE8;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #080808; padding: 30px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #121212; border-radius: 20px; overflow: hidden; border: 1px solid #262626; box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #0C0C0C; padding: 32px 30px; text-align: center; border-bottom: 2px solid #B1A086;">
+              <div style="display: inline-block; background-color: rgba(177,160,134,0.15); border: 1px solid #B1A086; color: #E5D5B8; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px;">
+                TICKET DE SOPORTE TÉCNICO • EQUILIBRA
+              </div>
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 22px; font-weight: 900; letter-spacing: 0.5px;">
+                Mensaje para el Desarrollador
+              </h1>
+              <p style="margin: 6px 0 0 0; color: #B1A086; font-size: 13px;">
+                Identificador Oficial: <strong style="color: #FFFFFF; font-family: monospace;">#${data.ticketId}</strong>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 32px 30px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #1A1A1A; border-radius: 14px; padding: 20px; border: 1px solid #333333; margin-bottom: 24px;">
+                <tr>
+                  <td>
+                    <div style="color: #A0A0A0; font-size: 11px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Tipo de Consulta</div>
+                    <div style="color: #E5D5B8; font-size: 14px; font-weight: bold; margin-top: 3px;">${tipoLabel}</div>
+                    
+                    <div style="height: 12px;"></div>
+
+                    <div style="color: #A0A0A0; font-size: 11px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Asunto</div>
+                    <div style="color: #FFFFFF; font-size: 15px; font-weight: bold; margin-top: 3px;">${data.asunto}</div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Remitente Info -->
+              <h3 style="margin: 0 0 12px 0; color: #B1A086; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">
+                Datos del Remitente
+              </h3>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #161616; border-radius: 12px; padding: 16px; border: 1px solid #282828; margin-bottom: 24px; font-size: 13px;">
+                <tr>
+                  <td style="padding: 4px 0; color: #8E8E8E; width: 110px;">Nombre:</td>
+                  <td style="padding: 4px 0; color: #FFFFFF; font-weight: bold;">${data.nombre}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #8E8E8E;">Email:</td>
+                  <td style="padding: 4px 0;"><a href="mailto:${data.email}" style="color: #60A5FA; text-decoration: none; font-weight: bold;">${data.email}</a></td>
+                </tr>
+                ${data.telefono ? `
+                <tr>
+                  <td style="padding: 4px 0; color: #8E8E8E;">Teléfono / WA:</td>
+                  <td style="padding: 4px 0;"><a href="https://wa.me/${data.telefono.replace(/[^0-9]/g, '')}" style="color: #34D399; text-decoration: none; font-weight: bold;">${data.telefono}</a></td>
+                </tr>` : ''}
+                <tr>
+                  <td style="padding: 4px 0; color: #8E8E8E;">Fecha y Hora:</td>
+                  <td style="padding: 4px 0; color: #D1CEC9;">${nowStr} (Caracas)</td>
+                </tr>
+              </table>
+
+              <!-- Mensaje Completo -->
+              <h3 style="margin: 0 0 12px 0; color: #B1A086; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">
+                Mensaje / Detalle de la Solicitud
+              </h3>
+              <div style="background-color: #181818; border-left: 4px solid #B1A086; border-radius: 0 12px 12px 0; padding: 20px; font-size: 14px; line-height: 1.6; color: #F2EFE8; white-space: pre-line; margin-bottom: 28px;">
+${data.mensaje}
+              </div>
+
+              <!-- Quick Action Button -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="mailto:${data.email}?subject=RE:%20[Ticket%20${data.ticketId}]%20${encodeURIComponent(data.asunto)}" 
+                       style="display: inline-block; background-color: #B1A086; color: #0C0C0C; padding: 14px 28px; border-radius: 12px; font-size: 13px; font-weight: 900; text-decoration: none; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 4px 15px rgba(177,160,134,0.3);">
+                      ✉️ Responder Directamente a ${data.nombre}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0A0A0A; padding: 20px 30px; text-align: center; border-top: 1px solid #222222; font-size: 11px; color: #777777;">
+              Enviado automáticamente por el Sistema Web de EQUILIBRA Sabana Grande · Caracas, Venezuela.
+              <br>Canal de soporte al desarrollador (<span style="color: #999;">${targetDevEmail}</span>).
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const htmlUserConfirm = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Confirmación de Ticket Técnico</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #080808; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #F2EFE8;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #080808; padding: 30px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 580px; background-color: #121212; border-radius: 20px; overflow: hidden; border: 1px solid #262626;">
+          <tr>
+            <td style="background-color: #0C0C0C; padding: 28px; text-align: center; border-bottom: 2px solid #B1A086;">
+              <h2 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 900;">EQUILIBRA • Soporte Técnico</h2>
+              <p style="margin: 6px 0 0 0; color: #B1A086; font-size: 12px;">Hemos recibido tu mensaje correctamente</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 28px 24px;">
+              <p style="color: #FFFFFF; font-size: 14px; margin-top: 0;">
+                Hola <strong>${data.nombre}</strong>,
+              </p>
+              <p style="color: #D1CEC9; font-size: 13px; line-height: 1.6;">
+                Te confirmamos que tu consulta ha sido enviada exitosamente al equipo de desarrollo y soporte técnico de EQUILIBRA con el número de ticket:
+              </p>
+              <div style="background-color: #1A1A1A; border: 1px solid #B1A086; border-radius: 12px; padding: 14px; text-align: center; margin: 18px 0;">
+                <span style="font-size: 11px; color: #B1A086; text-transform: uppercase; font-weight: bold;">Ticket ID:</span>
+                <div style="font-size: 18px; font-weight: 900; font-family: monospace; color: #FFFFFF; margin-top: 2px;">#${data.ticketId}</div>
+              </div>
+              <p style="color: #D1CEC9; font-size: 13px; line-height: 1.6;">
+                <strong>Asunto:</strong> ${data.asunto}
+              </p>
+              <p style="color: #D1CEC9; font-size: 13px; line-height: 1.6;">
+                El desarrollador revisará tu reporte y te responderá directamente a este correo electrónico (<strong>${data.email}</strong>) en menos de 2 horas.
+              </p>
+              <p style="color: #888888; font-size: 12px; margin-top: 24px;">
+                Si se trata de una urgencia médica o requieres atención presencial inmediata, puedes comunicarte por WhatsApp al +58 424-2724617.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log(`[Developer Email Service] Modo simulado (sin SMTP). Enviando ticket #${data.ticketId} a ${targetDevEmail}`);
+    return { success: true, simulated: true };
+  }
+
+  try {
+    // 1. Send email to Developer
+    const infoDev = await transporter.sendMail({
+      from: config.from,
+      to: targetDevEmail,
+      replyTo: data.email,
+      subject: `🛠️ [SOPORTE DEV #${data.ticketId}] ${data.asunto} - ${data.nombre}`,
+      html: htmlDev,
+    });
+    console.log(`[Developer Email Service] Ticket #${data.ticketId} entregado al desarrollador (${targetDevEmail}):`, infoDev.messageId);
+
+    // 2. Send confirmation to user (non-blocking)
+    if (data.email && data.email.includes('@')) {
+      transporter.sendMail({
+        from: config.from,
+        to: data.email,
+        subject: `✅ Ticket de Soporte Recibido [#${data.ticketId}] • EQUILIBRA`,
+        html: htmlUserConfirm,
+      }).catch((uErr: any) => {
+        console.warn(`[Developer Email Service] Nota enviando confirmación a usuario ${data.email}:`, uErr?.message);
+      });
+    }
+
+    return { success: true, messageId: infoDev.messageId };
+  } catch (err: any) {
+    console.error(`[Developer Email Service Error] Error enviando correo al desarrollador:`, err?.message);
+    return { success: false, error: err?.message };
+  }
+}
+

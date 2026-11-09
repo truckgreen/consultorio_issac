@@ -55,7 +55,8 @@ Si el usuario pregunta por precios, indica que las tarifas son justas y transpar
 Si el usuario pregunta por ubicación, horarios o contacto, proporciona la información oficial de EQUILIBRA.
 Si no reconoces la especialidad, responde con orientación general y sugiere agendar una evaluación presencial para diagnóstico preciso.
 ademas responde con la informacion de especialidades, horarios, ubicacion y contacto de EQUILIBRA.
-entiende las palabras usuales de las personas y da el servicio necesario`;
+entiende las palabras usuales de las personas y da el servicio necesario
+coteja la informacion de la persona y recomienda el servicio necesario dependiendo de lo que tenga además no te quedes con la informacion establecida evalua los sientomas con informacion en linea y recomienda el servicio necesario que esten disponibles en EQUILIBRA`;
 
   const contents: any[] = [];
   if (Array.isArray(history)) {

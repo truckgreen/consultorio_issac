@@ -18,13 +18,29 @@ import { GoogleBusinessCard } from './components/GoogleBusinessCard';
 import { TestimonialsSection } from './components/TestimonialsSection';
 import { InteractiveFaq } from './components/InteractiveFaq';
 import { ContactFooter } from './components/ContactFooter';
-import { PatientPortalModal } from './components/PatientPortalModal';
-import { SpecialistAccessModal } from './components/SpecialistAccessModal';
-import { SecurityPrivacyModal } from './components/SecurityPrivacyModal';
-import { LegalNoticeModal } from './components/LegalNoticeModal';
-import { LaunchAuditModal } from './components/LaunchAuditModal';
-import { DeveloperSupportModal } from './components/DeveloperSupportModal';
-import { AppDownloadModal } from './components/AppDownloadModal';
+
+// Lazy-loaded heavy and secondary modals for optimal initial bundle & load speed
+const PatientPortalModal = React.lazy(() =>
+  import('./components/PatientPortalModal').then((m) => ({ default: m.PatientPortalModal }))
+);
+const SpecialistAccessModal = React.lazy(() =>
+  import('./components/SpecialistAccessModal').then((m) => ({ default: m.SpecialistAccessModal }))
+);
+const SecurityPrivacyModal = React.lazy(() =>
+  import('./components/SecurityPrivacyModal').then((m) => ({ default: m.SecurityPrivacyModal }))
+);
+const LegalNoticeModal = React.lazy(() =>
+  import('./components/LegalNoticeModal').then((m) => ({ default: m.LegalNoticeModal }))
+);
+const LaunchAuditModal = React.lazy(() =>
+  import('./components/LaunchAuditModal').then((m) => ({ default: m.LaunchAuditModal }))
+);
+const DeveloperSupportModal = React.lazy(() =>
+  import('./components/DeveloperSupportModal').then((m) => ({ default: m.DeveloperSupportModal }))
+);
+const AppDownloadModal = React.lazy(() =>
+  import('./components/AppDownloadModal').then((m) => ({ default: m.AppDownloadModal }))
+);
 import { WhatsAppFloatingButton } from './components/WhatsAppFloatingButton';
 import { NavigationTipToast } from './components/NavigationTipToast';
 import { CookieBanner } from './components/CookieBanner';
@@ -317,7 +333,7 @@ export function App() {
         onOpenLegalNotice={() => setIsLegalNoticeOpen(true)}
       />
 
-      {/* 7. Global Modals */}
+      {/* 7. Global Modals (Lazy-loaded for maximum performance) */}
       <BookingModal
         isOpen={isBookingModalOpen}
         onClose={handleCloseBooking}
@@ -333,65 +349,81 @@ export function App() {
         onBookService={(serviceId) => handleOpenBooking(serviceId)}
       />
 
-      <PatientPortalModal
-        isOpen={isPatientPortalOpen}
-        onClose={() => {
-          setIsPatientPortalOpen(false);
-          setPortalInitialCode(undefined);
-        }}
-        initialCode={portalInitialCode}
-        onOpenBooking={handleOpenBooking}
-      />
+      <React.Suspense fallback={null}>
+        {isPatientPortalOpen && (
+          <PatientPortalModal
+            isOpen={isPatientPortalOpen}
+            onClose={() => {
+              setIsPatientPortalOpen(false);
+              setPortalInitialCode(undefined);
+            }}
+            initialCode={portalInitialCode}
+            onOpenBooking={handleOpenBooking}
+          />
+        )}
 
-      <SpecialistAccessModal
-        isOpen={isSpecialistAccessOpen}
-        onClose={() => setIsSpecialistAccessOpen(false)}
-      />
+        {isSpecialistAccessOpen && (
+          <SpecialistAccessModal
+            isOpen={isSpecialistAccessOpen}
+            onClose={() => setIsSpecialistAccessOpen(false)}
+          />
+        )}
 
-      <SecurityPrivacyModal
-        isOpen={isPrivacyModalOpen}
-        onClose={() => setIsPrivacyModalOpen(false)}
-      />
+        {isPrivacyModalOpen && (
+          <SecurityPrivacyModal
+            isOpen={isPrivacyModalOpen}
+            onClose={() => setIsPrivacyModalOpen(false)}
+          />
+        )}
 
-      <LegalNoticeModal
-        isOpen={isLegalNoticeOpen}
-        onClose={() => setIsLegalNoticeOpen(false)}
-      />
+        {isLegalNoticeOpen && (
+          <LegalNoticeModal
+            isOpen={isLegalNoticeOpen}
+            onClose={() => setIsLegalNoticeOpen(false)}
+          />
+        )}
 
-      <LaunchAuditModal
-        isOpen={isLaunchAuditOpen}
-        onClose={() => setIsLaunchAuditOpen(false)}
-        onOpenLegalNotice={() => {
-          setIsLaunchAuditOpen(false);
-          setIsLegalNoticeOpen(true);
-        }}
-        onOpenPrivacyPolicy={() => {
-          setIsLaunchAuditOpen(false);
-          setIsPrivacyModalOpen(true);
-        }}
-        onOpenCookieSettings={() => {
-          setIsLaunchAuditOpen(false);
-          handleTriggerCookieSettings();
-        }}
-        onOpenBooking={() => {
-          setIsLaunchAuditOpen(false);
-          handleOpenBooking();
-        }}
-        onTrigger404={() => {
-          setIsLaunchAuditOpen(false);
-          setIs404Active(true);
-        }}
-      />
+        {isLaunchAuditOpen && (
+          <LaunchAuditModal
+            isOpen={isLaunchAuditOpen}
+            onClose={() => setIsLaunchAuditOpen(false)}
+            onOpenLegalNotice={() => {
+              setIsLaunchAuditOpen(false);
+              setIsLegalNoticeOpen(true);
+            }}
+            onOpenPrivacyPolicy={() => {
+              setIsLaunchAuditOpen(false);
+              setIsPrivacyModalOpen(true);
+            }}
+            onOpenCookieSettings={() => {
+              setIsLaunchAuditOpen(false);
+              handleTriggerCookieSettings();
+            }}
+            onOpenBooking={() => {
+              setIsLaunchAuditOpen(false);
+              handleOpenBooking();
+            }}
+            onTrigger404={() => {
+              setIsLaunchAuditOpen(false);
+              setIs404Active(true);
+            }}
+          />
+        )}
 
-      <DeveloperSupportModal
-        isOpen={isDeveloperSupportOpen}
-        onClose={() => setIsDeveloperSupportOpen(false)}
-      />
+        {isDeveloperSupportOpen && (
+          <DeveloperSupportModal
+            isOpen={isDeveloperSupportOpen}
+            onClose={() => setIsDeveloperSupportOpen(false)}
+          />
+        )}
 
-      <AppDownloadModal
-        isOpen={isAppDownloadOpen}
-        onClose={() => setIsAppDownloadOpen(false)}
-      />
+        {isAppDownloadOpen && (
+          <AppDownloadModal
+            isOpen={isAppDownloadOpen}
+            onClose={() => setIsAppDownloadOpen(false)}
+          />
+        )}
+      </React.Suspense>
     </div>
   );
 }

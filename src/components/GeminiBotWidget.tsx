@@ -260,8 +260,8 @@ Estoy entrenado para orientarte sobre:
 
   return (
     <>
-      {/* Floating Trigger Button (Bottom Right, stacked cleanly above WhatsApp action to prevent collision) */}
-      <div className="fixed bottom-24 right-5 sm:bottom-24 sm:right-6 z-40 flex flex-col items-end gap-2 pointer-events-auto">
+      {/* Floating Trigger Button (Bottom Left, opposite side of WhatsApp) */}
+      <div className="fixed bottom-5 left-5 sm:bottom-6 sm:left-6 z-40 flex flex-col items-start gap-2 pointer-events-auto">
         <AnimatePresence>
           {!isOpen && (
             <motion.div
@@ -313,7 +313,7 @@ Estoy entrenado para orientarte sobre:
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[95vw] sm:w-[420px] max-h-[88vh] h-[640px] flex flex-col bg-[#FAF9F5] dark:bg-[#121212] rounded-3xl shadow-2xl border border-[#B1A086]/30 dark:border-[#B1A086]/20 overflow-hidden font-sans backdrop-blur-xl"
+            className="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-50 w-[95vw] sm:w-[420px] max-h-[88vh] h-[640px] flex flex-col bg-[#FAF9F5] dark:bg-[#121212] rounded-3xl shadow-2xl border border-[#B1A086]/30 dark:border-[#B1A086]/20 overflow-hidden font-sans backdrop-blur-xl"
           >
             {/* Window Header */}
             <div className="px-5 py-4 bg-[#0C0C0C] text-[#F2EFE8] flex items-center justify-between border-b border-[#B1A086]/30 shrink-0">
