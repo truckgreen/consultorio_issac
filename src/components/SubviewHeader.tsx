@@ -52,6 +52,11 @@ const VIEW_METADATA: Record<
     subtitle: 'Estamos en Sabana Grande, Caracas. Teléfono oficial: 0424-2724617. Abiertos de Lunes a Sábado.',
     badge: 'Sede Sabana Grande',
   },
+  admin: {
+    title: 'Panel Clínico & Administración',
+    subtitle: 'Gestión médica, agenda y configuración del sistema.',
+    badge: 'Portal Interno',
+  },
 };
 
 export const SubviewHeader: React.FC<SubviewHeaderProps> = ({
@@ -60,7 +65,7 @@ export const SubviewHeader: React.FC<SubviewHeaderProps> = ({
   onOpenBooking,
   onOpenGeminiBot,
 }) => {
-  if (view === 'inicio') return null;
+  if (view === 'inicio' || view === 'admin') return null;
 
   const info = VIEW_METADATA[view];
 

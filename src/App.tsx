@@ -23,8 +23,8 @@ import { ContactFooter } from './components/ContactFooter';
 const PatientPortalModal = React.lazy(() =>
   import('./components/PatientPortalModal').then((m) => ({ default: m.PatientPortalModal }))
 );
-const SpecialistAccessModal = React.lazy(() =>
-  import('./components/SpecialistAccessModal').then((m) => ({ default: m.SpecialistAccessModal }))
+const AdminPanelView = React.lazy(() =>
+  import('./components/AdminPanelView').then((m) => ({ default: m.AdminPanelView }))
 );
 const SecurityPrivacyModal = React.lazy(() =>
   import('./components/SecurityPrivacyModal').then((m) => ({ default: m.SecurityPrivacyModal }))
@@ -63,9 +63,16 @@ export function App() {
   const [currentView, setCurrentView] = useState<AppView>(() => {
     try {
       const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
-      const validViews: AppView[] = ['inicio', 'servicios', 'triage', 'equipo', 'citas', 'testimonios', 'contacto'];
+      const validViews: AppView[] = ['inicio', 'servicios', 'triage', 'equipo', 'citas', 'testimonios', 'contacto', 'admin'];
+      if (hash === 'especialistas') {
+        return 'admin';
+      }
       if (validViews.includes(hash as AppView)) {
         return hash as AppView;
+      }
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('admin') === '1' || urlParams.get('panel') === 'admin') {
+        return 'admin';
       }
     } catch {}
     return 'inicio';
@@ -76,8 +83,10 @@ export function App() {
     const handleHashChange = () => {
       try {
         const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
-        const validViews: AppView[] = ['inicio', 'servicios', 'triage', 'equipo', 'citas', 'testimonios', 'contacto'];
-        if (validViews.includes(hash as AppView)) {
+        const validViews: AppView[] = ['inicio', 'servicios', 'triage', 'equipo', 'citas', 'testimonios', 'contacto', 'admin'];
+        if (hash === 'especialistas') {
+          setCurrentView('admin');
+        } else if (validViews.includes(hash as AppView)) {
           setCurrentView(hash as AppView);
         } else if (!hash || hash === 'inicio') {
           setCurrentView('inicio');
@@ -134,7 +143,6 @@ export function App() {
   
   const [isPatientPortalOpen, setIsPatientPortalOpen] = useState(false);
   const [portalInitialCode, setPortalInitialCode] = useState<string | undefined>(undefined);
-  const [isSpecialistAccessOpen, setIsSpecialistAccessOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isLegalNoticeOpen, setIsLegalNoticeOpen] = useState(false);
   const [isLaunchAuditOpen, setIsLaunchAuditOpen] = useState(false);
@@ -197,6 +205,56 @@ export function App() {
     );
   }
 
+  if (currentView === 'admin') {
+    return (
+      <>
+        <React.Suspense
+          fallback={
+            <div className="min-h-screen bg-[#F2EFE8] dark:bg-[#0C0C0C] flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-[#B1A086] border-t-transparent animate-spin" />
+                <p className="text-xs font-semibold uppercase tracking-widest text-[#8B7A62]">
+                  Cargando Panel Clínico...
+                </p>
+              </div>
+            </div>
+          }
+        >
+          <AdminPanelView
+            onBackToSite={() => handleNavigateView('inicio')}
+            darkMode={darkMode}
+            onToggleDarkMode={toggleDarkMode}
+            onOpenBooking={handleOpenBooking}
+          />
+        </React.Suspense>
+
+        <BookingModal
+          isOpen={isBookingModalOpen}
+          onClose={handleCloseBooking}
+          initialServiceId={selectedServiceIdForBooking}
+          onOpenPatientPortal={handleOpenPatientPortal}
+          onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
+          onOpenLegalNotice={() => setIsLegalNoticeOpen(true)}
+        />
+
+        <React.Suspense fallback={null}>
+          {isPrivacyModalOpen && (
+            <SecurityPrivacyModal
+              isOpen={isPrivacyModalOpen}
+              onClose={() => setIsPrivacyModalOpen(false)}
+            />
+          )}
+          {isLegalNoticeOpen && (
+            <LegalNoticeModal
+              isOpen={isLegalNoticeOpen}
+              onClose={() => setIsLegalNoticeOpen(false)}
+            />
+          )}
+        </React.Suspense>
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F2EFE8] dark:bg-[#0C0C0C] text-[#0C0C0C] dark:text-[#F2EFE8] font-sans transition-colors selection:bg-[#B1A086] selection:text-slate-950 relative">
       {/* Top Reading Progress Bar */}
@@ -221,7 +279,7 @@ export function App() {
         onSelectView={handleNavigateView}
         onOpenGeminiBot={() => setIsGeminiBotOpen(true)}
         onOpenPatientPortal={() => handleOpenPatientPortal()}
-        onOpenSpecialistAccess={() => setIsSpecialistAccessOpen(true)}
+        onOpenSpecialistAccess={() => handleNavigateView('admin')}
         onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
         onOpenDeveloperSupport={() => setIsDeveloperSupportOpen(true)}
       />
@@ -305,7 +363,7 @@ export function App() {
       <ContactFooter
         onOpenBooking={() => handleOpenBooking()}
         onOpenPatientPortal={() => handleOpenPatientPortal()}
-        onOpenSpecialistAccess={() => setIsSpecialistAccessOpen(true)}
+        onOpenSpecialistAccess={() => handleNavigateView('admin')}
         onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
         onOpenLegalNotice={() => setIsLegalNoticeOpen(true)}
         onOpenCookieSettings={handleTriggerCookieSettings}
@@ -359,13 +417,6 @@ export function App() {
             }}
             initialCode={portalInitialCode}
             onOpenBooking={handleOpenBooking}
-          />
-        )}
-
-        {isSpecialistAccessOpen && (
-          <SpecialistAccessModal
-            isOpen={isSpecialistAccessOpen}
-            onClose={() => setIsSpecialistAccessOpen(false)}
           />
         )}
 

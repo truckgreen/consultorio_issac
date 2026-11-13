@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { CLINIC_INFO } from '../data/featuresData';
 
-export type AppView = 'inicio' | 'servicios' | 'triage' | 'equipo' | 'citas' | 'testimonios' | 'contacto';
+export type AppView = 'inicio' | 'servicios' | 'triage' | 'equipo' | 'citas' | 'testimonios' | 'contacto' | 'admin';
 
 interface NavbarProps {
   darkMode: boolean;
